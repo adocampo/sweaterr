@@ -34,6 +34,7 @@
     "profile": "Perfil",
     "language": "Idioma",
     "theme": "Tema",
+    "system": "Sistema",
     "light": "Claro",
     "dark": "Oscuro",
     "logout": "Cerrar sesión"
@@ -74,6 +75,14 @@
   },
   "config": {
     "title": "Configuración",
+    "users": "Usuarios",
+    "addUser": "Añadir usuario",
+    "editUser": "Editar usuario",
+    "username": "Usuario",
+    "role": "Rol",
+    "admin": "Administrador",
+    "user": "Usuario",
+    "password": "Contraseña",
     "jdownloader": "JDownloader",
     "ai": "Inteligencia Artificial",
     "arr": "Servicios *arr",
