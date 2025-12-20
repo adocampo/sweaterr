@@ -8,19 +8,24 @@ import { loginUser } from '@/lib/services/auth';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { usernameOrEmail, password } = body;
+    const { usernameOrEmail, username, email, password } = body;
 
-    if (!usernameOrEmail || !password) {
+    const identifier = usernameOrEmail || username || email;
+
+    if (!identifier || !password) {
       return NextResponse.json(
         { success: false, message: 'Username/Email and password are required' },
         { status: 400 }
       );
     }
 
-    const result = await loginUser(usernameOrEmail, password);
+    // Debug: minimal logging (avoid leaking secrets)
+    console.log('[Login] Attempt', { identifierType: usernameOrEmail ? 'usernameOrEmail' : (username ? 'username' : 'email') });
+
+    const result = await loginUser(identifier, password);
 
     if (!result.success) {
-      return NextResponse.json(result, { status: 401 });
+      return NextResponse.json({ success: false, message: result.message || 'Invalid credentials' }, { status: 401 });
     }
 
     // Set auth cookie

@@ -10,6 +10,7 @@ export async function middleware(request: NextRequest) {
     '/setup',
     '/api/auth/setup',
     '/api/auth/login',
+    '/api/auth/reset-password', // Emergency password reset
     '/api/arr', // All *arr APIs are public
   ];
 
