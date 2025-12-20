@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Configuration for forums
+model Forum {
+  id          String   @id @default(cuid())
+  name        String   // Display name (e.g., "DescargasDD")
+  baseUrl     String   // Base URL of the forum
+  searchPath  String   // Search path (e.g., "/search.php")
+  searchMode  String?  // native | google_site | google_cse
+  cseId       String?  // Google CSE ID (cx) if using google_cse
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Configuration for parsing
+  thankButtonSelector    String? // CSS selector for thank button
+  linksContainerSelector String? // CSS selector for links container
+  postTitleSelector      String? // CSS selector for post title
+  
+  // Login configuration
+  loginPath              String? // Login form path (e.g., "/login.php")
+  usernameField          String? // Username input name
+  passwordField          String? // Password input name
+  loginFormSelector      String? // CSS selector for login form
+  
+  // Persistent cookies from FlareSolverr/Cloudflare (JSON array)
+  persistentCookies      String?   // JSON: [{ name, value, domain, path, expires }]
+  cookiesUpdatedAt       DateTime? // When cookies were last refreshed
+  
+  credentials ForumCredential?
+  
+  @@map("forums")
+}
+
+// Credentials for forum authentication
+model ForumCredential {
+  id       String @id @default(cuid())
+  forumId  String @unique
+  username String
+  password String // In production, this should be encrypted
+  forum    Forum  @relation(fields: [forumId], references: [id], onDelete: Cascade)
+  
+  @@map("forum_credentials")
+}
+
+// JDownloader configuration
+model JDownloaderConfig {
+  id        String   @id @default(cuid())
+  
+  // Connection mode: "local" (IP+Port) or "cloud" (MyJDownloader)
+  mode      String   @default("local") // local | cloud
+  
+  // Local mode fields (IP/Hostname + Port)
+  connectionName String? // Display name for local connection (e.g. "Mi JD")
+  localHost String?  // IP or hostname (e.g. 192.168.1.100)
+  localPort Int?     // Port (e.g. 3128)
+  
+  // Cloud mode fields (MyJDownloader credentials)
+  email     String?  // My JDownloader email
+  password  String?  // My JDownloader password (encrypted in production)
+  deviceName String?  // My JDownloader device name
+  
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("jdownloader_configs")
+}
+
+// AI Provider configuration
+model AIConfig {
+  id        String   @id @default(cuid())
+  provider  String   // openai, deepseek, perplexity, ollama, etc.
+  apiKey    String?  // API key (encrypted in production)
+  baseUrl   String?  // Base URL for custom providers (like Ollama)
+  model     String?  // Model name
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("ai_configs")
+}
+
+// Search history
+model SearchHistory {
+  id         String   @id @default(cuid())
+  query      String   // Original search query
+  forumName  String   // Which forum was used
+  resultCount Int     // Number of results found
+  success    Boolean  // Whether search was successful
+  createdAt  DateTime @default(now())
+  
+  @@map("search_history")
+}
+
+// Download tracking
+model Download {
+  id           String   @id @default(cuid())
+  title        String   // Download title
+  sourceUrl    String   // Original forum post URL
+  forumName    String   // Source forum
+  jDownloaderId String? // JDownloader download ID
+  status       String   // pending, downloading, completed, failed
+  progress     Float    @default(0) // Progress percentage
+  size         String?  // File size
+  
+  // ARR integration fields
+  arrType      String?  // sonarr, radarr, lidarr
+  grabId       String?  // Grab ID from ARR request
+  category     String?  // Category/tag from ARR
+  releaseTitle String?  // Release title from ARR
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  notifications ArrNotification[]
+  
+  @@map("downloads")
+}
+
+// Sonarr/Radarr notification tracking
+model ArrNotification {
+  id         String   @id @default(cuid())
+  arrType    String   // sonarr, radarr, lidarr
+  arrUrl     String   // Sonarr/Radarr URL
+  apiKey     String   // API key
+  downloadId String   // Associated download ID
+  notified   Boolean  @default(false)
+  
+  // ARR context
+  category   String?  // Category from ARR
+  tag        String?  // Tag from ARR
+  
+  createdAt  DateTime @default(now())
+  
+  download   Download @relation(fields: [downloadId], references: [id], onDelete: Cascade)
+  
+  @@map("arr_notifications")
+}
+
+// ARR Service configuration (per-service API keys)
+model ArrService {
+  id        String   @id @default(cuid())
+  type      String   // sonarr, radarr, lidarr, readarr
+  name      String   // Display name
+  apiKey    String   @unique // API key for this indexer/client
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("arr_services")
+}
