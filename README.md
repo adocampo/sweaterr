@@ -1,4 +1,4 @@
-# Forum Downloader
+# Blazarr
 
 Aplicación web para integrar foros de descarga directa con Sonarr/Radarr/Lidarr utilizando JDownloader como backend y IA para el mapeo de nombres.
 
@@ -28,7 +28,7 @@ Aplicación web para integrar foros de descarga directa con Sonarr/Radarr/Lidarr
 
    ```bash
    git clone <repository-url>
-   cd forum-downloader
+   cd blazarr
    ```
 
 2. **Configurar variables de entorno**:
@@ -266,7 +266,7 @@ Para ver logs de la aplicación:
 
 ```bash
 # Docker
-docker-compose logs -f forum-downloader
+docker-compose logs -f blazarr
 
 # Desarrollo local
 npm run dev  # Logs en consola

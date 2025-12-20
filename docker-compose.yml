@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  forum-downloader:
+  blazarr:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: forum-downloader
+    container_name: blazarr
     ports:
       - "3000:3000"
     environment:
@@ -13,7 +13,7 @@ services:
       - DATABASE_URL=file:/app/data/app.db
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-this-secret-key-in-production}
     volumes:
-      - forum-downloader-data:/app/data
+      - blazarr-data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
@@ -37,5 +37,5 @@ services:
   #   restart: unless-stopped
 
 volumes:
-  forum-downloader-data:
+  blazarr-data:
     driver: local

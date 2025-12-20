@@ -1,0 +1,85 @@
+{
+  "common": {
+    "appName": "Blazarr",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Añadir",
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "logout": "Cerrar sesión",
+    "settings": "Configuración"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "setup": "Configuración inicial",
+    "setupTitle": "Bienvenido a Blazarr",
+    "setupDescription": "Crea tu cuenta de administrador para comenzar",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "invalidEmail": "Correo electrónico inválido",
+    "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+    "passwordsDoNotMatch": "Las contraseñas no coinciden",
+    "loginFailed": "Error al iniciar sesión",
+    "setupFailed": "Error en la configuración",
+    "setupSuccess": "¡Configuración completada!",
+    "invalidCredentials": "Correo electrónico o contraseña incorrectos"
+  },
+  "userMenu": {
+    "profile": "Perfil",
+    "language": "Idioma",
+    "theme": "Tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "logout": "Cerrar sesión"
+  },
+  "dashboard": {
+    "title": "Panel de control",
+    "overview": "Resumen",
+    "forums": "Foros",
+    "downloads": "Descargas",
+    "configuration": "Configuración",
+    "testing": "Testing"
+  },
+  "forums": {
+    "title": "Foros",
+    "addForum": "Añadir foro",
+    "editForum": "Editar foro",
+    "deleteForum": "Eliminar foro",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar este foro?",
+    "forumName": "Nombre del foro",
+    "baseUrl": "URL base",
+    "searchMode": "Modo de búsqueda",
+    "credentials": "Credenciales",
+    "username": "Usuario",
+    "testConnection": "Probar conexión",
+    "connectionSuccessful": "Conexión exitosa",
+    "connectionFailed": "Conexión fallida"
+  },
+  "downloads": {
+    "title": "Descargas",
+    "search": "Buscar contenido",
+    "status": "Estado",
+    "progress": "Progreso",
+    "speed": "Velocidad",
+    "eta": "Tiempo estimado",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "cancel": "Cancelar"
+  },
+  "config": {
+    "title": "Configuración",
+    "jdownloader": "JDownloader",
+    "ai": "Inteligencia Artificial",
+    "arr": "Servicios *arr",
+    "addInstance": "Añadir instancia",
+    "testConnection": "Probar conexión",
+    "enabled": "Habilitado",
+    "disabled": "Deshabilitado"
+  }
+}

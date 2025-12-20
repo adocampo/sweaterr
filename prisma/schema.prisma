@@ -13,6 +13,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User and authentication
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordHash      String   // bcrypt hashed password
+  role              String   @default("user") // admin | user
+  
+  // User preferences (stored per user)
+  language          String   @default("es") // es | en
+  theme             String   @default("dark") // light | dark
+  
+  isFirstSetupDone  Boolean  @default(false) // Mark when initial setup is complete
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("users")
+}
+
 // Configuration for forums
 model Forum {
   id          String   @id @default(cuid())
