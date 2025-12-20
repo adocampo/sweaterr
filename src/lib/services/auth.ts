@@ -1,6 +1,10 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
+
+// Local Prisma client to avoid undefined delegates in hot-reload scenarios
+const prisma = new PrismaClient();
+const userDelegate = () => (prisma as any).user as any;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRATION = '7d';
@@ -53,7 +57,7 @@ export function verifyToken(token: string): DecodedToken | null {
  * Check if setup is needed (no users exist)
  */
 export async function isSetupNeeded(): Promise<boolean> {
-  const userCount = await db.user.count();
+  const userCount = await userDelegate().count();
   return userCount === 0;
 }
 
@@ -67,7 +71,7 @@ export async function setupFirstAdmin(
 ): Promise<{ success: boolean; message: string; user?: any }> {
   try {
     // Check if any user exists
-    const existingUsers = await db.user.count();
+    const existingUsers = await userDelegate().count();
     if (existingUsers > 0) {
       return {
         success: false,
@@ -103,7 +107,7 @@ export async function setupFirstAdmin(
     const passwordHash = await hashPassword(password);
 
     // Create admin user
-    const user = await db.user.create({
+    const user = await userDelegate().create({
       data: {
         username,
         email: email || `${username}@blazarr.local`,
@@ -143,7 +147,7 @@ export async function loginUser(
 ): Promise<{ success: boolean; message: string; user?: any; token?: string }> {
   try {
     // Find user by username or email
-    const user = await db.user.findFirst({
+    const user = await userDelegate().findFirst({
       where: {
         OR: [
           { username: usernameOrEmail },
@@ -202,7 +206,7 @@ export async function loginUser(
  */
 export async function getUserById(userId: string): Promise<any | null> {
   try {
-    const user = await db.user.findUnique({
+    const user = await userDelegate().findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -228,7 +232,7 @@ export async function updateUserPreferences(
   data: { language?: string; theme?: string }
 ): Promise<{ success: boolean; message: string; user?: any }> {
   try {
-    const user = await db.user.update({
+    const user = await userDelegate().update({
       where: { id: userId },
       data,
       select: {
