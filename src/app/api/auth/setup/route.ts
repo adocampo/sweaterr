@@ -28,12 +28,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, confirmPassword } = body;
+    const { username, email, password, confirmPassword } = body;
 
     // Validate inputs
-    if (!email || !password) {
+    if (!username || !password) {
       return NextResponse.json(
-        { success: false, message: 'Email and password are required' },
+        { success: false, message: 'Username and password are required' },
         { status: 400 }
       );
     }
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Perform setup
-    const result = await setupFirstAdmin(email, password);
+    const result = await setupFirstAdmin(username, email || '', password);
 
     if (!result.success) {
       return NextResponse.json(result, { status: 400 });

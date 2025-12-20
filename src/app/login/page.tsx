@@ -14,7 +14,7 @@ export default function LoginPage() {
   const { t } = useI18n('es');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [email, setEmail] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -26,7 +26,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ usernameOrEmail, password }),
       });
 
       const data = await res.json();
@@ -54,7 +54,7 @@ export default function LoginPage() {
             Blazarr
           </div>
           <CardTitle>{t('auth.login')}</CardTitle>
-          <CardDescription>{t('auth.setupDescription')}</CardDescription>
+          <CardDescription>Ingresa tus credenciales</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -66,12 +66,12 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t('auth.email')}</label>
+              <label className="text-sm font-medium">Username o Email</label>
               <Input
-                type="email"
-                placeholder="admin@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                placeholder="admin o admin@blazarr.local"
+                value={usernameOrEmail}
+                onChange={(e) => setUsernameOrEmail(e.target.value)}
                 disabled={isLoading}
                 required
               />

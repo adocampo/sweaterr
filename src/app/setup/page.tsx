@@ -15,6 +15,7 @@ export default function SetupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -26,14 +27,20 @@ export default function SetupPage() {
     setIsLoading(true);
 
     // Client-side validation
-    if (!email || !password) {
-      setError('Email and password are required');
+    if (!username) {
+      setError('Username is required');
       setIsLoading(false);
       return;
     }
 
-    if (!email.includes('@')) {
-      setError(t('auth.invalidEmail'));
+    if (username.length < 3) {
+      setError('Username must be at least 3 characters long');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!password) {
+      setError('Password is required');
       setIsLoading(false);
       return;
     }
@@ -54,7 +61,7 @@ export default function SetupPage() {
       const res = await fetch('/api/auth/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, confirmPassword }),
+        body: JSON.stringify({ username, email, password, confirmPassword }),
       });
 
       const data = await res.json();
@@ -105,14 +112,25 @@ export default function SetupPage() {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t('auth.email')}</label>
+              <label className="text-sm font-medium">Username</label>
+              <Input
+                type="text"
+                placeholder="admin"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={isLoading || success}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('auth.email')} (optional)</label>
               <Input
                 type="email"
                 placeholder="admin@blazarr.local"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading || success}
-                required
               />
             </div>
 
@@ -154,7 +172,7 @@ export default function SetupPage() {
                   {t('common.loading')}
                 </>
               ) : (
-                t('auth.setup')
+                'Create Admin Account'
               )}
             </Button>
           </form>

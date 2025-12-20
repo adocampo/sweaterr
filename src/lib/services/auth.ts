@@ -61,6 +61,7 @@ export async function isSetupNeeded(): Promise<boolean> {
  * Create the first admin user during setup
  */
 export async function setupFirstAdmin(
+  username: string,
   email: string,
   password: string
 ): Promise<{ success: boolean; message: string; user?: any }> {
@@ -74,8 +75,16 @@ export async function setupFirstAdmin(
       };
     }
 
-    // Validate email
-    if (!email || !email.includes('@')) {
+    // Validate username
+    if (!username || username.length < 3) {
+      return {
+        success: false,
+        message: 'Username must be at least 3 characters long',
+      };
+    }
+
+    // Validate email (optional but if provided, must be valid)
+    if (email && !email.includes('@')) {
       return {
         success: false,
         message: 'Invalid email address',
@@ -96,7 +105,8 @@ export async function setupFirstAdmin(
     // Create admin user
     const user = await db.user.create({
       data: {
-        email,
+        username,
+        email: email || `${username}@blazarr.local`,
         passwordHash,
         role: 'admin',
         language: 'es',
@@ -110,6 +120,7 @@ export async function setupFirstAdmin(
       message: 'Admin user created successfully',
       user: {
         id: user.id,
+        username: user.username,
         email: user.email,
         role: user.role,
       },
@@ -127,19 +138,24 @@ export async function setupFirstAdmin(
  * Login user and return token
  */
 export async function loginUser(
-  email: string,
+  usernameOrEmail: string,
   password: string
 ): Promise<{ success: boolean; message: string; user?: any; token?: string }> {
   try {
-    // Find user
-    const user = await db.user.findUnique({
-      where: { email },
+    // Find user by username or email
+    const user = await db.user.findFirst({
+      where: {
+        OR: [
+          { username: usernameOrEmail },
+          { email: usernameOrEmail },
+        ],
+      },
     });
 
     if (!user) {
       return {
         success: false,
-        message: 'Invalid email or password',
+        message: 'Invalid username/email or password',
       };
     }
 
@@ -148,7 +164,7 @@ export async function loginUser(
     if (!isPasswordValid) {
       return {
         success: false,
-        message: 'Invalid email or password',
+        message: 'Invalid username/email or password',
       };
     }
 
@@ -164,6 +180,7 @@ export async function loginUser(
       message: 'Login successful',
       user: {
         id: user.id,
+        username: user.username,
         email: user.email,
         role: user.role,
         language: user.language,

@@ -8,16 +8,16 @@ import { loginUser } from '@/lib/services/auth';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const { usernameOrEmail, password } = body;
 
-    if (!email || !password) {
+    if (!usernameOrEmail || !password) {
       return NextResponse.json(
-        { success: false, message: 'Email and password are required' },
+        { success: false, message: 'Username/Email and password are required' },
         { status: 400 }
       );
     }
 
-    const result = await loginUser(email, password);
+    const result = await loginUser(usernameOrEmail, password);
 
     if (!result.success) {
       return NextResponse.json(result, { status: 401 });
