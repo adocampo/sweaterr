@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  forum-downloader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: forum-downloader
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/app.db
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-this-secret-key-in-production}
+    volumes:
+      - forum-downloader-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a reverse proxy (nginx or traefik)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: forum-downloader-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - forum-downloader
+  #   restart: unless-stopped
+
+volumes:
+  forum-downloader-data:
+    driver: local
