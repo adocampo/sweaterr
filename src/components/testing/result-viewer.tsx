@@ -46,7 +46,7 @@ export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: 
         setExtractedLinks([]);
 
         try {
-            const response = await fetch('/api/testing/extract-links', {
+            const response = await fetch('/api/extract-links', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -58,7 +58,23 @@ export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: 
             const data = await response.json();
 
             if (data.success) {
-                setExtractedLinks(data.links);
+                // Convert simple URLs to ExtractedLink format
+                const links: ExtractedLink[] = (data.links || []).map((url: string) => {
+                    // Extract hosting from URL
+                    let hosting = 'unknown';
+                    try {
+                        const urlObj = new URL(url);
+                        hosting = urlObj.hostname.replace('www.', '');
+                    } catch {
+                        // ignore parsing errors
+                    }
+                    return {
+                        url,
+                        hosting,
+                        filename: url.split('/').pop()
+                    };
+                });
+                setExtractedLinks(links);
                 onExtractLinks?.(data.links, postUrl);
             } else {
                 console.error('Error extracting links:', data.error);

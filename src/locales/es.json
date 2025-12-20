@@ -60,7 +60,13 @@
     "username": "Usuario",
     "testConnection": "Probar conexión",
     "connectionSuccessful": "Conexión exitosa",
-    "connectionFailed": "Conexión fallida"
+    "connectionFailed": "Conexión fallida",
+    "extractLinks": "Extraer enlaces",
+    "extracting": "Extrayendo...",
+    "linksExtracted": "Enlaces extraídos",
+    "extractionFailed": "Error al extraer enlaces",
+    "noLinksFound": "No se encontraron enlaces",
+    "sendToJDownloader": "Enviar a JDownloader"
   },
   "downloads": {
     "title": "Descargas",

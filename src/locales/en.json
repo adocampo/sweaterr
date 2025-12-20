@@ -60,7 +60,13 @@
     "username": "Username",
     "testConnection": "Test Connection",
     "connectionSuccessful": "Connection successful",
-    "connectionFailed": "Connection failed"
+    "connectionFailed": "Connection failed",
+    "extractLinks": "Extract Links",
+    "extracting": "Extracting...",
+    "linksExtracted": "Links Extracted",
+    "extractionFailed": "Extraction Failed",
+    "noLinksFound": "No Links Found",
+    "sendToJDownloader": "Send to JDownloader"
   },
   "downloads": {
     "title": "Downloads",
