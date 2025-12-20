@@ -16,7 +16,8 @@ datasource db {
 // User and authentication
 model User {
   id                String   @id @default(cuid())
-  email             String   @unique
+  username          String   @unique // Display username
+  email             String   @unique // Email (optional at signup but unique)
   passwordHash      String   // bcrypt hashed password
   role              String   @default("user") // admin | user
   
