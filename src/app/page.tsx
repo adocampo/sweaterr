@@ -18,14 +18,11 @@ import {
   AlertCircle,
   Plus,
   Activity,
-  Sun,
-  Moon,
-  Monitor,
   Trash2,
   ToggleLeft,
-  ToggleRight,
-  Edit
+  ToggleRight
 } from 'lucide-react';
+import Image from 'next/image';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,9 +44,13 @@ import { JDownloaderTester } from '@/components/testing/jdownloader-tester';
 import { DownloadsManager } from '@/components/downloads/downloads-manager';
 import { useForums, useJDownloaderConfig, useAIConfig, useDownloads, useJDownloaders, useAIModels } from '@/hooks/use-api';
 import { useTheme } from '@/components/theme-provider';
+import { UserMenu } from '@/components/user-menu';
+import { UserManagement } from '@/components/config/user-management';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [loadingUser, setLoadingUser] = useState<boolean>(true);
 
   // Testing state
   const [testingResults, setTestingResults] = useState<any[]>([]);
@@ -65,10 +66,9 @@ export default function Home() {
   const { instances: jdownloaders, loading: jdLoading, createInstance: createJDownloader, deleteInstance: deleteJDownloader, toggleInstance: toggleJDownloader, refetch: refetchJDownloaders } = useJDownloaders();
   const { models: aiModels, loading: aiLoading, createModel: createAIModel, deleteModel: deleteAIModel, toggleModel: toggleAIModel, refetch: refetchAIModels } = useAIModels();
   const { downloads, loading: downloadsLoading } = useDownloads();
-  const { theme, resolvedTheme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
-  const themeIcon = theme === 'system' ? <Monitor className="h-4 w-4" /> : resolvedTheme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />;
-  const themeLabel = theme === 'system' ? 'Sistema' : resolvedTheme === 'dark' ? 'Oscuro' : 'Claro';
+  const isAdmin = currentUser?.role === 'admin';
 
   const getStatusIcon = (connected: boolean) => {
     return connected ? (
@@ -88,6 +88,34 @@ export default function Home() {
     return variants[status] || 'outline';
   };
 
+  // Fetch current user for user menu
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (mounted && data?.success) {
+          setCurrentUser(data.user);
+          if (data.user?.theme) {
+            setTheme(data.user.theme as 'light' | 'dark' | 'system');
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load current user', err);
+      } finally {
+        if (mounted) setLoadingUser(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!loadingUser && !isAdmin && activeTab === 'config') {
+      setActiveTab('overview');
+    }
+  }, [loadingUser, isAdmin, activeTab]);
+
   // Calculate statistics
   const stats = {
     forums: {
@@ -98,9 +126,9 @@ export default function Home() {
     jdownloader: {
       connected: jdownloaders.length > 0,
       deviceName:
-        jdownloaders[0]?.mode === 'local'
-          ? `${jdownloaders[0]?.localHost ?? ''}:${jdownloaders[0]?.localPort ?? ''}`
-          : jdownloaders[0]?.deviceName || 'No configurado',
+        (jdownloaders as any[])[0]?.mode === 'local'
+          ? `${(jdownloaders as any[])[0]?.localHost ?? ''}:${(jdownloaders as any[])[0]?.localPort ?? ''}`
+          : (jdownloaders as any[])[0]?.deviceName || 'No configurado',
       downloadsActive: downloads.filter(d => d.status === 'downloading').length,
       downloadsTotal: downloads.length
     },
@@ -115,31 +143,33 @@ export default function Home() {
     <div className="container mx-auto p-6 max-w-7xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Blazarr</h1>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <Image src="/blazarr.png" alt="Blazarr" width={160} height={40} priority className="h-10 w-auto" />
+            <span className="sr-only">Blazarr</span>
+          </div>
           <p className="text-muted-foreground">
             Integración con foros de descarga directa para Sonarr/Radarr/Lidarr
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={toggleTheme} className="flex items-center gap-2">
-            {themeIcon}
-            <span className="text-xs">Tema: {themeLabel}</span>
-          </Button>
           <Badge variant="outline" className="flex items-center gap-1">
             <Activity className="h-3 w-3" />
             Activo
           </Badge>
+          {!loadingUser && currentUser && (
+            <UserMenu user={currentUser} onThemeChange={(t) => setTheme(t)} currentTheme={theme} />
+          )}
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
           <TabsTrigger value="overview">Resumen</TabsTrigger>
           <TabsTrigger value="forums">Foros</TabsTrigger>
           <TabsTrigger value="testing">Testing</TabsTrigger>
           <TabsTrigger value="downloads">Descargas</TabsTrigger>
-          <TabsTrigger value="config">Configuración</TabsTrigger>
+          {isAdmin && <TabsTrigger value="config">Configuración</TabsTrigger>}
         </TabsList>
 
         {/* Overview Tab */}
@@ -438,285 +468,302 @@ export default function Home() {
         </TabsContent>
 
         {/* Configuration Tab */}
-        <TabsContent value="config" className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Configuración</h2>
-            <p className="text-muted-foreground">
-              Configura los servicios y preferencias de la aplicación
-            </p>
-          </div>
+        {isAdmin && (
+          <TabsContent value="config" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Configuración</h2>
+              <p className="text-muted-foreground">
+                Configura los servicios y preferencias de la aplicación
+              </p>
+            </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Download className="h-5 w-5" />
-                  JDownloader
-                </CardTitle>
-                <CardDescription>
-                  Configura JDownloader para gestionar descargas automáticas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">JDownloader</h3>
-                    <JDownloaderConfig
-                      config={undefined}
-                      onConfigSave={async (values) => {
-                        await createJDownloader(values);
-                      }}
-                      onTestConnection={async (values) => {
-                        const res = await fetch('/api/config/jdownloader/test', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(values),
-                        });
-                        const data = await res.json();
-                        return !!data.success;
-                      }}
-                      isAdd={true}
-                    />
-                  </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Gestión de usuarios
+                  </CardTitle>
+                  <CardDescription>
+                    Crear, editar roles y eliminar usuarios
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <UserManagement language={currentUser?.language || 'es'} />
+                </CardContent>
+              </Card>
 
-                  <div className="space-y-2">
-                    {jdLoading ? (
-                      <p className="text-sm text-muted-foreground">Cargando...</p>
-                    ) : jdownloaders.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No hay instancias de JDownloader configuradas.</p>
-                    ) : (
-                      jdownloaders.map((jd) => (
-                        <div key={jd.id} className="flex items-center justify-between border rounded-md p-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">
-                                {jd.mode === 'local' ? (jd.connectionName || `${jd.localHost}:${jd.localPort}`) : jd.deviceName}
-                              </span>
-                              <Badge variant={jd.mode === 'local' ? 'secondary' : 'outline'}>
-                                {jd.mode === 'local' ? 'Local' : 'Cloud'}
-                              </Badge>
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {jd.mode === 'local' ? (jd.connectionName ? `${jd.localHost}:${jd.localPort}` : '') : jd.email}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={async () => {
-                                await toggleJDownloader(jd.id, !jd.enabled);
-                                await refetchJDownloaders();
-                              }}
-                            >
-                              {jd.enabled ? (
-                                <ToggleRight className="h-4 w-4" />
-                              ) : (
-                                <ToggleLeft className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <JDownloaderConfig
-                              config={jd}
-                              onConfigSave={async (values) => {
-                                await fetch(`/api/config/jdownloader?id=${jd.id}`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify(values),
-                                });
-                                await refetchJDownloaders();
-                                setEditingJDownloader(null);
-                              }}
-                              onTestConnection={async (values) => {
-                                const res = await fetch('/api/config/jdownloader/test', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify(values),
-                                });
-                                const data = await res.json();
-                                return !!data.success;
-                              }}
-                              isEdit={true}
-                              isOpen={editingJDownloader === jd.id}
-                              onOpenChange={(open) => setEditingJDownloader(open ? jd.id : null)}
-                            />
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="icon">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Eliminar JDownloader?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Se eliminará permanentemente <strong>{jd.deviceName}</strong>.
-                                    Esta acción no se puede deshacer.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={async () => {
-                                      try {
-                                        await deleteJDownloader(jd.id);
-                                      } catch (error) {
-                                        console.error('Error deleting JDownloader:', error);
-                                      }
-                                    }}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Eliminar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="h-5 w-5" />
+                    JDownloader
+                  </CardTitle>
+                  <CardDescription>
+                    Configura JDownloader para gestionar descargas automáticas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">JDownloader</h3>
+                      <JDownloaderConfig
+                        config={undefined}
+                        onConfigSave={async (values) => {
+                          await createJDownloader(values);
+                        }}
+                        onTestConnection={async (values) => {
+                          const res = await fetch('/api/config/jdownloader/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(values),
+                          });
+                          const data = await res.json();
+                          return !!data.success;
+                        }}
+                        isAdd={true}
+                      />
+                    </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Cpu className="h-5 w-5" />
-                  Inteligencia Artificial
-                </CardTitle>
-                <CardDescription>
-                  Configura el proveedor de IA para el mapeo de nombres
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">Modelos de IA</h3>
-                    <AIConfig
-                      config={undefined}
-                      onConfigSave={async (values) => {
-                        await createAIModel(values);
-                      }}
-                      onTestConnection={async (values) => {
-                        const res = await fetch('/api/config/ai/test', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(values),
-                        });
-                        const data = await res.json();
-                        return !!data.success;
-                      }}
-                      isAdd={true}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    {aiLoading ? (
-                      <p className="text-sm text-muted-foreground">Cargando...</p>
-                    ) : aiModels.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No hay modelos de IA configurados.</p>
-                    ) : (
-                      aiModels.map((ai) => (
-                        <div key={ai.id} className="flex items-center justify-between border rounded-md p-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary">{ai.provider}</Badge>
-                              <span className="font-medium text-sm">{ai.model || 'Modelo por defecto'}</span>
-                            </div>
-                            {ai.baseUrl && (
-                              <div className="text-xs text-muted-foreground truncate max-w-xs">
-                                {ai.baseUrl}
+                    <div className="space-y-2">
+                      {jdLoading ? (
+                        <p className="text-sm text-muted-foreground">Cargando...</p>
+                      ) : jdownloaders.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No hay instancias de JDownloader configuradas.</p>
+                      ) : (
+                        (jdownloaders as any[]).map((jd) => (
+                          <div key={jd.id} className="flex items-center justify-between border rounded-md p-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">
+                                  {jd.mode === 'local' ? (jd.connectionName || `${jd.localHost}:${jd.localPort}`) : jd.deviceName}
+                                </span>
+                                <Badge variant={jd.mode === 'local' ? 'secondary' : 'outline'}>
+                                  {jd.mode === 'local' ? 'Local' : 'Cloud'}
+                                </Badge>
                               </div>
-                            )}
+                              <div className="text-xs text-muted-foreground">
+                                {jd.mode === 'local' ? (jd.connectionName ? `${jd.localHost}:${jd.localPort}` : '') : jd.email}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={async () => {
+                                  await toggleJDownloader(jd.id, !jd.enabled);
+                                  await refetchJDownloaders();
+                                }}
+                              >
+                                {jd.enabled ? (
+                                  <ToggleRight className="h-4 w-4" />
+                                ) : (
+                                  <ToggleLeft className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <JDownloaderConfig
+                                config={jd}
+                                onConfigSave={async (values) => {
+                                  await fetch(`/api/config/jdownloader?id=${jd.id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(values),
+                                  });
+                                  await refetchJDownloaders();
+                                  setEditingJDownloader(null);
+                                }}
+                                onTestConnection={async (values) => {
+                                  const res = await fetch('/api/config/jdownloader/test', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(values),
+                                  });
+                                  const data = await res.json();
+                                  return !!data.success;
+                                }}
+                                isEdit={true}
+                                isOpen={editingJDownloader === jd.id}
+                                onOpenChange={(open) => setEditingJDownloader(open ? jd.id : null)}
+                              />
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="icon">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar JDownloader?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Se eliminará permanentemente <strong>{jd.deviceName}</strong>.
+                                      Esta acción no se puede deshacer.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={async () => {
+                                        try {
+                                          await deleteJDownloader(jd.id);
+                                        } catch (error) {
+                                          console.error('Error deleting JDownloader:', error);
+                                        }
+                                      }}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => toggleAIModel(ai.id, !ai.enabled)}
-                            >
-                              {ai.enabled ? (
-                                <ToggleRight className="h-4 w-4" />
-                              ) : (
-                                <ToggleLeft className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <AIConfig
-                              config={{
-                                provider: ai.provider,
-                                apiKey: (ai as any).apiKey,
-                                baseUrl: (ai as any).baseUrl,
-                                model: ai.model,
-                              }}
-                              onConfigSave={async (values) => {
-                                await fetch(`/api/config/ai/list/${ai.id}`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify(values),
-                                });
-                                await refetchAIModels();
-                                setEditingAIModel(null);
-                              }}
-                              isEdit={true}
-                              isOpen={editingAIModel === ai.id}
-                              onOpenChange={(open) => setEditingAIModel(open ? ai.id : null)}
-                            />
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="icon">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Eliminar modelo de IA?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Se eliminará permanentemente la configuración de <strong>{ai.provider}</strong>.
-                                    Esta acción no se puede deshacer.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={async () => {
-                                      try {
-                                        await deleteAIModel(ai.id);
-                                      } catch (error) {
-                                        console.error('Error deleting AI model:', error);
-                                      }
-                                    }}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Eliminar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Servicios *arr
-                </CardTitle>
-                <CardDescription>
-                  Gestiona claves API por servicio (Sonarr/Radarr/Lidarr/Readarr)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ArrConfig />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Cpu className="h-5 w-5" />
+                    Inteligencia Artificial
+                  </CardTitle>
+                  <CardDescription>
+                    Configura el proveedor de IA para el mapeo de nombres
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">Modelos de IA</h3>
+                      <AIConfig
+                        config={undefined}
+                        onConfigSave={async (values) => {
+                          await createAIModel(values);
+                        }}
+                        onTestConnection={async (values) => {
+                          const res = await fetch('/api/config/ai/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(values),
+                          });
+                          const data = await res.json();
+                          return !!data.success;
+                        }}
+                        isAdd={true}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      {aiLoading ? (
+                        <p className="text-sm text-muted-foreground">Cargando...</p>
+                      ) : aiModels.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No hay modelos de IA configurados.</p>
+                      ) : (
+                        aiModels.map((ai) => (
+                          <div key={ai.id} className="flex items-center justify-between border rounded-md p-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary">{ai.provider}</Badge>
+                                <span className="font-medium text-sm">{ai.model || 'Modelo por defecto'}</span>
+                              </div>
+                              {ai.baseUrl && (
+                                <div className="text-xs text-muted-foreground truncate max-w-xs">
+                                  {ai.baseUrl}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => toggleAIModel(ai.id, !ai.enabled)}
+                              >
+                                {ai.enabled ? (
+                                  <ToggleRight className="h-4 w-4" />
+                                ) : (
+                                  <ToggleLeft className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <AIConfig
+                                config={{
+                                  provider: ai.provider,
+                                  apiKey: (ai as any).apiKey,
+                                  baseUrl: (ai as any).baseUrl,
+                                  model: ai.model,
+                                }}
+                                onConfigSave={async (values) => {
+                                  await fetch(`/api/config/ai/list/${ai.id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(values),
+                                  });
+                                  await refetchAIModels();
+                                  setEditingAIModel(null);
+                                }}
+                                isEdit={true}
+                                isOpen={editingAIModel === ai.id}
+                                onOpenChange={(open) => setEditingAIModel(open ? ai.id : null)}
+                              />
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="icon">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar modelo de IA?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Se eliminará permanentemente la configuración de <strong>{ai.provider}</strong>.
+                                      Esta acción no se puede deshacer.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={async () => {
+                                        try {
+                                          await deleteAIModel(ai.id);
+                                        } catch (error) {
+                                          console.error('Error deleting AI model:', error);
+                                        }
+                                      }}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Servicios *arr
+                  </CardTitle>
+                  <CardDescription>
+                    Gestiona claves API por servicio (Sonarr/Radarr/Lidarr/Readarr)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ArrConfig />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
