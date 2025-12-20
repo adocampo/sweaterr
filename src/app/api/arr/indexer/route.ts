@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url || '');
     const query = searchParams.get('q') || '';
-    
+
     // Return mock results
     const mockResults = [
       {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         guid: 'mock-1',
         size: 1073741824,
         quality: 'WEBDL-1080p',
-        indexer: 'Forum Downloader',
+        indexer: 'Blazarr',
         downloadUrl: '',
         seeders: 0,
         leechers: 0,

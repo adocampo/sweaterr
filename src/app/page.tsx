@@ -116,7 +116,7 @@ export default function Home() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Forum Downloader</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Blazarr</h1>
           <p className="text-muted-foreground">
             Integración con foros de descarga directa para Sonarr/Radarr/Lidarr
           </p>

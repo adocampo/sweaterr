@@ -53,11 +53,11 @@ export async function GET(request: NextRequest) {
                 `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
   <channel>
-    <title>Forum Downloader</title>
+    <title>Blazarr</title>
     <description>Direct download indexer</description>
     <link>${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}</link>
     <language>es-es</language>
-    <webMaster>admin@forumdownloader.local</webMaster>
+    <webMaster>admin@blazarr.local</webMaster>
   </channel>
 </rss>`,
                 {
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
         const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
   <channel>
-    <title>Forum Downloader</title>
+    <title>Blazarr</title>
     <description>Direct download indexer</description>
     <link>${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}</link>
     <language>es-es</language>

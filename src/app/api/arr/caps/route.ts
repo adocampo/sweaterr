@@ -3,41 +3,41 @@ import { db } from '@/lib/db';
 
 // GET /api/arr/caps - Newznab/Torznab capabilities endpoint
 export async function GET(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
+  try {
+    const { searchParams } = new URL(request.url);
+    const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
 
-        if (!apiKey) {
-            return new NextResponse(
-                `<?xml version="1.0" encoding="UTF-8"?>
+    if (!apiKey) {
+      return new NextResponse(
+        `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
-                {
-                    status: 401,
-                    headers: { 'Content-Type': 'application/xml' },
-                }
-            );
+        {
+          status: 401,
+          headers: { 'Content-Type': 'application/xml' },
         }
+      );
+    }
 
-        // Validate API key
-        const service = await db.arrService.findUnique({
-            where: { apiKey },
-        });
+    // Validate API key
+    const service = await db.arrService.findUnique({
+      where: { apiKey },
+    });
 
-        if (!service || !service.enabled) {
-            return new NextResponse(
-                `<?xml version="1.0" encoding="UTF-8"?>
+    if (!service || !service.enabled) {
+      return new NextResponse(
+        `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
-                {
-                    status: 401,
-                    headers: { 'Content-Type': 'application/xml' },
-                }
-            );
+        {
+          status: 401,
+          headers: { 'Content-Type': 'application/xml' },
         }
+      );
+    }
 
-        // Return Newznab/Torznab capabilities
-        const capsXml = `<?xml version="1.0" encoding="UTF-8"?>
+    // Return Newznab/Torznab capabilities
+    const capsXml = `<?xml version="1.0" encoding="UTF-8"?>
 <caps>
-  <server version="1.0" title="Forum Downloader" strapline="Direct download indexer" email="" url="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" image="" />
+  <server version="1.0" title="Blazarr" strapline="Direct download indexer" email="" url="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" image="" />
   <limits max="100" default="100"/>
   <registration available="no" open="no"/>
   <searching>
@@ -74,18 +74,18 @@ export async function GET(request: NextRequest) {
   </categories>
 </caps>`;
 
-        return new NextResponse(capsXml, {
-            headers: { 'Content-Type': 'application/xml' },
-        });
-    } catch (error) {
-        console.error('Error in caps endpoint:', error);
-        return new NextResponse(
-            `<?xml version="1.0" encoding="UTF-8"?>
+    return new NextResponse(capsXml, {
+      headers: { 'Content-Type': 'application/xml' },
+    });
+  } catch (error) {
+    console.error('Error in caps endpoint:', error);
+    return new NextResponse(
+      `<?xml version="1.0" encoding="UTF-8"?>
 <error code="900" description="Internal server error"/>`,
-            {
-                status: 500,
-                headers: { 'Content-Type': 'application/xml' },
-            }
-        );
-    }
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/xml' },
+      }
+    );
+  }
 }

@@ -1,0 +1,85 @@
+{
+  "common": {
+    "appName": "Blazarr",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "close": "Close",
+    "confirm": "Confirm",
+    "logout": "Logout",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": "Login",
+    "setup": "Initial Setup",
+    "setupTitle": "Welcome to Blazarr",
+    "setupDescription": "Create your admin account to get started",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "invalidEmail": "Invalid email address",
+    "passwordTooShort": "Password must be at least 8 characters long",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "loginFailed": "Login failed",
+    "setupFailed": "Setup failed",
+    "setupSuccess": "Setup completed!",
+    "invalidCredentials": "Invalid email or password"
+  },
+  "userMenu": {
+    "profile": "Profile",
+    "language": "Language",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "logout": "Logout"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "forums": "Forums",
+    "downloads": "Downloads",
+    "configuration": "Configuration",
+    "testing": "Testing"
+  },
+  "forums": {
+    "title": "Forums",
+    "addForum": "Add Forum",
+    "editForum": "Edit Forum",
+    "deleteForum": "Delete Forum",
+    "confirmDelete": "Are you sure you want to delete this forum?",
+    "forumName": "Forum Name",
+    "baseUrl": "Base URL",
+    "searchMode": "Search Mode",
+    "credentials": "Credentials",
+    "username": "Username",
+    "testConnection": "Test Connection",
+    "connectionSuccessful": "Connection successful",
+    "connectionFailed": "Connection failed"
+  },
+  "downloads": {
+    "title": "Downloads",
+    "search": "Search Content",
+    "status": "Status",
+    "progress": "Progress",
+    "speed": "Speed",
+    "eta": "ETA",
+    "pause": "Pause",
+    "resume": "Resume",
+    "cancel": "Cancel"
+  },
+  "config": {
+    "title": "Configuration",
+    "jdownloader": "JDownloader",
+    "ai": "Artificial Intelligence",
+    "arr": "*arr Services",
+    "addInstance": "Add Instance",
+    "testConnection": "Test Connection",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  }
+}
