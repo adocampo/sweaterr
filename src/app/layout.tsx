@@ -15,22 +15,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Blazarr - Forum Downloader",
+  title: "Sweaterr - Forum Downloader",
   description: "Integración con foros de descarga directa para Sonarr/Radarr/Lidarr. Automatiza la búsqueda y descarga de contenido desde foros.",
-  keywords: ["Blazarr", "Forum Downloader", "Sonarr", "Radarr", "Lidarr", "JDownloader", "Direct Download", "Forums"],
-  authors: [{ name: "Blazarr Team" }],
+  keywords: ["Sweaterr", "Forum Downloader", "Sonarr", "Radarr", "Lidarr", "JDownloader", "Direct Download", "Forums"],
+  authors: [{ name: "Sweaterr Team" }],
   icons: {
     icon: "/icon.png",
   },
   openGraph: {
-    title: "Blazarr - Forum Downloader",
+    title: "Sweaterr - Forum Downloader",
     description: "Integración con foros de descarga directa para Sonarr/Radarr/Lidarr",
-    siteName: "Blazarr",
+    siteName: "Sweaterr",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Blazarr - Forum Downloader",
+    title: "Sweaterr - Forum Downloader",
     description: "Integración con foros de descarga directa para Sonarr/Radarr/Lidarr",
   },
 };

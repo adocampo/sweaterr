@@ -88,7 +88,7 @@ export default function SetupPage() {
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center space-y-2">
                     <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-                        Blazarr
+                        Sweaterr
                     </div>
                     <CardTitle>{t('auth.setup')}</CardTitle>
                     <CardDescription>{t('auth.setupTitle')}</CardDescription>
@@ -127,7 +127,7 @@ export default function SetupPage() {
                             <label className="text-sm font-medium">{t('auth.email')} (optional)</label>
                             <Input
                                 type="email"
-                                placeholder="admin@blazarr.local"
+                                placeholder="admin@sweaterr.local"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading || success}

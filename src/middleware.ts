@@ -11,7 +11,7 @@ function extractToken(
         const match = authHeader.match(/Bearer\s+(\S+)/);
         if (match) return match[1];
     }
-    if (cookies['blazarr-auth']) return cookies['blazarr-auth'];
+    if (cookies['sweaterr-auth']) return cookies['sweaterr-auth'];
     return null;
 }
 
@@ -49,7 +49,7 @@ export async function middleware(request: NextRequest) {
         pathname,
         hasToken: !!token,
         cookieNames: Object.keys(cookies),
-        hasBlazerrAuth: !!cookies['blazarr-auth']
+        hasSweaterrAuth: !!cookies['sweaterr-auth']
     });
 
     // If no token, redirect to login
@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
         console.log('[Middleware] Token verification failed, redirecting to /login');
         // Token expired or invalid, redirect to login
         const response = NextResponse.redirect(new URL('/login', request.url));
-        response.cookies.delete('blazarr-auth');
+        response.cookies.delete('sweaterr-auth');
         return response;
     }
 

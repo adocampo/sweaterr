@@ -86,65 +86,51 @@ export async function POST(request: NextRequest) {
             }];
 
         } else if (searchMode === 'google_cse' && (forum as any).cseId) {
-            // Google Custom Search Engine
+            // Google Custom Search Engine (requires JavaScript execution to render)
             const cseId = (forum as any).cseId;
-            const apiKey = process.env.GOOGLE_CSE_API_KEY;
+            const cseUrl = `https://cse.google.com/cse?cx=${cseId}&q=${encodeURIComponent(query)}`;
 
-            if (apiKey) {
-                // Use Google CSE API if key is available
-                const cseUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cseId}&q=${encodeURIComponent(query)}`;
+            console.log('[Testing/Search] Google CSE URL:', cseUrl);
 
-                console.log('[Testing/Search] Google CSE API search');
-
-                try {
-                    const response = await fetch(cseUrl);
-                    const data = await response.json();
-
-                    if (data.items) {
-                        results = data.items.map((item: any) => ({
-                            title: item.title,
-                            url: item.link,
-                            snippet: item.snippet,
-                        }));
-                    }
-                } catch (err) {
-                    console.error('[Testing/Search] Google CSE API error:', err);
-                }
+            if (!flaresolverrUrl) {
+                // Without FlareSolverr, can't render JS, return manual link
+                results = [{
+                    title: 'Ver resultados en Google CSE',
+                    url: cseUrl,
+                    snippet: `FlareSolverr no configurado. Abre el enlace en tu navegador para buscar: "${query}"`,
+                }];
+                console.log('[Testing/Search] CSE: FlareSolverr not configured, returning manual link');
             } else {
-                // Scrape Google CSE results page directly (no API key needed)
-                const cseUrl = `https://cse.google.com/cse?cx=${cseId}&q=${encodeURIComponent(query)}`;
-
-                console.log('[Testing/Search] Google CSE scraping:', cseUrl);
-
                 try {
-                    // Use FlareSolverr for CSE (JS-required). Direct fetch fallback if needed.
-                    if (!flaresolverrUrl) {
+                    const client = new FlareSolverrClient(flaresolverrUrl);
+                    const solution = await client.request(cseUrl, 'GET');
+                    const html = solution.response || '';
+
+                    if (!html || html.length < 100) {
+                        console.log('[Testing/Search] CSE: received empty or minimal HTML, returning manual link');
                         results = [{
                             title: 'Ver resultados en Google CSE',
                             url: cseUrl,
-                            snippet: `FlareSolverr no configurado. Abre este enlace para ver resultados de "${query}"`,
+                            snippet: `No se obtuvieron resultados. Abre el enlace para buscar: "${query}"`,
                         }];
                     } else {
-                        const client = new FlareSolverrClient(flaresolverrUrl);
-                        const solution = await client.request(cseUrl, 'GET');
-                        const html = solution.response || '';
                         results = parseGoogleCSEResults(html, forum.baseUrl, query);
-                        console.log(`[Testing/Search] FlareSolverr fetch: ${results.length} results`);
+                        console.log(`[Testing/Search] CSE via FlareSolverr: ${results.length} results found`);
 
                         if (results.length === 0) {
                             results = [{
                                 title: 'Ver resultados en Google CSE',
                                 url: cseUrl,
-                                snippet: `No se pudieron parsear resultados automáticamente. Abre el enlace para ver "${query}"`,
+                                snippet: `No se pudieron parsear resultados. Abre el enlace: "${query}"`,
                             }];
                         }
                     }
                 } catch (err) {
-                    console.error('[Testing/Search] FlareSolverr CSE error:', err);
+                    console.error('[Testing/Search] CSE FlareSolverr error:', err);
                     results = [{
-                        title: 'Error al buscar',
+                        title: 'Ver resultados en Google CSE',
                         url: cseUrl,
-                        snippet: `Error al obtener resultados. Intenta abrir el enlace manualmente.`,
+                        snippet: `Error al obtener resultados. Abre el enlace para buscar: "${query}"`,
                     }];
                 }
             }

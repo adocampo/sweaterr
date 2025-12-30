@@ -112,7 +112,7 @@ export async function setupFirstAdmin(
         const user = await userDelegate().create({
             data: {
                 username,
-                email: email || `${username}@blazarr.local`,
+                email: email || `${username}@sweaterr.local`,
                 passwordHash,
                 role: 'admin',
                 language: 'es',
@@ -277,8 +277,8 @@ export function extractToken(
     }
 
     // Try cookies
-    if (cookies?.['blazarr-auth']) {
-        return cookies['blazarr-auth'];
+    if (cookies?.['sweaterr-auth']) {
+        return cookies['sweaterr-auth'];
     }
 
     return null;

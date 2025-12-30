@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Blazarr",
+    "appName": "Sweaterr",
     "loading": "Cargando...",
     "error": "Error",
     "success": "Éxito",
@@ -17,7 +17,7 @@
   "auth": {
     "login": "Iniciar sesión",
     "setup": "Configuración inicial",
-    "setupTitle": "Bienvenido a Blazarr",
+    "setupTitle": "Bienvenido a Sweaterr",
     "setupDescription": "Crea tu cuenta de administrador para comenzar",
     "email": "Correo electrónico",
     "password": "Contraseña",

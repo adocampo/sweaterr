@@ -1,4 +1,8 @@
-# Blazarr
+<p align="center">
+  <img src="public/sweaterr.png" alt="Sweaterr Logo" width="300">
+</p>
+
+# Sweaterr
 
 Aplicación web para integrar foros de descarga directa con Sonarr/Radarr/Lidarr utilizando JDownloader como backend y IA para el mapeo de nombres.
 
@@ -28,7 +32,7 @@ Aplicación web para integrar foros de descarga directa con Sonarr/Radarr/Lidarr
 
    ```bash
    git clone <repository-url>
-   cd blazarr
+   cd sweaterr
    ```
 
 2. **Configurar variables de entorno**:
@@ -148,7 +152,7 @@ La aplicación automáticamente:
 
 La aplicación expone una API compatible con Sonarr/Radarr para buscar contenido:
 
-```
+```http
 GET /api/arr/indexer?query=<search_query>
 ```
 
@@ -156,13 +160,13 @@ GET /api/arr/indexer?query=<search_query>
 
 Notifica automáticamente a Sonarr/Radarr cuando una descarga se completa:
 
-```
+```http
 POST /api/arr/notify
 {
-  "type": "sonarr|radarr|lidarr",
-  "url": "http://sonarr:8989",
-  "apiKey": "your-api-key",
-  "downloadId": "download-identifier"
+   "type": "sonarr|radarr|lidarr",
+   "url": "http://sonarr:8989",
+   "apiKey": "your-api-key",
+   "downloadId": "download-identifier"
 }
 ```
 
@@ -213,7 +217,7 @@ npx playwright install chromium
 
 ### Estructura del Proyecto
 
-```
+```text
 src/
 ├── app/                    # App Router de Next.js
 │   ├── api/               # APIs del backend
@@ -266,7 +270,7 @@ Para ver logs de la aplicación:
 
 ```bash
 # Docker
-docker-compose logs -f blazarr
+docker-compose logs -f sweaterr
 
 # Desarrollo local
 npm run dev  # Logs en consola

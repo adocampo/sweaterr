@@ -145,8 +145,8 @@ export default function Home() {
       <div className="flex items-center justify-between mb-8">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <Image src="/blazarr.png" alt="Blazarr" width={160} height={40} priority className="h-10 w-auto" />
-            <span className="sr-only">Blazarr</span>
+            <Image src="/logo.png" alt="Sweaterr" width={160} height={40} priority className="h-10 w-auto" />
+            <span className="sr-only">Sweaterr</span>
           </div>
           <p className="text-muted-foreground">
             Integración con foros de descarga directa para Sonarr/Radarr/Lidarr

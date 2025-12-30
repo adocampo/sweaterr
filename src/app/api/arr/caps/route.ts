@@ -37,15 +37,15 @@ export async function GET(request: NextRequest) {
     // Return Newznab/Torznab capabilities
     const capsXml = `<?xml version="1.0" encoding="UTF-8"?>
 <caps>
-  <server version="1.0" title="Blazarr" strapline="Direct download indexer" email="" url="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" image="" />
+  <server version="1.0" title="Sweaterr" strapline="Direct download indexer" email="" url="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" image="" type="nzb" />
   <limits max="100" default="100"/>
   <registration available="no" open="no"/>
   <searching>
-    <search available="yes" supportedParams="q"/>
-    <tv-search available="yes" supportedParams="q,season,ep"/>
-    <movie-search available="yes" supportedParams="q,imdbid,tmdbid"/>
-    <audio-search available="yes" supportedParams="q,artist,album"/>
-    <book-search available="yes" supportedParams="q,author,title"/>
+    <search available="yes" supportedParams="q,cat"/>
+    <tv-search available="yes" supportedParams="q,season,ep,cat"/>
+    <movie-search available="yes" supportedParams="q,imdbid,tmdbid,cat"/>
+    <audio-search available="yes" supportedParams="q,artist,album,cat"/>
+    <book-search available="yes" supportedParams="q,author,title,cat"/>
   </searching>
   <categories>
     <category id="2000" name="Movies">

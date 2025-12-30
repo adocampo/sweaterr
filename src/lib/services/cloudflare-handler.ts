@@ -57,7 +57,7 @@ export class CloudflareHandler {
         usernameFieldSelector: string = 'input[name="username"]',
         passwordFieldSelector: string = 'input[name="password"]',
         submitButtonSelector: string = 'button[type="submit"], input[type="submit"]'
-    ): Promise<{ success: boolean; cookies: string; error?: string }> {
+    ): Promise<{ success: boolean; cookies: string; cookieArray?: Array<{ name: string; value: string }>; userAgent?: string; error?: string }> {
         try {
 
             // Prefer FlareSolverr if available
@@ -115,12 +115,15 @@ export class CloudflareHandler {
 
                 if (finalCookies.length > 0) {
                     console.log('[FlareSolverr] ✓ Login successful, session cookies acquired');
-                    return { success: true, cookies: finalCookies };
+                    const userAgent = login.userAgent || warm.userAgent;
+                    return { success: true, cookies: finalCookies, cookieArray: login.cookies || [], userAgent };
                 }
 
                 return {
                     success: false,
                     cookies: '',
+                    cookieArray: [],
+                    userAgent: login.userAgent || warm.userAgent,
                     error: 'No se pudo obtener cookies tras el login con FlareSolverr',
                 };
             }
@@ -322,10 +325,13 @@ export class CloudflareHandler {
                 // Extract cookies
                 const cookies = await page.context().cookies();
                 const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+                const userAgent = await page.context().userAgent();
 
                 return {
                     success: true,
                     cookies: cookieString,
+                    cookieArray: cookies.map(c => ({ name: c.name, value: c.value })),
+                    userAgent,
                 };
             }
 
@@ -335,6 +341,7 @@ export class CloudflareHandler {
                 return {
                     success: false,
                     cookies: '',
+                    cookieArray: [],
                     error: 'Credenciales incorrectas',
                 };
             }
@@ -345,6 +352,7 @@ export class CloudflareHandler {
                 return {
                     success: false,
                     cookies: '',
+                    cookieArray: [],
                     error:
                         'Cloudflare Turnstile bloquea el formulario. Inicia sesión manualmente en el navegador y pega las cookies en la configuración, o intenta de nuevo más tarde.',
                 };
@@ -357,6 +365,7 @@ export class CloudflareHandler {
             return {
                 success: false,
                 cookies: '',
+                cookieArray: [],
                 error: 'No se puede confirmar que el login fue exitoso (Prueba FLARESOLVERR_URL)',
             };
         } catch (error: any) {
@@ -364,6 +373,7 @@ export class CloudflareHandler {
             return {
                 success: false,
                 cookies: '',
+                cookieArray: [],
                 error: `Error durante el login: ${error.message}`,
             };
         }
