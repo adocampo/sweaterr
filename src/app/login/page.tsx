@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,8 +53,8 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center space-y-2">
-                    <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-                        Blazarr
+                    <div className="flex justify-center mb-2">
+                        <Image src="/logo.png" alt="Sweaterr" width={200} height={50} priority className="h-12 w-auto" />
                     </div>
                     <CardTitle>{t('auth.login')}</CardTitle>
                     <CardDescription>Ingresa tus credenciales</CardDescription>
@@ -71,7 +72,7 @@ export default function LoginPage() {
                             <label className="text-sm font-medium">Username o Email</label>
                             <Input
                                 type="text"
-                                placeholder="admin o admin@blazarr.local"
+                                placeholder="admin o admin@sweaterr.local"
                                 value={usernameOrEmail}
                                 onChange={(e) => setUsernameOrEmail(e.target.value)}
                                 disabled={isLoading}

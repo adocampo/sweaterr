@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         guid: 'mock-1',
         size: 1073741824,
         quality: 'WEBDL-1080p',
-        indexer: 'Blazarr',
+        indexer: 'Sweaterr',
         downloadUrl: '',
         seeders: 0,
         leechers: 0,

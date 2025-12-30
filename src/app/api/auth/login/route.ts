@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
             token: result.token,
         });
 
-        response.cookies.set('blazarr-auth', result.token!, {
+        response.cookies.set('sweaterr-auth', result.token!, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',

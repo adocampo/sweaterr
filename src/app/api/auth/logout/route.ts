@@ -10,7 +10,7 @@ export async function POST() {
         message: 'Logged out successfully',
     });
 
-    response.cookies.set('blazarr-auth', '', {
+    response.cookies.set('sweaterr-auth', '', {
         httpOnly: true,
         maxAge: 0,
         path: '/',

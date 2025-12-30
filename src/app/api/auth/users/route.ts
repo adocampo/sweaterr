@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         const user = await userDelegate().create({
             data: {
                 username,
-                email: email || `${username}@blazarr.local`,
+                email: email || `${username}@sweaterr.local`,
                 passwordHash,
                 role,
                 language: 'es',

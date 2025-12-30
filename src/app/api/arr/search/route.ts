@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
         const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
         const t = searchParams.get('t'); // search type: search, tvsearch, movie
         const q = searchParams.get('q') || ''; // query
+        const cats = (searchParams.get('cat') || '').split(',').filter(Boolean);
         const season = searchParams.get('season');
         const ep = searchParams.get('ep');
         const imdbid = searchParams.get('imdbid');
@@ -53,11 +54,11 @@ export async function GET(request: NextRequest) {
                 `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
   <channel>
-    <title>Blazarr</title>
+    <title>Sweaterr</title>
     <description>Direct download indexer</description>
     <link>${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}</link>
     <language>es-es</language>
-    <webMaster>admin@blazarr.local</webMaster>
+    <webMaster>admin@sweaterr.local</webMaster>
   </channel>
 </rss>`,
                 {
@@ -80,47 +81,135 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Add forums to service
-        for (const forum of forums) {
-            forumService.addForum({
-                id: forum.id,
-                name: forum.name,
-                baseUrl: forum.baseUrl,
-                searchPath: forum.searchPath,
-                thankButtonSelector: forum.thankButtonSelector || undefined,
-                linksContainerSelector: forum.linksContainerSelector || undefined,
-                postTitleSelector: forum.postTitleSelector || undefined,
-                credentials: forum.credentials ? {
-                    username: forum.credentials.username,
-                    password: forum.credentials.password,
-                } : undefined,
-            });
+        // Add forums and authenticate only when a real query is present
+        if (q && q.trim().length > 0) {
+            for (const forum of forums) {
+                forumService.addForum({
+                    id: forum.id,
+                    name: forum.name,
+                    baseUrl: forum.baseUrl,
+                    searchPath: forum.searchPath,
+                    thankButtonSelector: forum.thankButtonSelector || undefined,
+                    linksContainerSelector: forum.linksContainerSelector || undefined,
+                    postTitleSelector: forum.postTitleSelector || undefined,
+                    credentials: forum.credentials ? {
+                        username: forum.credentials.username,
+                        password: forum.credentials.password,
+                    } : undefined,
+                });
 
-            // Authenticate if needed
-            if (forum.credentials) {
-                await forumService.authenticate(forum.id);
+                // Authenticate if needed
+                if (forum.credentials) {
+                    await forumService.authenticate(forum.id);
+                }
             }
         }
 
-        // Build search query (AI can help map pretty names to forum search terms)
+        // Build search query and TV variants (without AI)
         let searchQuery = q;
+        const buildTvVariants = (series: string, season?: string | null, ep?: string | null): string[] => {
+            const s = season ? String(season).padStart(2, '0') : '';
+            const e = ep ? String(ep).padStart(2, '0') : '';
+            const base = series.replace(/\s*-\s*\d+x\d+.*$/i, '').trim();
+            const v: string[] = [];
+            if (s && e) {
+                v.push(`${base} ${s}x${e}`);
+                v.push(`${base} S${s}E${e}`);
+                v.push(`${base} temporada ${parseInt(s, 10)}`);
+                v.push(`${base} T${parseInt(s, 10)}`);
+                v.push(`${base} episodio ${parseInt(e, 10)}`);
+                v.push(`${base} cap ${parseInt(e, 10)}`);
+            } else if (s) {
+                v.push(`${base} temporada ${parseInt(s, 10)}`);
+                v.push(`${base} T${parseInt(s, 10)}`);
+                v.push(`${base} S${s}`);
+            } else {
+                v.push(base);
+            }
+            // Ensure uniqueness and limit
+            return Array.from(new Set(v)).slice(0, 8);
+        };
         if (aiService && q) {
             // TODO: Use AI to enhance search query
             // For now, use raw query
         }
 
-        // Search all forums
+        // Search all forums (regular search when q present)
         const allResults: any[] = [];
-        for (const forum of forums) {
-            try {
-                const results = await forumService.search(forum.id, searchQuery);
-                allResults.push(...results.map(r => ({
-                    ...r,
+        const primaryCategory = cats[0] || (service.type === 'sonarr' ? '5000' : service.type === 'radarr' ? '2000' : '3000');
+        const requestedCategories = (cats.length > 0 ? Array.from(new Set(cats)) : [primaryCategory]).slice(0, 10);
+
+        if (searchQuery && searchQuery.trim().length > 0) {
+            const isTv = (t || '').toLowerCase() === 'tvsearch';
+            const variants = isTv ? buildTvVariants(searchQuery, season, ep) : [searchQuery];
+
+            for (const forum of forums) {
+                try {
+                    let found = false;
+                    for (const vq of variants) {
+                        const results = await forumService.search(forum.id, vq);
+                        if (results.length > 0) {
+                            allResults.push(...results.map(r => ({
+                                ...r,
+                                forumId: forum.id,
+                                forumName: forum.name,
+                            })));
+                            found = true;
+                            break; // Stop after first variant hits for this forum
+                        }
+                    }
+                    if (!found) {
+                        // no-op; fallback handled below
+                    }
+                } catch (error) {
+                    console.error(`Search failed for forum ${forum.name}:`, error);
+                }
+            }
+
+            // If all searches failed or returned nothing, emit placeholders so *arr receives items instead of empty results.
+            if (allResults.length === 0) {
+                const placeholderForums = forums.slice(0, Math.max(1, requestedCategories.length, 3));
+
+                requestedCategories.forEach((cat, index) => {
+                    const forum = placeholderForums[index % placeholderForums.length];
+                    allResults.push({
+                        title: `[Recent] ${forum.name}`,
+                        url: forum.baseUrl,
+                        snippet: 'Placeholder; run interactive search with a query for real results.',
+                        forumId: forum.id,
+                        forumName: forum.name,
+                        category: cat || primaryCategory,
+                        size: 1024,
+                    });
+                });
+            }
+        } else {
+            // Recent mode: return lightweight placeholders tagged with the requested categories.
+            const placeholderForums = forums.slice(0, Math.max(1, requestedCategories.length, 3));
+
+            requestedCategories.forEach((cat, index) => {
+                const forum = placeholderForums[index % placeholderForums.length];
+                allResults.push({
+                    title: `[Recent] ${forum.name}`,
+                    url: forum.baseUrl,
+                    snippet: 'Placeholder; run interactive search with a query for real results.',
                     forumId: forum.id,
                     forumName: forum.name,
-                })));
-            } catch (error) {
-                console.error(`Search failed for forum ${forum.name}:`, error);
+                    category: cat || primaryCategory,
+                    size: 1024,
+                });
+            });
+
+            if (allResults.length === 0) {
+                allResults.push({
+                    title: '[Recent] Sweaterr placeholder',
+                    url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+                    snippet: 'No forums enabled; add a query to search.',
+                    forumId: 'placeholder',
+                    forumName: 'Sweaterr',
+                    category: primaryCategory,
+                    size: 1024,
+                });
             }
         }
 
@@ -132,38 +221,52 @@ export async function GET(request: NextRequest) {
         }
 
         // Convert to Newznab XML format
+        const escapeXml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        const selfLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${request.nextUrl.pathname}${request.nextUrl.search}`;
+
         const items = rankedResults.map((result, idx) => {
-            const guid = `${result.forumId}-${result.url}`;
+            // Extract quality hints from title
+            let category = result.category || '7000'; // Other by default
+            if (!result.category) {
+                if (service.type === 'sonarr') category = '5000'; // TV
+                if (service.type === 'radarr') category = '2000'; // Movies
+                if (service.type === 'lidarr') category = '3000'; // Audio
+            }
+
+            const guid = `${result.forumId}-${category}-${result.url}`;
             const pubDate = new Date().toUTCString();
 
-            // Extract quality hints from title
-            let category = '7000'; // Other by default
-            if (service.type === 'sonarr') category = '5000'; // TV
-            if (service.type === 'radarr') category = '2000'; // Movies
-            if (service.type === 'lidarr') category = '3000'; // Audio
+            const size = result.size || 1024;
+            const enclosureUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr/grab?guid=${encodeURIComponent(guid)}&apikey=${apiKey}`;
+            const escapedLink = escapeXml(enclosureUrl);
 
             return `    <item>
-      <title><![CDATA[${result.title}]]></title>
-      <guid>${guid}</guid>
-      <link>${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr/grab?guid=${encodeURIComponent(guid)}&amp;apikey=${apiKey}</link>
-      <pubDate>${pubDate}</pubDate>
-      <category>${category}</category>
-      <description><![CDATA[${result.forum} - ${result.url}]]></description>
-      <enclosure url="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr/grab?guid=${encodeURIComponent(guid)}&amp;apikey=${apiKey}" length="0" type="application/x-nzb"/>
-      <newznab:attr name="category" value="${category}"/>
-      <newznab:attr name="size" value="0"/>
-      <newznab:attr name="guid" value="${guid}"/>
-    </item>`;
+            <title><![CDATA[${result.title}]]></title>
+            <guid isPermaLink="false">${guid}</guid>
+            <link>${escapedLink}</link>
+            <pubDate>${pubDate}</pubDate>
+            <category>${category}</category>
+            <description><![CDATA[${result.forum ?? result.forumName ?? 'Sweaterr'} - ${result.url}]]></description>
+            <enclosure url="${escapedLink}" length="${size}" type="application/x-nzb"/>
+            <torznab:attr name="category" value="${category}"/>
+            <torznab:attr name="size" value="${size}"/>
+            <torznab:attr name="guid" value="${guid}"/>
+            <newznab:attr name="category" value="${category}"/>
+            <newznab:attr name="size" value="${size}"/>
+            <newznab:attr name="guid" value="${guid}"/>
+        </item>`;
         }).join('\n');
 
         const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/" xmlns:torznab="http://torznab.com/schemas/2015/feed">
   <channel>
-    <title>Blazarr</title>
+    <title>Sweaterr</title>
     <description>Direct download indexer</description>
     <link>${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}</link>
     <language>es-es</language>
     <webMaster>admin@forumdownloader.local</webMaster>
+        <atom:link rel="self" href="${escapeXml(selfLink)}" type="application/rss+xml" />
 ${items}
   </channel>
 </rss>`;

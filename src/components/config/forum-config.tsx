@@ -157,6 +157,38 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
     setIsOpen(false);
   };
 
+  const handleClearCookies = async () => {
+    if (!forumId) {
+      setTestResult('error');
+      setTestMessage('ID del foro no disponible');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+    setTestMessage('');
+
+    try {
+      const response = await fetch(`/api/config/forums/${forumId}/refresh-cookies`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setTestResult('success');
+        setTestMessage('Cookies borradas. Ejecuta "Probar conexión" para obtener nuevas cookies.');
+      } else {
+        const data = await response.json();
+        setTestResult('error');
+        setTestMessage(data.error || 'Error al borrar las cookies');
+      }
+    } catch (error: any) {
+      setTestResult('error');
+      setTestMessage(error.message || 'Error desconocido');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -459,7 +491,24 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
               )}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleClearCookies}
+                disabled={!isEdit || isTesting}
+                className="text-xs"
+              >
+                {isTesting && testResult === null ? (
+                  <>
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Borrando...
+                  </>
+                ) : (
+                  'Borrar Cookies'
+                )}
+              </Button>
+              <div className="flex-1" />
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
                 Cancelar
               </Button>

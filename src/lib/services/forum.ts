@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
 import { CloudflareHandler } from './cloudflare-handler';
+import { db } from '@/lib/db';
 
 export interface ForumSearchResult {
   title: string;
@@ -34,6 +35,7 @@ export interface ForumConfig {
   thankButtonSelector?: string;
   linksContainerSelector?: string;
   postTitleSelector?: string;
+  persistentCookies?: string;
   credentials?: {
     username: string;
     password: string;
@@ -44,6 +46,22 @@ export class ForumService {
   private configs: Map<string, ForumConfig> = new Map();
   private clients: Map<string, AxiosInstance> = new Map();
   private cfHandler: CloudflareHandler | null = null;
+
+  private parseStoredCookies(serialized?: string): { cookies: Array<{ name: string; value: string }>; userAgent?: string } {
+    if (!serialized) return { cookies: [], userAgent: undefined };
+    try {
+      const parsed = JSON.parse(serialized);
+      if (Array.isArray(parsed)) {
+        return { cookies: parsed, userAgent: undefined };
+      }
+      if (parsed && typeof parsed === 'object') {
+        const cookies = Array.isArray((parsed as any).cookies) ? (parsed as any).cookies : [];
+        const userAgent = typeof (parsed as any).userAgent === 'string' ? (parsed as any).userAgent : undefined;
+        return { cookies, userAgent };
+      }
+    } catch { }
+    return { cookies: [], userAgent: undefined };
+  }
 
   // Add forum configuration
   addForum(config: ForumConfig): void {
@@ -69,6 +87,18 @@ export class ForumService {
       return res;
     });
 
+    // Apply persistent cookies if available
+    const { cookies: storedCookies, userAgent: storedUserAgent } = this.parseStoredCookies(config.persistentCookies);
+    if (storedCookies.length > 0) {
+      const cookieHeader = storedCookies.map(c => `${c.name}=${c.value}`).join('; ');
+      client.defaults.headers.Cookie = cookieHeader;
+      console.log(`Forum ${config.name}: Applied persistent cookies (${storedCookies.length})`);
+    }
+    if (storedUserAgent) {
+      client.defaults.headers['User-Agent'] = storedUserAgent;
+      console.log(`Forum ${config.name}: Applied stored user agent for cookie reuse`);
+    }
+
     this.clients.set(config.id, client);
   }
 
@@ -77,8 +107,25 @@ export class ForumService {
     const config = this.configs.get(forumId);
     const client = this.clients.get(forumId);
 
-    if (!config || !client || !config.credentials) {
-      console.log(`No authentication needed for ${config?.name || forumId}`);
+    if (!config || !client) {
+      console.log(`Forum not configured: ${forumId}`);
+      return false;
+    }
+
+    // If we already have persistent cookies, apply and skip login
+    const { cookies: storedCookies, userAgent: storedUserAgent } = this.parseStoredCookies(config.persistentCookies);
+    if (storedCookies.length > 0) {
+      const cookieHeader = storedCookies.map(c => `${c.name}=${c.value}`).join('; ');
+      client.defaults.headers.Cookie = cookieHeader;
+      if (storedUserAgent) {
+        client.defaults.headers['User-Agent'] = storedUserAgent;
+      }
+      console.log(`Using persistent cookies for ${config.name}; skipping login.`);
+      return true;
+    }
+
+    if (!config.credentials) {
+      console.log(`No credentials for ${config.name}; cannot perform login.`);
       return false;
     }
 
@@ -104,6 +151,23 @@ export class ForumService {
         console.log(`✓ Successfully authenticated with ${config.name}`);
         // Set cookies in axios client
         client.defaults.headers.Cookie = result.cookies;
+        if (result.userAgent) {
+          client.defaults.headers['User-Agent'] = result.userAgent;
+        }
+        // Persist cookies to DB if cookie array present
+        try {
+          const cookiesJson = JSON.stringify({ cookies: result.cookieArray || [], userAgent: result.userAgent });
+          await db.forum.update({
+            where: { id: forumId },
+            data: {
+              persistentCookies: cookiesJson,
+              cookiesUpdatedAt: new Date(),
+            }
+          });
+          console.log(`Forum ${config.name}: Persistent cookies stored (${(result.cookieArray || []).length})`);
+        } catch (err) {
+          console.error(`Forum ${config.name}: Failed to store persistent cookies`, err);
+        }
         return true;
       }
 
@@ -177,15 +241,37 @@ export class ForumService {
         return Array.from(unique.values());
       }
 
-      // Default native search (legacy)
-      const searchResponse = await client.get(config.searchPath, {
-        params: {
-          keywords: query,
-          search: 'Search'
+      // Default native search (legacy) with Cloudflare fallback via FlareSolverr
+      let html: string | null = null;
+      try {
+        const searchResponse = await client.get(config.searchPath, {
+          params: {
+            keywords: query,
+            search: 'Search'
+          }
+        });
+        html = searchResponse.data;
+      } catch (err: any) {
+        const status = err?.response?.status;
+        console.error(`Native search failed for ${config.name} (status ${status || 'unknown'}), trying FlareSolverr...`);
+        const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+        if (flaresolverrUrl) {
+          try {
+            const qs = new URLSearchParams({ keywords: query, search: 'Search' }).toString();
+            const fullUrl = `${config.baseUrl}${config.searchPath}?${qs}`;
+            const { response } = await new (await import('./flaresolverr-client')).FlareSolverrClient(flaresolverrUrl).request(fullUrl, 'GET');
+            html = response || '';
+          } catch (fsErr: any) {
+            console.error(`FlareSolverr search failed for ${config.name}:`, fsErr?.message || fsErr);
+          }
         }
-      });
+      }
 
-      const $ = cheerio.load(searchResponse.data);
+      if (!html) {
+        return [];
+      }
+
+      const $ = cheerio.load(html);
       const results: ForumSearchResult[] = [];
 
       $('.topic-list .topic, .search-result .result, tr.topic').each((index, element) => {
