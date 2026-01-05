@@ -16,7 +16,44 @@ export class FlareSolverrClient {
         this.endpoint = endpoint.replace(/\/$/, '');
     }
 
-    async request(url: string, method: 'GET' | 'POST' = 'GET', postData?: Record<string, any>): Promise<FlareSolverrSolution> {
+    /**
+     * Create a persistent session that can be reused across multiple requests
+     * @returns Session ID to use in subsequent requests
+     */
+    async createSession(): Promise<string> {
+        try {
+            const { data } = await axios.post(
+                `${this.endpoint}/v1`,
+                { cmd: 'sessions.create' },
+                { timeout: 30000 }
+            );
+            if (!data || data.status !== 'ok' || !data.session) {
+                throw new Error(`Failed to create session: ${data?.message || 'unknown error'}`);
+            }
+            return data.session;
+        } catch (err: any) {
+            throw new Error(`FlareSolverr session creation failed: ${err?.message || 'unknown'}`);
+        }
+    }
+
+    /**
+     * Destroy a persistent session
+     * @param sessionId Session ID to destroy
+     */
+    async destroySession(sessionId: string): Promise<void> {
+        try {
+            await axios.post(
+                `${this.endpoint}/v1`,
+                { cmd: 'sessions.destroy', session: sessionId },
+                { timeout: 10000 }
+            );
+        } catch (err: any) {
+            // Silently ignore destruction errors
+            console.warn(`Failed to destroy FlareSolverr session ${sessionId}:`, err?.message);
+        }
+    }
+
+    async request(url: string, method: 'GET' | 'POST' = 'GET', postData?: Record<string, any>, sessionId?: string): Promise<FlareSolverrSolution> {
         const buildPayload = () => {
             const payload: any = {
                 cmd: method === 'GET' ? 'request.get' : 'request.post',
@@ -24,6 +61,9 @@ export class FlareSolverrClient {
                 // Give the solver more time; Turnstile often needs >20s
                 maxTimeout: 45000,
             };
+            if (sessionId) {
+                payload.session = sessionId;
+            }
             if (method === 'POST' && postData) {
                 payload.postData = new URLSearchParams(postData).toString();
             }

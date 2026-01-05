@@ -1,9 +1,11 @@
 import { FlareSolverrClient } from './flaresolverr-client';
+import { sessionManager } from './flaresolverr-session-manager';
 import axios from 'axios';
 import { wrapper as axiosCookieJarSupport } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
 import { db } from '@/lib/db';
 import { getJarForHost, preloadJarCookies } from '@/lib/cookie-jar-store';
+import { logger } from '../logger';
 
 interface ExtractLinksResult {
     success: boolean;
@@ -24,17 +26,16 @@ async function loginToForum(
     baseUrl: string,
     username: string,
     password: string,
-    flaresolverrUrl: string
+    fsClient: FlareSolverrClient,
+    sessionId?: string
 ): Promise<LoginResult> {
     try {
-        const client = new FlareSolverrClient(flaresolverrUrl);
-
         // Warm up base URL to obtain CF cookies
-        console.log('[LinkExtractor] Warming up forum base URL:', baseUrl);
-        const warm = await client.request(baseUrl, 'GET');
+        logger.info('extract', `Warming up forum base URL: ${baseUrl}`);
+        const warm = await fsClient.request(baseUrl, 'GET', undefined, sessionId);
 
         // Perform vBulletin login POST
-        console.log('[LinkExtractor] Attempting login for user:', username);
+        logger.info('extract', `Attempting login for user: ${username}`);
         const postData = {
             do: 'login',
             vb_login_username: username,
@@ -45,7 +46,7 @@ async function loginToForum(
             cookieuser: '1',
         };
 
-        const login = await client.request(`${baseUrl}/login.php?do=login`, 'POST', postData);
+        const login = await fsClient.request(`${baseUrl}/login.php?do=login`, 'POST', postData, sessionId);
         const loginHtml = login.response || '';
 
         // Check for vBulletin login error messages
@@ -55,7 +56,7 @@ async function loginToForum(
             loginHtml.includes('invalid username or password') ||
             loginHtml.includes('has introducido un nombre de usuario o contraseña')
         ) {
-            console.log('[LinkExtractor] Login failed: invalid credentials');
+            logger.warn('extract', 'Login failed: invalid credentials');
             return { success: false, error: 'Invalid credentials' };
         }
 
@@ -65,14 +66,14 @@ async function loginToForum(
         );
 
         if (!hasSessionCookie) {
-            console.log('[LinkExtractor] Login failed: no session cookies');
+            logger.warn('extract', 'Login failed: no session cookies');
             return { success: false, error: 'No session cookies received' };
         }
 
-        console.log('[LinkExtractor] Login successful');
+        logger.info('extract', 'Login successful');
         return { success: true, cookies: login.cookies };
     } catch (error) {
-        console.error('[LinkExtractor] Login error:', error);
+        logger.error('extract', `Login error: ${error instanceof Error ? error.message : String(error)}`);
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Login failed',
@@ -116,6 +117,7 @@ export async function extractLinksFromPost(
         // Load persisted cookies + UA
         let storedUserAgent: string | undefined;
         let persistedCookies: Array<{ name: string; value: string; domain?: string; path?: string }> = [];
+        let ttlMs = 30 * 60 * 1000;
         if (forumId) {
             const forum = await db.forum.findUnique({ where: { id: forumId } });
             if (forum?.persistentCookies) {
@@ -127,9 +129,16 @@ export async function extractLinksFromPost(
                     storedUserAgent = typeof parsed.userAgent === 'string' ? parsed.userAgent : undefined;
                 }
             }
+            ttlMs = forum?.flaresolverrSessionTTL || ttlMs;
         }
         if (persistedCookies.length > 0) {
             await preloadJarCookies(jar, postUrl, persistedCookies);
+        }
+
+        const fsClient = flareUrl ? new FlareSolverrClient(flareUrl) : null;
+        let sessionId: string | undefined;
+        if (fsClient && forumId) {
+            sessionId = await sessionManager.getSession(forumId, host, ttlMs, fsClient);
         }
 
         const axiosClient = axiosCookieJarSupport(axios.create({
@@ -147,11 +156,9 @@ export async function extractLinksFromPost(
             timeout: 20000,
         }));
 
-        const fsClient = flareUrl ? new FlareSolverrClient(flareUrl) : null;
-
-        const useFlareSolverr = async (url: string, method: 'GET' | 'POST' = 'GET', postData?: Record<string, any>) => {
+        const callFlareSolverr = async (url: string, method: 'GET' | 'POST' = 'GET', postData?: Record<string, any>) => {
             if (!fsClient) throw new Error('FlareSolverr URL not configured');
-            const sol = await fsClient.request(url, method, postData);
+            const sol = await fsClient.request(url, method, postData, sessionId);
             const solvedCookies = sol.cookies || [];
             if (solvedCookies.length > 0) {
                 await preloadJarCookies(jar, url, solvedCookies);
@@ -184,7 +191,7 @@ export async function extractLinksFromPost(
         // Step 1: Login if credentials provided (use FlareSolverr for reliability, but preload jar and persist)
         let sessionCookies: Array<{ name: string; value: string }> = [];
         if (username && password && fsClient) {
-            const loginResult = await loginToForum(forumBaseUrl, username, password, flareUrl!);
+            const loginResult = await loginToForum(forumBaseUrl, username, password, fsClient, sessionId);
             if (!loginResult.success) {
                 return { success: false, error: `Login failed: ${loginResult.error}` };
             }
@@ -210,7 +217,7 @@ export async function extractLinksFromPost(
         try {
             html = await tryAxios(postUrl);
         } catch {
-            html = await useFlareSolverr(postUrl, 'GET');
+            html = await callFlareSolverr(postUrl, 'GET');
             try {
                 html = await tryAxios(postUrl);
             } catch {
@@ -219,10 +226,10 @@ export async function extractLinksFromPost(
         }
 
         if (!html) {
-            console.log('[LinkExtractor] ✗ No HTML received from FlareSolverr');
+            logger.warn('extract', 'No HTML received from post URL');
             return { success: false, error: 'No HTML content received from post' };
         }
-        console.log('[LinkExtractor] ✓ Received HTML:', html.length, 'bytes');
+        logger.info('extract', `Received HTML: ${html.length} bytes`);
 
         // Step 3: Parse HTML to find post ID and thanks button
         // Support both thread ID (?t=) and post ID (?p=)
@@ -231,14 +238,14 @@ export async function extractLinksFromPost(
             return { success: false, error: 'Could not extract post ID from URL' };
         }
         let postId = postIdMatch[1];
-        console.log('[LinkExtractor] Initial post ID from URL:', postId);
+        logger.info('extract', `Initial post ID from URL: ${postId}`);
 
         // If URL has thread ID (?t=), extract the real post ID from HTML
         if (postUrl.match(/[?&]t=/)) {
             const realPostIdMatch = html.match(/id="vfc_(?:hide|unhide)_thanks_post_(\d+)"/);
             if (realPostIdMatch) {
                 postId = realPostIdMatch[1];
-                console.log('[LinkExtractor] Real post ID from HTML:', postId);
+                logger.info('extract', `Real post ID from HTML: ${postId}`);
             }
         }
 
@@ -248,27 +255,26 @@ export async function extractLinksFromPost(
 
         // Check if content is already unhidden (user already clicked thanks)
         if (html.includes(`id="${unhiddenContentId}"`)) {
-            console.log('[LinkExtractor] ✓ Content already unhidden, extracting links directly');
+            logger.info('extract', 'Content already unhidden, extracting links directly');
             return extractLinksFromHTML(html);
         }
 
         // Check if hidden content exists (needs to click thanks)
         if (!html.includes(`id="${hiddenContentId}"`)) {
-            console.log('[LinkExtractor] ✗ No hidden or unhidden content found');
-            console.log('[LinkExtractor] Looking for:', hiddenContentId, 'or', unhiddenContentId);
+            logger.warn('extract', `No hidden or unhidden content found. Looking for: ${hiddenContentId} or ${unhiddenContentId}`);
 
             // Debug: find all divs with vfc_ pattern
             const vfcMatches = html.match(/id="(vfc_[^"]+)"/g);
             if (vfcMatches) {
-                console.log('[LinkExtractor] Found vfc_ divs:', vfcMatches.slice(0, 10));
+                logger.info('extract', `Found vfc_ divs: ${vfcMatches.slice(0, 10).join(', ')}`);
             } else {
-                console.log('[LinkExtractor] No vfc_ divs found in HTML');
+                logger.info('extract', 'No vfc_ divs found in HTML');
             }
 
             return { success: false, error: 'No hidden content found (thanks mechanism not detected)' };
         }
 
-        console.log('[LinkExtractor] Content is hidden, searching for thanks button');
+        logger.info('extract', 'Content is hidden, searching for thanks button');
 
         // Step 4: Find and construct thanks URL
         // Pattern: href="post_thanks.php?do=post_thanks_add&amp;p=2304&amp;securitytoken=..."
@@ -276,9 +282,9 @@ export async function extractLinksFromPost(
             html.matchAll(/href=['"](post_thanks\.php[^'\"]+)['"]/gi)
         ).map((m) => m[1]);
 
-        console.log('[LinkExtractor] post_thanks links found:', allThanksLinks.length);
+        logger.info('extract', `post_thanks links found: ${allThanksLinks.length}`);
         if (allThanksLinks.length > 0) {
-            console.log('[LinkExtractor] Sample links:', allThanksLinks.slice(0, 5));
+            logger.info('extract', `Sample links: ${allThanksLinks.slice(0, 5).join(', ')}`);
         }
 
         const thanksRegex = new RegExp(
@@ -291,14 +297,14 @@ export async function extractLinksFromPost(
         if (!thanksButtonMatch) {
             // Fallback: construct default thanks URL even if button is not present in HTML
             thanksUrl = new URL(`/post_thanks.php?do=post_thanks_add&p=${postId}`, forumBaseUrl).toString();
-            console.log('[LinkExtractor] ⚠️ Thanks button not found, using fallback URL:', thanksUrl);
+            logger.warn('extract', `Thanks button not found, using fallback URL: ${thanksUrl}`);
         } else {
-            console.log('[LinkExtractor] ✓ Found thanks button');
+            logger.info('extract', 'Found thanks button');
             const thanksPath = thanksButtonMatch[1]
                 .replace(/&amp;/g, '&')  // Decode HTML entities
                 .replace(/^\//, '');
             thanksUrl = new URL(thanksPath, forumBaseUrl).toString();
-            console.log('[LinkExtractor] Thanks URL:', thanksUrl);
+            logger.info('extract', `Thanks URL: ${thanksUrl}`);
         }
 
         if (!thanksUrl) {
@@ -312,10 +318,10 @@ export async function extractLinksFromPost(
             thanksClicked = true;
         } catch (axiosErr) {
             try {
-                await useFlareSolverr(thanksUrl, 'GET');
+                await callFlareSolverr(thanksUrl, 'GET');
                 thanksClicked = true;
             } catch (solverErr) {
-                console.log('[LinkExtractor] ✗ Failed to click thanks URL via axios and FlareSolverr', axiosErr, solverErr);
+                logger.error('extract', `Failed to click thanks URL via axios and FlareSolverr: ${axiosErr}, ${solverErr}`);
             }
         }
 
@@ -328,14 +334,14 @@ export async function extractLinksFromPost(
         try {
             updatedHtml = await tryAxios(postUrl);
         } catch {
-            updatedHtml = await useFlareSolverr(postUrl, 'GET');
+            updatedHtml = await callFlareSolverr(postUrl, 'GET');
         }
 
         // Step 7: Extract links from unhidden content
         return extractLinksFromHTML(updatedHtml);
 
     } catch (error) {
-        console.error('[LinkExtractor] Error:', error);
+        logger.error('extract', `Error: ${error instanceof Error ? error.message : String(error)}`);
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -375,11 +381,11 @@ function extractLinksFromHTML(html: string): ExtractLinksResult {
             return { success: false, error: 'No URLs found in unhidden content' };
         }
 
-        console.log(`[LinkExtractor] Extracted ${urls.length} links`);
+        logger.info('extract', `Extracted ${urls.length} links`);
         return { success: true, links: urls };
 
     } catch (error) {
-        console.error('[LinkExtractor] HTML parsing error:', error);
+        logger.error('extract', `HTML parsing error: ${error instanceof Error ? error.message : String(error)}`);
         return {
             success: false,
             error: error instanceof Error ? error.message : 'HTML parsing failed',

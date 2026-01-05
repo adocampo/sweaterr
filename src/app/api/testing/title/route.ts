@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { FlareSolverrClient } from '@/lib/services/flaresolverr-client';
+import { sessionManager } from '@/lib/services/flaresolverr-session-manager';
+import { logger } from '@/lib/logger';
+import { verifyTokenEdge } from '@/lib/edge-jwt';
 import axios from 'axios';
 import { CookieJar } from 'tough-cookie';
 import { wrapper as axiosCookieJarSupport } from 'axios-cookiejar-support';
@@ -10,6 +13,24 @@ import { getJarForHost, preloadJarCookies } from '@/lib/cookie-jar-store';
 export async function POST(request: NextRequest) {
     try {
         const { forumId, postUrl } = await request.json();
+
+        // Get user settings to check bypassAxios
+        const token = request.cookies.get('sweaterr-auth')?.value;
+        let bypassAxios = false;
+        if (token) {
+            try {
+                const payload = await verifyTokenEdge(token);
+                if (payload && typeof payload.id === 'string') {
+                    const userId = payload.id;
+                    const settings = await db.testingSettings.findUnique({
+                        where: { userId },
+                    });
+                    bypassAxios = settings?.bypassAxios ?? false;
+                }
+            } catch (err) {
+                // Silently ignore settings fetch error
+            }
+        }
 
         // Axios client will be created after we resolve the host-level CookieJar
 
@@ -47,7 +68,7 @@ export async function POST(request: NextRequest) {
         // Preload jar from persisted DB cookies once per process lifecycle
         if (cookieArr.length > 0) {
             await preloadJarCookies(jar, postUrl, cookieArr);
-            console.log(`[Testing/Title] Using CookieJar for ${host} with ${cookieArr.length} persisted cookies`);
+            logger.info('testing', `Using CookieJar for ${host} with ${cookieArr.length} persisted cookies`);
         }
 
         // Create axios client bound to the host-level jar
@@ -79,11 +100,21 @@ export async function POST(request: NextRequest) {
         };
 
         try {
+            // If bypassAxios is enabled, skip axios and go straight to FlareSolverr
+            if (bypassAxios) {
+                logger.info('testing', `[BYPASS MODE] Skipping Axios, using FlareSolverr directly`);
+                throw new Error('Bypass mode enabled');
+            }
+
             html = await tryAxios();
-            console.log(`[Testing/Title] ✓ Axios succeeded for ${host}`);
+            if (cookieArr.length > 0) {
+                logger.info('testing', `✓ Axios succeeded WITH PERSISTED COOKIES - No FlareSolverr needed!`);
+            } else {
+                logger.info('testing', `✓ Axios succeeded for ${host}`);
+            }
         } catch (firstErr: any) {
             const status = firstErr?.response?.status;
-            console.log(`[Testing/Title] ✗ Axios failed (status ${status}). Trying FlareSolverr...`);
+            logger.info('testing', `✗ Axios failed (status ${status}). Trying FlareSolverr...`);
             const flaresolverrUrl = process.env.FLARESOLVERR_URL;
             if (!flaresolverrUrl) {
                 return NextResponse.json(
@@ -92,7 +123,11 @@ export async function POST(request: NextRequest) {
                 );
             }
             const fsClient = new FlareSolverrClient(flaresolverrUrl);
-            const solution = await fsClient.request(postUrl, 'GET');
+
+            // Get or create persistent session (managed globally per forum)
+            const ttlMs = forum.flaresolverrSessionTTL || 30 * 60 * 1000;
+            const sessionId = await sessionManager.getSession(forum.id, host, ttlMs, fsClient);
+            const solution = await fsClient.request(postUrl, 'GET', undefined, sessionId);
             const solvedCookies = solution.cookies || [];
 
             // Merge solved cookies into jar and persist to DB
@@ -107,22 +142,22 @@ export async function POST(request: NextRequest) {
                     where: { id: forum.id },
                     data: { persistentCookies: JSON.stringify(toPersist), cookiesUpdatedAt: new Date() },
                 });
-                console.log(`[Testing/Title] Persisted ${merged.length} cookies after FlareSolverr`);
+                logger.info('testing', `Persisted ${merged.length} cookies after FlareSolverr`);
             }
 
             // Prefer axios parsing for consistent headers; fallback to solution HTML if retry also fails
             try {
                 html = await tryAxios();
-                console.log('[Testing/Title] ✓ Axios succeeded after FlareSolverr');
+                logger.info('testing', `✓ Axios succeeded after FlareSolverr`);
             } catch {
                 html = solution.response || '';
-                console.log('[Testing/Title] Using FlareSolverr HTML response');
+                logger.info('testing', `Using FlareSolverr HTML response`);
             }
         }
 
         // Check if we're getting a LaLiga block page
         if (html.includes('Liga Nacional de Fútbol') || html.includes('laliga.com')) {
-            console.log('[Testing/Title] ⚠️ LaLiga block page detected - Forum access blocked');
+            logger.warn('testing', `⚠️ LaLiga block page detected - Forum access blocked`);
             return NextResponse.json({
                 success: false,
                 error: 'Forum blocked by LaLiga. Configure FlareSolverr with VPN/proxy.'
@@ -135,9 +170,10 @@ export async function POST(request: NextRequest) {
         const sel = forum.postTitleSelector || '.threadtitle, #thread_title, .navbar strong, h1, h2';
         const title = $(sel).first().text().trim();
 
+        logger.info('testing', `✓ Title extracted: ${title || '(no title found)'}`);
         return NextResponse.json({ success: true, title: title || null });
     } catch (error) {
-        console.error('[Testing/Title] Error:', error);
+        logger.error('testing', `Error: ${error instanceof Error ? error.message : String(error)}`);
         return NextResponse.json(
             { success: false, error: 'Error al obtener el título' },
             { status: 500 }

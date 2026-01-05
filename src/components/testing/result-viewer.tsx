@@ -11,6 +11,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useBulkTitles } from '@/hooks/use-api';
 
 interface SearchResult {
     title: string;
@@ -42,6 +43,8 @@ export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: 
     const [sendingToJd, setSendingToJd] = useState<Record<string, boolean>>({});
     const [sendErrors, setSendErrors] = useState<Record<string, string | null>>({});
     const [sendSuccess, setSendSuccess] = useState<Record<string, boolean>>({});
+    const { loading: bulkLoading, resolveTitles } = useBulkTitles();
+    const [bulkError, setBulkError] = useState<string | null>(null);
 
     const handleExtractLinks = async (postUrl: string) => {
         setSelectedPost(postUrl);
@@ -192,6 +195,30 @@ export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: 
         return grouped;
     };
 
+    const handleBulkTitles = async () => {
+        setBulkError(null);
+        try {
+            const postUrls = results.map(r => r.url);
+            const data = await resolveTitles(forumId, postUrls);
+            if (data?.results) {
+                const updated: Record<string, string> = {};
+                data.results.forEach((item: any) => {
+                    if (item.title) {
+                        updated[item.url] = item.title as string;
+                    }
+                });
+                if (Object.keys(updated).length > 0) {
+                    setTitles(prev => ({ ...prev, ...updated }));
+                }
+                if ((data.totalErrors ?? 0) > 0) {
+                    setBulkError(`Errores en ${data.totalErrors} títulos`);
+                }
+            }
+        } catch (err) {
+            setBulkError(err instanceof Error ? err.message : 'Error resolviendo títulos');
+        }
+    };
+
     if (results.length === 0) {
         return (
             <Card>
@@ -221,6 +248,18 @@ export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: 
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    <div className="flex items-center justify-between mb-3 gap-2">
+                        <div className="text-sm text-muted-foreground">
+                            Resolver títulos en lote para aprovechar la misma sesión de FlareSolverr.
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleBulkTitles} disabled={bulkLoading}>
+                            {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                            Completar todos los títulos
+                        </Button>
+                    </div>
+                    {bulkError && (
+                        <div className="text-sm text-red-600 dark:text-red-400 mb-3">{bulkError}</div>
+                    )}
                     <div className="space-y-3">
                         {results.map((result, index) => {
                             const postLinks = extractedByPost[result.url] || [];

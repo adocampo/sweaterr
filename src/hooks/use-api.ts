@@ -742,3 +742,91 @@ export function useAIModels() {
     testConnection,
   };
 }
+
+// Testing settings hook
+export function useTestingSettings() {
+  const [bypassAxios, setBypassAxios] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/testing/settings');
+      const data = await response.json();
+
+      if (data.success) {
+        setBypassAxios(data.data.bypassAxios);
+      }
+    } catch (err) {
+      console.error('Error fetching testing settings:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSettings = async (newBypassAxios: boolean) => {
+    try {
+      const response = await fetch('/api/testing/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bypassAxios: newBypassAxios }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setBypassAxios(data.data.bypassAxios);
+        return true;
+      } else {
+        throw new Error(data.error || 'Failed to update settings');
+      }
+    } catch (err) {
+      console.error('Error updating testing settings:', err);
+      throw err instanceof Error ? err : new Error('Failed to update settings');
+    }
+  };
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  return {
+    bypassAxios,
+    loading,
+    updateSettings,
+  };
+}
+
+// Bulk title resolution hook
+export function useBulkTitles() {
+  const [loading, setLoading] = useState(false);
+
+  const resolveTitles = async (forumId: string, postUrls: string[]) => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/testing/titles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forumId, postUrls }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        return data.data;
+      } else {
+        throw new Error(data.error || 'Failed to resolve titles');
+      }
+    } catch (err) {
+      console.error('Error resolving titles:', err);
+      throw err instanceof Error ? err : new Error('Failed to resolve titles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    loading,
+    resolveTitles,
+  };
+}
