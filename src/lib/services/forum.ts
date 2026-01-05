@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
 import { CloudflareHandler } from './cloudflare-handler';
 import { db } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 export interface ForumSearchResult {
   title: string;
@@ -65,6 +66,7 @@ export class ForumService {
 
   // Add forum configuration
   addForum(config: ForumConfig): void {
+    logger.info('forum', `addForum: Configuring forum ${config.id} (${config.name})`);
     this.configs.set(config.id, config);
 
     // Create authenticated axios instance
@@ -78,12 +80,12 @@ export class ForumService {
 
     // Add request/response interceptors for logging
     client.interceptors.request.use(req => {
-      console.log(`Forum ${config.name}: ${req.method?.toUpperCase()} ${req.url}`);
+      logger.info('forum', `${config.name}: ${req.method?.toUpperCase()} ${req.url}`);
       return req;
     });
 
     client.interceptors.response.use(res => {
-      console.log(`Forum ${config.name}: Response ${res.status} from ${res.config.url}`);
+      logger.info('forum', `${config.name}: Response ${res.status} from ${res.config.url}`);
       return res;
     });
 
@@ -92,11 +94,11 @@ export class ForumService {
     if (storedCookies.length > 0) {
       const cookieHeader = storedCookies.map(c => `${c.name}=${c.value}`).join('; ');
       client.defaults.headers.Cookie = cookieHeader;
-      console.log(`Forum ${config.name}: Applied persistent cookies (${storedCookies.length})`);
+      logger.info('forum', `Applied persistent cookies to ${config.name} (${storedCookies.length})`);
     }
     if (storedUserAgent) {
       client.defaults.headers['User-Agent'] = storedUserAgent;
-      console.log(`Forum ${config.name}: Applied stored user agent for cookie reuse`);
+      logger.info('forum', `Applied stored user agent for ${config.name}`);
     }
 
     this.clients.set(config.id, client);
@@ -108,7 +110,7 @@ export class ForumService {
     const client = this.clients.get(forumId);
 
     if (!config || !client) {
-      console.log(`Forum not configured: ${forumId}`);
+      logger.warn('forum', `Forum not configured: ${forumId}`);
       return false;
     }
 
@@ -120,20 +122,20 @@ export class ForumService {
       if (storedUserAgent) {
         client.defaults.headers['User-Agent'] = storedUserAgent;
       }
-      console.log(`Using persistent cookies for ${config.name}; skipping login.`);
+      logger.info('forum', `Using persistent cookies for ${config.name}; skipping login.`);
       return true;
     }
 
     if (!config.credentials) {
-      console.log(`No credentials for ${config.name}; cannot perform login.`);
+      logger.warn('forum', `No credentials for ${config.name}; cannot perform login.`);
       return false;
     }
 
     try {
-      console.log(`Attempting authentication for ${config.name}...`);
+      logger.info('forum', `Attempting authentication for ${config.name}...`);
 
       // Use Playwright for sites protected by Cloudflare
-      console.log(`[${config.name}] Trying Playwright/headless browser approach for Cloudflare...`);
+      logger.info('forum', `[${config.name}] Trying Playwright/headless browser approach for Cloudflare...`);
 
       if (!this.cfHandler) {
         this.cfHandler = new CloudflareHandler();
@@ -148,7 +150,7 @@ export class ForumService {
       );
 
       if (result.success && result.cookies) {
-        console.log(`✓ Successfully authenticated with ${config.name}`);
+        logger.info('forum', `✓ Successfully authenticated with ${config.name}`);
         // Set cookies in axios client
         client.defaults.headers.Cookie = result.cookies;
         if (result.userAgent) {
@@ -164,18 +166,18 @@ export class ForumService {
               cookiesUpdatedAt: new Date(),
             }
           });
-          console.log(`Forum ${config.name}: Persistent cookies stored (${(result.cookieArray || []).length})`);
+          logger.info('forum', `Persistent cookies stored (${(result.cookieArray || []).length})`);
         } catch (err) {
-          console.error(`Forum ${config.name}: Failed to store persistent cookies`, err);
+          logger.error('forum', `Failed to store persistent cookies: ${err}`);
         }
         return true;
       }
 
-      console.warn(`✗ Authentication failed for ${config.name}: ${result.error}`);
+      logger.warn('forum', `Authentication failed for ${config.name}: ${result.error}`);
       return false;
 
     } catch (error: any) {
-      console.error(`✗ Authentication error for ${config.name}:`, error.message);
+      logger.error('forum', `Authentication error for ${config.name}: ${error.message}`);
       return false;
     }
   }
@@ -202,28 +204,60 @@ export class ForumService {
         });
 
         const gq = `site:${config.baseUrl.replace(/https?:\/\//, '')} ${query}`;
-        const res = await googleClient.get('/search', { params: { q: gq, hl: 'es' } });
+        logger.info('search', `Google site search query: ${gq}`);
+
+        const res = await googleClient.get('/search', { params: { q: gq, hl: 'es', num: 50 } });
+        logger.info('search', `Google response status: ${res.status}`);
+
         const $ = cheerio.load(res.data);
         const results: ForumSearchResult[] = [];
 
-        // Google SERP parsing (best-effort; structure may vary)
-        $('a').each((_, a) => {
-          const href = $(a).attr('href') || '';
-          const title = $(a).find('h3').text().trim() || $(a).text().trim();
-          if (!href || !title) return;
+        // Google SERP parsing - search for result containers
+        // Modern Google uses div[data-hveid] or divs with specific classes
+        const forumHost = new URL(config.baseUrl).host;
+        logger.info('search', `Looking for results from host: ${forumHost}`);
+
+        // Try modern structure: div.g or div[data-sokoban-container]
+        $('div.g, div[data-sokoban-container], div.Gx5Zad').each((idx, container) => {
+          const $container = $(container);
+
+          // Find the main link (usually first <a> with href)
+          const $link = $container.find('a[href]').first();
+          const href = $link.attr('href');
+          if (!href) {
+            logger.warn('search', `Container ${idx}: No href found`);
+            return;
+          }
+
+          // Extract title from h3 or parent text
+          let title = $link.find('h3').text().trim();
+          if (!title) {
+            title = $link.text().trim();
+          }
+          if (!title) {
+            logger.warn('search', `Container ${idx}: No title found for href ${href}`);
+            return;
+          }
 
           let url = href;
           // Google often uses /url?q=<url>
           if (href.startsWith('/url?')) {
-            const u = new URL('https://www.google.com' + href);
-            const q = u.searchParams.get('q');
-            if (q) url = q;
+            try {
+              const u = new URL('https://www.google.com' + href);
+              const q = u.searchParams.get('q');
+              if (q) url = q;
+            } catch {
+              logger.warn('search', `Container ${idx}: Failed to parse /url? format: ${href}`);
+              return;
+            }
           }
 
+          // Validate URL belongs to forum
           try {
             const u = new URL(url);
-            const forumHost = new URL(config.baseUrl).host;
-            if (u.host.endsWith(forumHost)) {
+            logger.info('search', `Container ${idx}: Checking URL ${url} (host: ${u.host})`);
+
+            if (u.host.endsWith(forumHost) && url.includes('showthread')) {
               results.push({
                 title,
                 url,
@@ -231,14 +265,124 @@ export class ForumService {
                 hasLinks: false,
                 thankRequired: false,
               });
+              logger.info('search', `Container ${idx}: ✓ Added result: ${title}`);
+            } else {
+              logger.info('search', `Container ${idx}: Skipped (host mismatch or not showthread): ${url}`);
             }
-          } catch { }
+          } catch (err) {
+            logger.warn('search', `Container ${idx}: Invalid URL: ${url}`, err);
+          }
         });
+
+        logger.info('search', `Google site search found ${results.length} results for "${query}"`);
 
         // De-duplicate by URL
         const unique = new Map<string, ForumSearchResult>();
         results.forEach(r => { if (!unique.has(r.url)) unique.set(r.url, r); });
-        return Array.from(unique.values());
+        const finalResults = Array.from(unique.values());
+
+        logger.info('search', `After deduplication: ${finalResults.length} unique results`);
+        return finalResults;
+      }
+
+      // If using Google CSE (Custom Search Engine)
+      if (config.searchMode === 'google_cse') {
+        // If cseId is not set, try to use a fallback ID (can be overridden in DB)
+        const cseId = config.cseId || process.env.NEXT_PUBLIC_CSE_ID || '44f04a516a5b84434';
+
+        logger.info('search', `Google CSE mode with ID: ${cseId}`);
+
+        const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+
+        if (!flaresolverrUrl) {
+          logger.error('search', 'Google CSE requires FlareSolverr to be configured');
+          return [];
+        }
+
+        try {
+          const cseUrl = `https://cse.google.com/cse?cx=${cseId}&q=${encodeURIComponent(query)}`;
+          logger.info('search', `Google CSE search URL: ${cseUrl}`);
+
+          const FlareSolverrClientModule = await import('./flaresolverr-client');
+          const cseClient = new FlareSolverrClientModule.FlareSolverrClient(flaresolverrUrl);
+          const solution = await cseClient.request(cseUrl, 'GET');
+          const html = solution.response || '';
+
+          if (!html) {
+            logger.warn('search', 'Google CSE returned empty response');
+            return [];
+          }
+
+          logger.info('search', `Google CSE HTML length: ${html.length}`);
+
+          const results: ForumSearchResult[] = [];
+          const forumHost = new URL(config.baseUrl).host;
+
+          // Parse Google CSE results using regex to extract showthread URLs
+          // Google CSE wraps results in various containers, use regex for robustness
+          // This regex handles:
+          // - href="/showthread.php?p=123" or href='showthread.php?...'
+          // - href="https://domain/showthread.php?..."
+          // - Various text content in the <a> tag
+          const showthreadRe = /<a[^>]*href=["']([^"']*showthread[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+          let match: RegExpExecArray | null;
+          let matchCount = 0;
+
+          while ((match = showthreadRe.exec(html)) !== null) {
+            matchCount++;
+            const url = match[1];
+            const titleRaw = match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+            if (titleRaw && url) {
+              try {
+                // Handle relative URLs
+                let absoluteUrl = url;
+                if (url.startsWith('/')) {
+                  absoluteUrl = config.baseUrl + url;
+                } else if (!url.startsWith('http')) {
+                  absoluteUrl = config.baseUrl + '/' + url;
+                }
+
+                const u = new URL(absoluteUrl);
+                logger.info('search', `CSE Match ${matchCount}: Checking URL ${absoluteUrl} (host: ${u.host})`);
+
+                if (u.host.endsWith(forumHost)) {
+                  results.push({
+                    title: titleRaw,
+                    url: absoluteUrl,
+                    forum: config.name,
+                    hasLinks: false,
+                    thankRequired: false,
+                  });
+                  logger.info('search', `CSE Match ${matchCount}: ✓ Added result: ${titleRaw.substring(0, 80)}`);
+                } else {
+                  logger.info('search', `CSE Match ${matchCount}: Skipped (host mismatch: ${u.host} vs ${forumHost})`);
+                }
+              } catch (err) {
+                logger.warn('search', `CSE Match ${matchCount}: Invalid URL: ${url}`, err);
+              }
+            } else {
+              logger.info('search', `CSE Match ${matchCount}: Skipped (empty title or url)`);
+            }
+          }
+
+          logger.info('search', `Google CSE parsed ${matchCount} showthread links, found ${results.length} valid results for "${query}"`);
+
+          // De-duplicate by URL
+          const unique = new Map<string, ForumSearchResult>();
+          results.forEach(r => { if (!unique.has(r.url)) unique.set(r.url, r); });
+          const finalResults = Array.from(unique.values());
+
+          logger.info('search', `After deduplication: ${finalResults.length} unique results`);
+          return finalResults;
+
+        } catch (error) {
+          logger.error('search', `Google CSE search error: ${error instanceof Error ? error.message : String(error)}`);
+          if (error instanceof Error && error.stack) {
+            logger.error('search', `Stack: ${error.stack.substring(0, 200)}`);
+          }
+          return [];
+        }
       }
 
       // Default native search (legacy) with Cloudflare fallback via FlareSolverr

@@ -37,10 +37,12 @@ import {
 import { JDownloaderConfig } from '@/components/config/jdownloader-config';
 import { AIConfig } from '@/components/config/ai-config';
 import { ForumConfig } from '@/components/config/forum-config';
+import { ForumSessionSettings } from '@/components/config/forum-session-settings';
 import { ArrConfig } from '@/components/config/arr-config';
 import { SearchTester } from '@/components/testing/search-tester';
 import { ResultViewer } from '@/components/testing/result-viewer';
 import { JDownloaderTester } from '@/components/testing/jdownloader-tester';
+import { TestingSettings } from '@/components/testing/testing-settings';
 import { DownloadsManager } from '@/components/downloads/downloads-manager';
 import { useForums, useJDownloaderConfig, useAIConfig, useDownloads, useJDownloaders, useAIModels } from '@/hooks/use-api';
 import { useTheme } from '@/components/theme-provider';
@@ -421,6 +423,9 @@ export default function Home() {
                         </AlertDialog>
                       </div>
                     </div>
+                    <div className="mt-4">
+                      <ForumSessionSettings forumId={forum.id} forumName={forum.name} />
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -438,6 +443,8 @@ export default function Home() {
           </div>
 
           <div className="space-y-6">
+            <TestingSettings />
+
             <SearchTester
               forums={forums}
               onSearchResults={(results, forumId, query) => {

@@ -59,6 +59,9 @@ model Forum {
   persistentCookies      String?   // JSON: [{ name, value, domain, path, expires }]
   cookiesUpdatedAt       DateTime? // When cookies were last refreshed
   
+  // FlareSolverr session management
+  flaresolverrSessionTTL Int       @default(1800000) // TTL in milliseconds (default: 30 minutes)
+  
   credentials ForumCredential?
   
   @@map("forums")
@@ -181,4 +184,15 @@ model ArrService {
   updatedAt DateTime @updatedAt
   
   @@map("arr_services")
+}
+
+// Testing configuration (user preferences for testing features)
+model TestingSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique // One setting per user
+  bypassAxios          Boolean  @default(false) // When true, use FlareSolverr directly without trying Axios first
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  @@map("testing_settings")
 }
