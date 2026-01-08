@@ -166,7 +166,7 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
 
                 {/* Configuración de TTL */}
                 <div className="space-y-3">
-                    <Label htmlFor="ttl-{forumId}">Tiempo de vida de sesión (minutos)</Label>
+                    <Label htmlFor="ttl-{forumId}">Duración de la sesión (minutos)</Label>
                     <div className="flex gap-2">
                         <Input
                             id={`ttl-${forumId}`}
@@ -198,7 +198,7 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
 
                     <div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
                         <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">
-                            💡 Recomendaciones de TTL:
+                            💡 Recomendaciones de duración:
                         </p>
                         <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1 ml-4">
                             <li>

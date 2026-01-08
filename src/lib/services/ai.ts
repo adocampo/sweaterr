@@ -17,6 +17,20 @@ export interface AISearchResult {
   sceneMapping?: SceneMapping;
 }
 
+export interface MediaMetadata {
+  type: 'series' | 'movie' | 'unknown';
+  title?: string | null;
+  year?: number | null;
+  season?: number | null;
+  quality?: string | null;
+  audioLanguages?: string[];
+  subtitleLanguages?: string[];
+  episodesAvailable?: number | null;
+  episodesTotal?: number | null;
+  genres?: string[];
+  size?: string | null;
+}
+
 export interface AIProviderConfig {
   provider: string; // openai, perplexity, deepseek, ollama
   apiKey?: string;
@@ -160,6 +174,62 @@ Generate 5 relevant search completions for movies/TV shows. Return JSON array of
     } catch (error) {
       console.error('Suggestions error:', error);
       return [];
+    }
+  }
+
+  // Extract structured metadata (series/movie) from page context
+  async extractMediaMetadata(context: {
+    title: string;
+    breadcrumbs?: string;
+    contentSnippet?: string;
+    searchQuery?: string;
+  }): Promise<MediaMetadata | null> {
+    const { title, breadcrumbs, contentSnippet, searchQuery } = context;
+
+    const prompt = `You are a media librarian. Infer structured metadata for a forum post.
+
+Forum Title: ${title}
+Breadcrumbs: ${breadcrumbs || '(none)'}
+Search Query: ${searchQuery || '(none)'}
+Content Snippet (may be truncated): ${contentSnippet || '(empty)'}
+
+Return JSON with keys:
+{
+  "type": "series|movie|unknown",
+  "title": "clean name without tags",
+  "year": 2024,
+  "season": 1,
+  "quality": "1080p WEB-DL",
+  "audioLanguages": ["es-ES", "en"],
+  "subtitleLanguages": ["es-ES"],
+  "episodesAvailable": 10,
+  "episodesTotal": 10,
+  "genres": ["Comedy"],
+  "size": "14.3 GB"
+}
+Only include numeric fields when present. Use ISO-like language codes when possible.`;
+
+    const response = await this.callAI(prompt);
+    if (!response) return null;
+
+    try {
+      const parsed = JSON.parse(response);
+      return {
+        type: parsed.type === 'series' || parsed.type === 'movie' ? parsed.type : 'unknown',
+        title: parsed.title ?? title,
+        year: parsed.year ? Number(parsed.year) : null,
+        season: parsed.season ? Number(parsed.season) : null,
+        quality: parsed.quality ?? null,
+        audioLanguages: Array.isArray(parsed.audioLanguages) ? parsed.audioLanguages : [],
+        subtitleLanguages: Array.isArray(parsed.subtitleLanguages) ? parsed.subtitleLanguages : [],
+        episodesAvailable: parsed.episodesAvailable ? Number(parsed.episodesAvailable) : null,
+        episodesTotal: parsed.episodesTotal ? Number(parsed.episodesTotal) : null,
+        genres: Array.isArray(parsed.genres) ? parsed.genres : [],
+        size: parsed.size ?? null,
+      };
+    } catch (err) {
+      console.error('AI metadata parse error:', err);
+      return null;
     }
   }
 

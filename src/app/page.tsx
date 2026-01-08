@@ -20,7 +20,8 @@ import {
   Activity,
   Trash2,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Loader2
 } from 'lucide-react';
 import Image from 'next/image';
 import {
@@ -37,6 +38,7 @@ import {
 import { JDownloaderConfig } from '@/components/config/jdownloader-config';
 import { AIConfig } from '@/components/config/ai-config';
 import { ForumConfig } from '@/components/config/forum-config';
+import { ForumsTable } from '@/components/config/forums-table';
 import { ForumSessionSettings } from '@/components/config/forum-session-settings';
 import { ArrConfig } from '@/components/config/arr-config';
 import { SearchTester } from '@/components/testing/search-tester';
@@ -56,8 +58,13 @@ export default function Home() {
 
   // Testing state
   const [testingResults, setTestingResults] = useState<any[]>([]);
+  const [testingPage, setTestingPage] = useState<number>(1);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [testingForumId, setTestingForumId] = useState('');
   const [testingQuery, setTestingQuery] = useState('');
+  const [testingSearchMode, setTestingSearchMode] = useState<'native' | 'google_site' | 'google_cse' | undefined>(undefined);
+  const [testingSearchId, setTestingSearchId] = useState<string | undefined>(undefined);
+  const [testingTotalResults, setTestingTotalResults] = useState<number | undefined>(undefined);
 
   // Edit state
   const [editingJDownloader, setEditingJDownloader] = useState<string | null>(null);
@@ -301,7 +308,7 @@ export default function Home() {
             <div>
               <h2 className="text-2xl font-bold tracking-tight">Foros Configurados</h2>
               <p className="text-muted-foreground">
-                Gestiona los foros de descarga directa
+                Gestiona los foros de descarga directa y sesiones de FlareSolverr
               </p>
             </div>
             <ForumConfig
@@ -314,11 +321,14 @@ export default function Home() {
                 }
               }}
               onTestConnection={testForumConnection}
+              language={currentUser?.language as 'es' | 'en'}
             />
           </div>
 
           {forumsLoading ? (
-            <p>Cargando foros...</p>
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
           ) : forums.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
@@ -337,99 +347,67 @@ export default function Home() {
                     }
                   }}
                   onTestConnection={testForumConnection}
+                  language={currentUser?.language as 'es' | 'en'}
                 />
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              {forums.map((forum) => (
-                <Card key={forum.id}>
-                  <CardHeader>
-                    <CardTitle>{forum.name}</CardTitle>
-                    <CardDescription>{forum.baseUrl}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(forum.enabled)}
-                          <span className="text-sm font-medium">
-                            {forum.enabled ? 'Conectado' : 'Desactivado'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {forum.credentials ? 'Con credenciales' : 'Sin credenciales'}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <ForumConfig
-                          config={{
-                            name: forum.name,
-                            baseUrl: forum.baseUrl,
-                            searchPath: forum.searchPath,
-                            searchMode: (forum as any).searchMode,
-                            cseId: (forum as any).cseId,
-                            thankButtonSelector: forum.thankButtonSelector || undefined,
-                            linksContainerSelector: forum.linksContainerSelector || undefined,
-                            postTitleSelector: forum.postTitleSelector || undefined,
-                            username: forum.credentials?.username,
-                            password: forum.credentials?.password,
-                          }}
-                          onConfigSave={async (values) => {
-                            try {
-                              await updateForum(forum.id, values);
-                              refetchForums();
-                            } catch (error) {
-                              console.error('Error updating forum:', error);
-                            }
-                          }}
-                          onTestConnection={testForumConnection}
-                          isEdit={true}
-                          forumId={forum.id}
-                          isOpen={editingForum === forum.id}
-                          onOpenChange={(open) => setEditingForum(open ? forum.id : null)}
-                        />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar foro?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Se eliminará permanentemente <strong>{forum.name}</strong> y todas sus credenciales.
-                                Esta acción no se puede deshacer.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={async () => {
-                                  try {
-                                    await deleteForum(forum.id);
-                                    refetchForums();
-                                  } catch (error) {
-                                    console.error('Error deleting forum:', error);
-                                  }
-                                }}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Eliminar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <ForumSessionSettings forumId={forum.id} forumName={forum.name} />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <ForumsTable
+              forums={forums}
+              onEdit={(forum) => {
+                setEditingForum(forum.id);
+              }}
+              onDelete={async (forumId) => {
+                try {
+                  await deleteForum(forumId);
+                  refetchForums();
+                } catch (error) {
+                  console.error('Error deleting forum:', error);
+                  throw error;
+                }
+              }}
+            />
+          )}
+
+          {editingForum && (
+            <ForumConfig
+              config={(() => {
+                const forum = forums.find((f) => f.id === editingForum);
+                if (!forum) return undefined;
+                return {
+                  name: forum.name,
+                  baseUrl: forum.baseUrl,
+                  searchPath: forum.searchPath,
+                  searchMode: (forum as any).searchMode,
+                  searchForumLabel: (forum as any).searchForumLabel || undefined,
+                  cseId: (forum as any).cseId,
+                  thankButtonSelector: forum.thankButtonSelector || undefined,
+                  linksContainerSelector: forum.linksContainerSelector || undefined,
+                  postTitleSelector: forum.postTitleSelector || undefined,
+                  username: forum.credentials?.username,
+                  password: forum.credentials?.password,
+                  // Convert stored TTL (ms) to minutes for the form
+                  flaresolverrSessionTTL: typeof (forum as any).flaresolverrSessionTTL === 'number'
+                    ? Math.round((forum as any).flaresolverrSessionTTL / 60000)
+                    : 30,
+                };
+              })()}
+              onConfigSave={async (values) => {
+                try {
+                  await updateForum(editingForum, values);
+                  refetchForums();
+                  setEditingForum(null);
+                } catch (error) {
+                  console.error('Error updating forum:', error);
+                }
+              }}
+              onTestConnection={testForumConnection}
+              isEdit={true}
+              forumId={editingForum}
+              isOpen={!!editingForum}
+              onOpenChange={(open) => !open && setEditingForum(null)}
+              language={currentUser?.language as 'es' | 'en'}
+            />
           )}
         </TabsContent>
 
@@ -446,11 +424,15 @@ export default function Home() {
             <TestingSettings />
 
             <SearchTester
-              forums={forums}
-              onSearchResults={(results, forumId, query) => {
+              forums={forums as any}
+              onSearchResults={(results, forumId, query, searchMode, searchId, totalResults) => {
                 setTestingResults(results);
                 setTestingForumId(forumId);
                 setTestingQuery(query);
+                setTestingSearchMode(searchMode);
+                setTestingSearchId(searchId);
+                setTestingTotalResults(totalResults);
+                setTestingPage(1);
               }}
             />
 
@@ -459,6 +441,78 @@ export default function Home() {
                 results={testingResults}
                 forumId={testingForumId}
                 searchQuery={testingQuery}
+                searchMode={testingSearchMode}
+                loadingMore={loadingMore}
+                totalResults={testingTotalResults}
+                onLoadMore={async () => {
+                  try {
+                    setLoadingMore(true);
+                    const nextPage = testingPage + 1;
+                    const response = await fetch('/api/testing/search', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        forumId: testingForumId, 
+                        query: testingQuery, 
+                        page: nextPage,
+                        searchId: testingSearchId,
+                      }),
+                    });
+                    const data = await response.json();
+                    if (data?.success && Array.isArray(data.results)) {
+                      // Deduplicate by URL while appending
+                      const existing = new Set((testingResults || []).map((r: any) => r.url));
+                      const merged = [...testingResults];
+                      for (const r of data.results) {
+                        if (r?.url && !existing.has(r.url)) {
+                          merged.push(r);
+                          existing.add(r.url);
+                        }
+                      }
+                      setTestingResults(merged);
+                      setTestingSearchMode(data.searchMode || testingSearchMode);
+                      // Update searchId and totalResults in case they change
+                      if (data.searchId) setTestingSearchId(data.searchId);
+                      if (data.totalResults) setTestingTotalResults(data.totalResults);
+                      if (data.results.length > 0) setTestingPage(nextPage);
+                    }
+                  } finally {
+                    setLoadingMore(false);
+                  }
+                }}
+                onLoadAll={async () => {
+                  try {
+                    setLoadingMore(true);
+                    const response = await fetch('/api/testing/search', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        forumId: testingForumId, 
+                        query: testingQuery, 
+                        fetchAll: true,
+                        searchId: testingSearchId,
+                      }),
+                    });
+                    const data = await response.json();
+                    if (data?.success && Array.isArray(data.results)) {
+                      // Merge and deduplicate against current results
+                      const existing = new Set((testingResults || []).map((r: any) => r.url));
+                      const merged = [...testingResults];
+                      for (const r of data.results) {
+                        if (r?.url && !existing.has(r.url)) {
+                          merged.push(r);
+                          existing.add(r.url);
+                        }
+                      }
+                      setTestingResults(merged);
+                      setTestingSearchMode(data.searchMode || testingSearchMode);
+                      // Update totalResults if available
+                      if (data.totalResults) setTestingTotalResults(data.totalResults);
+                    }
+                  } finally {
+                    setLoadingMore(false);
+                  }
+                }}
                 onExtractLinks={(links, postUrl) => {
                   console.log('Extracted links:', links, 'from', postUrl);
                 }}

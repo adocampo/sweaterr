@@ -56,6 +56,7 @@
     "forumName": "Nombre del foro",
     "baseUrl": "URL base",
     "searchMode": "Modo de búsqueda",
+    "searchForumLabel": "Etiqueta de foro (búsqueda avanzada)",
     "credentials": "Credenciales",
     "username": "Usuario",
     "testConnection": "Probar conexión",
@@ -66,7 +67,12 @@
     "linksExtracted": "Enlaces extraídos",
     "extractionFailed": "Error al extraer enlaces",
     "noLinksFound": "No se encontraron enlaces",
-    "sendToJDownloader": "Enviar a JDownloader"
+    "sendToJDownloader": "Enviar a JDownloader",
+    "sessionDuration": "Duración de la sesión de FlareSolverr",
+    "sessionDurationDescription": "Tiempo durante el cual se mantiene la sesión con el servicio de protecciones (CloudFlare). Valores más altos reducen los tiempos de carga pero consumen más recursos.",
+    "sessionDurationMinutes": "minutos",
+    "sessionDurationHours": "horas",
+    "sessionDurationHint": "Entre 5 minutos y 24 horas. Por defecto: 30 minutos"
   },
   "downloads": {
     "title": "Descargas",

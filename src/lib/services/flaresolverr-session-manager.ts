@@ -194,21 +194,38 @@ class FlareSolverrSessionManager {
     private startCleanupTask() {
         if (this.cleanupInterval) return;
 
-        this.cleanupInterval = setInterval(() => {
+        this.cleanupInterval = setInterval(async () => {
             const now = Date.now();
-            const toDelete: string[] = [];
+            const toDelete: Array<{ forumId: string; sessionId: string; host: string }> = [];
 
             for (const [forumId, session] of this.sessions.entries()) {
                 const age = now - session.createdAt;
                 if (age > session.ttlMs) {
-                    toDelete.push(forumId);
+                    toDelete.push({ forumId, sessionId: session.sessionId, host: session.host });
                 }
             }
 
             if (toDelete.length > 0) {
-                logger.info('cloudflare', `[SessionMgr] Cleanup: removing ${toDelete.length} expired sessions`);
-                for (const forumId of toDelete) {
-                    this.sessions.delete(forumId);
+                logger.info('cloudflare', `[SessionMgr] Cleanup: destroying ${toDelete.length} expired sessions`);
+
+                // Try to get FlareSolverr client to properly destroy sessions
+                const flaresolverrUrl = process.env.FLARESOLVERR_URL;
+                if (flaresolverrUrl) {
+                    const fsClient = new FlareSolverrClient(flaresolverrUrl);
+                    for (const { forumId, sessionId, host } of toDelete) {
+                        try {
+                            await fsClient.destroySession(sessionId);
+                            logger.info('cloudflare', `[SessionMgr] Destroyed expired session for ${host}`);
+                        } catch (err) {
+                            logger.warn('cloudflare', `[SessionMgr] Failed to destroy session for ${host}: ${err}`);
+                        }
+                        this.sessions.delete(forumId);
+                    }
+                } else {
+                    // No FlareSolverr available, just remove from memory
+                    for (const { forumId } of toDelete) {
+                        this.sessions.delete(forumId);
+                    }
                 }
             }
         }, 5 * 60 * 1000); // Every 5 minutes

@@ -44,8 +44,6 @@ export async function GET() {
     // Get downloads from JDownloader
     const jdDownloads = await jdService.getDownloads();
 
-    console.log('[API] Got downloads:', jdDownloads.length);
-
     // Update our database with latest status
     // TODO: Re-enable after fixing schema
     /*

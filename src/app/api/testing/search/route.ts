@@ -11,11 +11,14 @@ interface SearchResult {
 
 export async function POST(request: NextRequest) {
     try {
-        const { forumId, query } = await request.json();
+        const { forumId, query, page, fetchAll, maxPages, titleOnly, searchId } = await request.json();
 
         logger.info('search', `========================================`);
         logger.info('search', `=== NEW SEARCH REQUEST ===`);
         logger.info('search', `Forum ID: ${forumId}, Query: "${query}"`);
+        if (searchId) {
+            logger.info('search', `Using existing searchId: ${searchId} for pagination`);
+        }
         logger.info('search', `========================================`);
 
         if (!forumId || !query) {
@@ -55,13 +58,18 @@ export async function POST(request: NextRequest) {
             name: forum.name,
             baseUrl: forum.baseUrl,
             searchPath: forum.searchPath,
-            credentials: forum.credentials.length > 0 ? forum.credentials[0] : undefined,
+            persistentCookies: (forum as any).persistentCookies || undefined,
+            credentials: forum.credentials ? {
+                username: (forum.credentials as any).username,
+                password: (forum.credentials as any).password,
+            } : undefined,
             cseId: (forum as any).cseId,
             searchMode: (forum as any).searchMode,
+            searchForumLabel: (forum as any).searchForumLabel || undefined,
         });
 
         // Authenticate if needed
-        if (forum.credentials.length > 0) {
+        if (forum.credentials) {
             logger.info('search', `Authenticating for forum: ${forum.name}...`);
             try {
                 const authSuccess = await forumService.authenticate(forum.id);
@@ -74,27 +82,44 @@ export async function POST(request: NextRequest) {
         }
 
         // Execute search
-        logger.info('search', `Starting forum search for query: "${query}"`);
-        const results = await forumService.searchForum(forum.id, query);
+        logger.info('search', `Starting forum search for query: "${query}" (page=${page || 1}, fetchAll=${!!fetchAll}, searchId=${searchId || 'none'})`);
+        const response = await forumService.searchForum(forum.id, query, {
+            page: typeof page === 'number' ? page : undefined,
+            fetchAll: !!fetchAll,
+            maxPages: typeof maxPages === 'number' ? maxPages : undefined,
+            titleOnly: !!titleOnly,
+            searchId: searchId || undefined,
+        });
 
         logger.info('search', `========================================`);
-        logger.info('search', `Search completed. Total results: ${results.length}`);
-        results.slice(0, 5).forEach((r, i) => {
-            logger.info('search', `  [${i + 1}] ${r.title.substring(0, 80)}`);
+        logger.info('search', `Search completed. Total results: ${response.results.length}`);
+        if (response.totalResults) {
+          logger.info('search', `Total available in forum: ${response.totalResults}`);
+        }
+        if (response.searchId) {
+          logger.info('search', `SearchId returned: ${response.searchId}`);
+        }
+        response.results.slice(0, 5).forEach((r, i) => {
+          logger.info('search', `  [${i + 1}] ${r.title.substring(0, 80)}`);
         });
-        if (results.length > 5) {
-            logger.info('search', `  ... and ${results.length - 5} more`);
+        if (response.results.length > 5) {
+          logger.info('search', `  ... and ${response.results.length - 5} more`);
         }
         logger.info('search', `========================================`);
 
         return NextResponse.json({
-            success: true,
-            results,
-            searchMode: (forum as any).searchMode || 'google_site',
-            forum: {
-                id: forum.id,
-                name: forum.name,
-            },
+          success: true,
+          results: response.results,
+          searchId: response.searchId,
+          totalResults: response.totalResults,
+          searchMode: (forum as any).searchMode || 'google_site',
+          forum: {
+            id: forum.id,
+            name: forum.name,
+          },
+          page: typeof page === 'number' ? page : 1,
+          fetchAll: !!fetchAll,
+          titleOnly: !!titleOnly,
         });
 
     } catch (error) {

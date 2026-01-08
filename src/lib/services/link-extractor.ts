@@ -6,11 +6,17 @@ import { CookieJar } from 'tough-cookie';
 import { db } from '@/lib/db';
 import { getJarForHost, preloadJarCookies } from '@/lib/cookie-jar-store';
 import { logger } from '../logger';
+import * as cheerio from 'cheerio';
 
 interface ExtractLinksResult {
     success: boolean;
     links?: string[];
     error?: string;
+}
+
+interface ParsingConfig {
+    thankButtonSelector?: string;
+    linksContainerSelector?: string;
 }
 
 interface LoginResult {
@@ -102,7 +108,8 @@ export async function extractLinksFromPost(
     username?: string,
     password?: string,
     flaresolverrUrl?: string,
-    forumId?: string
+    forumId?: string,
+    parsingConfig?: ParsingConfig
 ): Promise<ExtractLinksResult> {
     try {
         const flareUrl = flaresolverrUrl || process.env.FLARESOLVERR_URL;
@@ -231,6 +238,14 @@ export async function extractLinksFromPost(
         }
         logger.info('extract', `Received HTML: ${html.length} bytes`);
 
+        let $: cheerio.CheerioAPI | null = null;
+        const loadDom = () => {
+            if (!$) {
+                $ = cheerio.load(html);
+            }
+            return $;
+        };
+
         // Step 3: Parse HTML to find post ID and thanks button
         // Support both thread ID (?t=) and post ID (?p=)
         let postIdMatch = postUrl.match(/[?&](?:p|t)=(\d+)/);
@@ -256,11 +271,12 @@ export async function extractLinksFromPost(
         // Check if content is already unhidden (user already clicked thanks)
         if (html.includes(`id="${unhiddenContentId}"`)) {
             logger.info('extract', 'Content already unhidden, extracting links directly');
-            return extractLinksFromHTML(html);
+            return extractLinksFromHTML(html, parsingConfig?.linksContainerSelector);
         }
 
         // Check if hidden content exists (needs to click thanks)
-        if (!html.includes(`id="${hiddenContentId}"`)) {
+        const hasHiddenContent = html.includes(`id="${hiddenContentId}"`);
+        if (!hasHiddenContent) {
             logger.warn('extract', `No hidden or unhidden content found. Looking for: ${hiddenContentId} or ${unhiddenContentId}`);
 
             // Debug: find all divs with vfc_ pattern
@@ -271,40 +287,67 @@ export async function extractLinksFromPost(
                 logger.info('extract', 'No vfc_ divs found in HTML');
             }
 
-            return { success: false, error: 'No hidden content found (thanks mechanism not detected)' };
+            // If we have a custom thank button selector, allow extraction even without the vfc markers
+            if (!parsingConfig?.thankButtonSelector) {
+                return { success: false, error: 'No hidden content found (thanks mechanism not detected)' };
+            }
         }
 
         logger.info('extract', 'Content is hidden, searching for thanks button');
 
         // Step 4: Find and construct thanks URL
         // Pattern: href="post_thanks.php?do=post_thanks_add&amp;p=2304&amp;securitytoken=..."
-        const allThanksLinks = Array.from(
-            html.matchAll(/href=['"](post_thanks\.php[^'\"]+)['"]/gi)
-        ).map((m) => m[1]);
-
-        logger.info('extract', `post_thanks links found: ${allThanksLinks.length}`);
-        if (allThanksLinks.length > 0) {
-            logger.info('extract', `Sample links: ${allThanksLinks.slice(0, 5).join(', ')}`);
-        }
-
-        const thanksRegex = new RegExp(
-            `href=['"](post_thanks\\.php[^'\"]*(?:[?&]|&amp;)p=${postId}[^'\"]*)['"]`,
-            'i'
-        );
-        const thanksButtonMatch = html.match(thanksRegex);
         let thanksUrl: string | null = null;
 
-        if (!thanksButtonMatch) {
-            // Fallback: construct default thanks URL even if button is not present in HTML
-            thanksUrl = new URL(`/post_thanks.php?do=post_thanks_add&p=${postId}`, forumBaseUrl).toString();
-            logger.warn('extract', `Thanks button not found, using fallback URL: ${thanksUrl}`);
-        } else {
-            logger.info('extract', 'Found thanks button');
-            const thanksPath = thanksButtonMatch[1]
-                .replace(/&amp;/g, '&')  // Decode HTML entities
-                .replace(/^\//, '');
-            thanksUrl = new URL(thanksPath, forumBaseUrl).toString();
-            logger.info('extract', `Thanks URL: ${thanksUrl}`);
+        // Prefer a configured selector when available
+        if (parsingConfig?.thankButtonSelector) {
+            try {
+                const dom = loadDom();
+                const thanksEl = dom(parsingConfig.thankButtonSelector).first();
+                if (thanksEl && thanksEl.length > 0) {
+                    const href = thanksEl.attr('href') || thanksEl.attr('data-url');
+                    if (href) {
+                        const normalized = href.startsWith('http')
+                            ? href
+                            : new URL(href.replace(/^\//, ''), forumBaseUrl).toString();
+                        thanksUrl = normalized;
+                        logger.info('extract', `Thanks URL resolved via selector: ${thanksUrl}`);
+                    }
+                }
+            } catch (selectorErr) {
+                logger.warn('extract', `Failed to resolve thanks button via selector: ${selectorErr}`);
+            }
+        }
+
+        // Fallback to regex search when selector did not produce a URL
+        if (!thanksUrl) {
+            const allThanksLinks = Array.from(
+                html.matchAll(/href=['"](post_thanks\.php[^'\"]+)['"]/gi)
+            ).map((m) => m[1]);
+
+            logger.info('extract', `post_thanks links found: ${allThanksLinks.length}`);
+            if (allThanksLinks.length > 0) {
+                logger.info('extract', `Sample links: ${allThanksLinks.slice(0, 5).join(', ')}`);
+            }
+
+            const thanksRegex = new RegExp(
+                `href=['"](post_thanks\\.php[^'\"]*(?:[?&]|&amp;)p=${postId}[^'\"]*)['"]`,
+                'i'
+            );
+            const thanksButtonMatch = html.match(thanksRegex);
+
+            if (!thanksButtonMatch) {
+                // Fallback: construct default thanks URL even if button is not present in HTML
+                thanksUrl = new URL(`/post_thanks.php?do=post_thanks_add&p=${postId}`, forumBaseUrl).toString();
+                logger.warn('extract', `Thanks button not found, using fallback URL: ${thanksUrl}`);
+            } else {
+                logger.info('extract', 'Found thanks button via regex');
+                const thanksPath = thanksButtonMatch[1]
+                    .replace(/&amp;/g, '&')  // Decode HTML entities
+                    .replace(/^\//, '');
+                thanksUrl = new URL(thanksPath, forumBaseUrl).toString();
+                logger.info('extract', `Thanks URL: ${thanksUrl}`);
+            }
         }
 
         if (!thanksUrl) {
@@ -338,7 +381,7 @@ export async function extractLinksFromPost(
         }
 
         // Step 7: Extract links from unhidden content
-        return extractLinksFromHTML(updatedHtml);
+        return extractLinksFromHTML(updatedHtml, parsingConfig?.linksContainerSelector);
 
     } catch (error) {
         logger.error('extract', `Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -353,36 +396,51 @@ export async function extractLinksFromPost(
  * Extract URLs from HTML containing unhidden content
  * Looks for <pre class="bbcode_code"> and extracts URLs line by line
  */
-function extractLinksFromHTML(html: string): ExtractLinksResult {
+function extractLinksFromHTML(html: string, linksContainerSelector?: string): ExtractLinksResult {
     try {
-        // Match <pre class="bbcode_code">...</pre>
-        const preMatch = html.match(/<pre[^>]*class="bbcode_code"[^>]*>([\s\S]*?)<\/pre>/i);
+        const $ = cheerio.load(html);
+        const collected: string[] = [];
 
-        if (!preMatch) {
-            return { success: false, error: 'No bbcode_code block found in unhidden content' };
+        const pushLink = (value: string | undefined) => {
+            if (!value) return;
+            const normalized = value.trim();
+            if (!/^https?:\/\//i.test(normalized)) return;
+            collected.push(normalized);
+        };
+
+        // Try user-defined container selector first
+        if (linksContainerSelector) {
+            const container = $(linksContainerSelector);
+            if (container && container.length > 0) {
+                container.find('a[href]').each((_, el) => pushLink($(el).attr('href')));
+                container.find('pre, code').each((_, el) => {
+                    const text = $(el).text();
+                    const urlMatches = text.match(/https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+/gi);
+                    urlMatches?.forEach(pushLink);
+                });
+            }
         }
 
-        const preContent = preMatch[1];
+        // Fallback: bbcode_code blocks anywhere in the document
+        $('pre.bbcode_code').each((_, el) => {
+            const text = $(el).text();
+            const urlMatches = text.match(/https?:\/\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]+/gi);
+            urlMatches?.forEach(pushLink);
+        });
 
-        // Extract URLs (split by newlines, filter empty lines and non-URLs)
-        const lines = preContent
-            .split(/[\r\n]+/)
-            .map(line => line.trim())
-            .filter(line => line.length > 0);
+        // Additional fallback: any links in the document
+        if (collected.length === 0) {
+            $('a[href]').each((_, el) => pushLink($(el).attr('href')));
+        }
 
-        // Filter lines that look like URLs
-        const urls = lines.filter(line =>
-            line.startsWith('http://') ||
-            line.startsWith('https://') ||
-            line.includes('://') // Catch other protocols
-        );
+        const unique = Array.from(new Set(collected));
 
-        if (urls.length === 0) {
+        if (unique.length === 0) {
             return { success: false, error: 'No URLs found in unhidden content' };
         }
 
-        logger.info('extract', `Extracted ${urls.length} links`);
-        return { success: true, links: urls };
+        logger.info('extract', `Extracted ${unique.length} links`);
+        return { success: true, links: unique };
 
     } catch (error) {
         logger.error('extract', `HTML parsing error: ${error instanceof Error ? error.message : String(error)}`);

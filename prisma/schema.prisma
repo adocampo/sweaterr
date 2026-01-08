@@ -39,6 +39,7 @@ model Forum {
   baseUrl     String   // Base URL of the forum
   searchPath  String   // Search path (e.g., "/search.php")
   searchMode  String?  // native | google_site | google_cse
+  searchForumLabel String? // Optional forum label to preselect in advanced search (e.g., "Zona Series")
   cseId       String?  // Google CSE ID (cx) if using google_cse
   enabled     Boolean  @default(true)
   createdAt   DateTime @default(now())

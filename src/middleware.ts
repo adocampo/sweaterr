@@ -45,30 +45,30 @@ export async function middleware(request: NextRequest) {
 
     const token = extractToken(headers as Record<string, string>, cookies);
 
-    console.log('[Middleware]', {
-        pathname,
-        hasToken: !!token,
-        cookieNames: Object.keys(cookies),
-        hasSweaterrAuth: !!cookies['sweaterr-auth']
-    });
+    // console.log('[Middleware]', {
+    //     pathname,
+    //     hasToken: !!token,
+    //     cookieNames: Object.keys(cookies),
+    //     hasSweaterrAuth: !!cookies['sweaterr-auth']
+    // });
 
     // If no token, redirect to login
     if (!token) {
-        console.log('[Middleware] No token found, redirecting to /login');
+        // console.log('[Middleware] No token found, redirecting to /login');
         return NextResponse.redirect(new URL('/login', request.url));
     }
 
     // Verify token in Edge runtime using jose
     const decoded = await verifyTokenEdge(token);
     if (!decoded) {
-        console.log('[Middleware] Token verification failed, redirecting to /login');
+        // console.log('[Middleware] Token verification failed, redirecting to /login');
         // Token expired or invalid, redirect to login
         const response = NextResponse.redirect(new URL('/login', request.url));
         response.cookies.delete('sweaterr-auth');
         return response;
     }
 
-    console.log('[Middleware] Token valid, user:', decoded.id);
+    // console.log('[Middleware] Token valid, user:', decoded.id);
     return NextResponse.next();
 }
 

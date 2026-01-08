@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const { baseUrl, credentials } = forumConfig;
+        const { baseUrl, credentials, thankButtonSelector, linksContainerSelector } = forumConfig;
         const username = credentials?.username;
         const password = credentials?.password;
 
@@ -65,7 +65,11 @@ export async function POST(request: NextRequest) {
             username || undefined,
             password || undefined,
             process.env.FLARESOLVERR_URL,
-            forumId
+            forumId,
+            {
+                thankButtonSelector: thankButtonSelector || undefined,
+                linksContainerSelector: linksContainerSelector || undefined,
+            }
         );
 
         if (!result.success) {

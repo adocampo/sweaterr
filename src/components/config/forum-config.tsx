@@ -29,18 +29,21 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Settings, CheckCircle, XCircle, Loader2, Globe, Plus } from 'lucide-react';
 import { ForumConfigForm } from '@/lib/types';
+import { useI18n } from '@/hooks/use-i18n';
 
 const forumSchema = z.object({
   name: z.string().min(1, 'El nombre del foro es requerido'),
   baseUrl: z.string().url('URL inválida'),
   searchPath: z.string().optional(),
   searchMode: z.enum(['native', 'google_site', 'google_cse']).optional(),
+  searchForumLabel: z.string().optional(),
   cseId: z.string().optional(),
   thankButtonSelector: z.string().optional(),
   linksContainerSelector: z.string().optional(),
   postTitleSelector: z.string().optional(),
   username: z.string().optional(),
   password: z.string().optional(),
+  flaresolverrSessionTTL: z.number().min(5).max(1440).optional().default(30),
 }).refine(
   (data) => {
     if (data.searchMode === 'native' && !data.searchPath) {
@@ -62,6 +65,7 @@ interface ForumConfigProps {
   forumId?: string;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  language?: 'es' | 'en';
 }
 
 const defaultSelectors = {
@@ -73,7 +77,8 @@ const defaultSelectors = {
   }
 };
 
-export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = false, forumId, isOpen: externalIsOpen, onOpenChange }: ForumConfigProps) {
+export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = false, forumId, isOpen: externalIsOpen, onOpenChange, language: propLanguage }: ForumConfigProps) {
+  const { t } = useI18n(propLanguage || 'es');
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
   const setIsOpen = (open: boolean) => {
@@ -95,12 +100,14 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
       baseUrl: '',
       searchPath: '/search.php',
       searchMode: 'native',
+      searchForumLabel: '',
       cseId: '',
       thankButtonSelector: '',
       linksContainerSelector: '',
       postTitleSelector: '',
       username: '',
       password: '',
+      flaresolverrSessionTTL: 30,
     },
   });
 
@@ -137,7 +144,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
       if (onTestConnection) {
         const success = await onTestConnection(values);
         setTestResult(success ? 'success' : 'error');
-        setTestMessage(success ? 'Conexión exitosa' : 'Error al conectar con el foro');
+        setTestMessage(success ? t('forums.connectionSuccessful') : t('forums.connectionFailed'));
       } else {
         setTestResult('error');
         setTestMessage('No hay función de test configurada');
@@ -199,14 +206,14 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
         ) : (
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Añadir Foro
+            {t('forums.addForum')}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? 'Editar Foro' : 'Añadir Nuevo Foro'}
+            {isEdit ? t('forums.editForum') : t('forums.addForum')}
           </DialogTitle>
           <DialogDescription>
             Configura un foro de descarga directa para buscar contenido
@@ -221,7 +228,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nombre del Foro</FormLabel>
+                    <FormLabel>{t('forums.forumName')}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="DescargasDD"
@@ -245,7 +252,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                 name="baseUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>URL Base</FormLabel>
+                    <FormLabel>{t('forums.baseUrl')}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="https://descargasdd.org"
@@ -266,7 +273,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
               name="searchMode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Modo de Búsqueda</FormLabel>
+                  <FormLabel>{t('forums.searchMode')}</FormLabel>
                   <FormControl>
                     <select className="w-full border rounded-md h-9 px-2" {...field}>
                       <option value="native">Nativo</option>
@@ -302,26 +309,84 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
             )}
 
             {form.watch('searchMode') === 'native' && (
-              <FormField
-                control={form.control}
-                name="searchPath"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ruta de Búsqueda</FormLabel>
+              <>
+                <FormField
+                  control={form.control}
+                  name="searchPath"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ruta de Búsqueda</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="/search.php?search_type=1"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Path para la búsqueda de contenido (solo para modo nativo). Puedes incluir parámetros, por ejemplo: /search.php?search_type=1
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="searchForumLabel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('forums.searchForumLabel')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Zona Series"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Etiqueta o nombre del foro a preseleccionar en la búsqueda avanzada (ej: "Zona Series", "Series HD", etc.)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+
+            <FormField
+              control={form.control}
+              name="flaresolverrSessionTTL"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('forums.sessionDuration')}</FormLabel>
+                  <div className="flex items-center gap-2">
                     <FormControl>
                       <Input
-                        placeholder="/search.php"
+                        type="number"
+                        min="5"
+                        max="1440"
+                        step="1"
+                        placeholder="30"
                         {...field}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 30)}
+                        className="flex-1"
                       />
                     </FormControl>
-                    <FormDescription>
-                      Path para la búsqueda de contenido (solo para modo nativo)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+                    <span className="text-sm text-muted-foreground min-w-fit">
+                      {field.value && field.value >= 60 && field.value % 60 === 0
+                        ? `${Math.floor(field.value / 60)} ${t('forums.sessionDurationHours')}`
+                        : `${field.value || 30} ${t('forums.sessionDurationMinutes')}`}
+                    </span>
+                  </div>
+                  <FormDescription>
+                    {t('forums.sessionDurationDescription')}
+                  </FormDescription>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    💡 {t('forums.sessionDurationHint')}
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
@@ -457,12 +522,12 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                   {isTesting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Probando...
+                      {t('common.loading')}
                     </>
                   ) : (
                     <>
                       <Globe className="h-4 w-4" />
-                      Probar Conexión
+                      {t('forums.testConnection')}
                     </>
                   )}
                 </Button>
@@ -472,12 +537,12 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                     {testResult === 'success' ? (
                       <>
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Conectado
+                        {t('forums.connectionSuccessful')}
                       </>
                     ) : (
                       <>
                         <XCircle className="h-3 w-3 mr-1" />
-                        Error
+                        {t('common.error')}
                       </>
                     )}
                   </Badge>
@@ -510,10 +575,10 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
               </Button>
               <div className="flex-1" />
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button type="submit">
-                {isEdit ? 'Actualizar' : 'Añadir'} Foro
+                {isEdit ? t('common.save') : t('forums.addForum')}
               </Button>
             </DialogFooter>
           </form>

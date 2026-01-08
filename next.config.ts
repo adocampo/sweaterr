@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   logging: {
     fetches: {
       fullUrl: false,
+      hmrRefreshes: false,
     },
   },
 };
