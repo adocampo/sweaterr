@@ -9,12 +9,14 @@ Aplicación web para integrar foros de descarga directa con Sonarr/Radarr/Lidarr
 ## Características
 
 - 🌐 **Múltiples Foros**: Configura tantos foros de descarga directa como necesites
-- 🤖 **Inteligencia Artificial**: Usa IA para mapear nombres "bonitos" de foros a nombres de scene
-- 📥 **JDownloader Integration**: Envía enlaces directamente a tu instancia de JDownloader
-- 🔍 **Búsqueda Inteligente**: Busca en múltiples foros y muestra los mejores resultados
-- 📊 **Panel de Control**: Interfaz web completa para configuración y monitoreo
+- 🤖 **Inteligencia Artificial**: Usa IA para mapear nombres "bonitos" de foros a nombres de scene y extraer metadatos de contenido
+- 📥 **JDownloader Integration**: Envía enlaces directamente a tu instancia de JDownloader con nombres de paquete enriquecidos
+- 🔍 **Búsqueda Inteligente**: Busca en múltiples foros y muestra los mejores resultados con metadatos (calidad, temporada, idiomas, etc.)
+- 📊 **Panel de Control**: Interfaz web completa para configuración y monitoreo con vista de tabla para foros
+- 🔐 **Gestión de Sesiones FlareSolverr**: Control en tiempo real de sesiones persistentes por foro con TTL configurable
 - 🐳 **Docker Ready**: Fácil despliegue con Docker y Docker Compose
 - 🔒 **Sonarr/Radarr Compatible**: Funciona como indexer y client para *arr applications
+- 🧪 **Testing Avanzado**: Herramientas de prueba con extracción automática de metadatos (series/películas)
 
 ## Requisitos
 
@@ -102,7 +104,14 @@ Ve a la pestaña **Configuración** → **Inteligencia Artificial**:
 
 ### 3. Configurar Foros
 
-Ve a la pestaña **Foros** → **Añadir Foro**:
+Ve a la pestaña **Foros** para ver la tabla de foros configurados con:
+
+- **Estado de conexión** en tiempo real
+- **Sesiones FlareSolverr** activas con tiempo restante
+- **Duración de sesión** configurable por foro
+- **Acciones rápidas** (editar/eliminar)
+
+Para añadir un nuevo foro, click en **Añadir Foro**:
 
 - **Nombre del Foro**: Nombre descriptivo (ej: "DescargasDD")
 - **URL Base**: URL principal del foro (ej: `https://descargasdd.org`)
@@ -113,6 +122,17 @@ Ve a la pestaña **Foros** → **Añadir Foro**:
 - **Ruta de Búsqueda**: Solo necesaria para modo nativo
 - **Autenticación**: Si el foro requiere usuario y contraseña
 - **Selectores CSS**: Para parsear contenido (opcional, auto-rellenado para foros conocidos)
+- **Duración de Sesión**: Tiempo de vida de la sesión FlareSolverr (5-1440 minutos)
+
+#### Gestión de Sesiones
+
+Cada foro puede tener una sesión persistente de FlareSolverr que:
+
+- Se crea automáticamente al primer uso con Cloudflare
+- Se reutiliza durante el período configurado (TTL)
+- Se muestra en la tabla con indicador de tiempo restante
+- Se destruye automáticamente al expirar (limpieza cada 5 minutos)
+- Mejora el rendimiento evitando resolver Cloudflare en cada request
 
 #### Ejemplo: DescargasDD
 
@@ -144,7 +164,48 @@ La aplicación automáticamente:
 
 - **Resumen**: Vista general del estado de todos los servicios
 - **Descargas**: Lista activa con progreso en tiempo real
-- **Foros**: Estado de conexión de cada foro configurado
+- **Foros**: Vista de tabla con estado de conexión y sesiones FlareSolverr en tiempo real
+
+### Testing y Análisis
+
+La pestaña **Testing** ofrece herramientas avanzadas para:
+
+1. **Búsqueda de Contenido**:
+   - Prueba búsquedas en foros específicos
+   - Ve resultados con metadatos extraídos automáticamente
+   - Botones: **Buscar**, **Buscar todos** (nativo) y, dentro de resultados, **Mostrar más** / **Cargar todos**
+   - **Buscar**: Ejecuta la búsqueda estándar (primera página)
+   - **Buscar todos**: En modo nativo, reutiliza el `searchid` y pagina automáticamente (`page=1..N`) para devolver todos los resultados en una sola pasada
+   - **Mostrar más**: Carga la siguiente página reutilizando el `searchid`
+   - **Cargar todos**: Agrega todas las páginas restantes desde el estado actual, evitando duplicados
+
+2. **Análisis de Títulos**:
+   - Extrae y analiza títulos de posts individuales o múltiples URLs
+   - Resuelve títulos de forma bulk para mayor eficiencia
+   - Opción de bypass de Axios para forzar uso de FlareSolverr
+
+3. **Extracción de Metadatos**:
+   - Tipo de contenido (Serie/Película)
+   - Año de lanzamiento
+   - Temporada y episodios (para series)
+   - Calidad de video (1080p, 720p, 4K, etc.) y fuente (BluRay, WEB-DL, etc.)
+   - Idiomas de audio y subtítulos
+   - Tamaño del archivo
+   - Géneros (vía IA)
+
+4. **Vista de Resultados en Tabla**:
+   - Columnas dinámicas según tipo de contenido
+   - Acciones: Extraer enlaces o Enviar a JDownloader
+   - Nombre de paquete automático basado en metadatos
+      - Encabezado muestra: "Mostrando X de Y resultados" o "Mostrando los Y resultados" cuando se detecta el total del foro
+
+### Totales de resultados (vBulletin)
+
+- En foros nativos (vBulletin) el sistema detecta el total con patrones como: `Resultados 1 al 25 de 30`, `Results 1 - 25 of 30`, o variantes de "Mostrando resultados ... de Y".
+- Este total se usa para:
+   - Mostrar en UI la indicación "Mostrando X de Y"
+   - Detener **Buscar todos** / **Cargar todos** cuando se alcanza el total
+   - Evitar mezclar resultados de búsquedas distintas, reutilizando el mismo `searchid` para todas las páginas
 
 ## Integración con Sonarr/Radarr/Lidarr
 
@@ -178,7 +239,7 @@ POST /api/arr/notify
 - `NEXTAUTH_SECRET`: Secreto para NextAuth.js
 - `NEXTAUTH_URL`: URL pública de la aplicación
 - `LOG_LEVEL`: Nivel de logging (debug, info, warn, error)
-- `FLARESOLVERR_URL`: URL del servicio FlareSolverr (opcional). Si está presente, se usará para resolver Cloudflare y obtener cookies de sesión.
+- `FLARESOLVERR_URL`: URL del servicio FlareSolverr (recomendado). Si está presente, se usará para resolver Cloudflare con sesiones persistentes.
 
 ### Foros Soportados
 
@@ -187,24 +248,71 @@ Actualmente con preconfiguración para:
 - DescargasDD.org
 - Extensible a otros foros mediante configuración de selectores CSS
 
+Cada foro puede configurar:
+
+- **Selectores de parseo**: Botón de gracias, contenedor de enlaces, título del post
+- **TTL de sesión FlareSolverr**: Entre 5 minutos y 24 horas
+- **Cookies persistentes**: Se guardan y reutilizan automáticamente
+
+### Gestión de Sesiones FlareSolverr
+
+El sistema implementa un gestor de sesiones persistentes que:
+
+- **Crea sesiones bajo demanda**: Solo cuando es necesario resolver Cloudflare
+- **Reutiliza sesiones activas**: Evita crear nuevas sesiones innecesariamente
+- **TTL configurable por foro**: Cada foro puede tener su propio tiempo de expiración
+- **Limpieza automática**: Destruye sesiones expiradas cada 5 minutos
+- **Monitoreo en tiempo real**: La UI muestra estado y tiempo restante de cada sesión
+- **Logs detallados**: Registro completo en `logs/cloudflare.log`
+
+Ventajas:
+
+- ✅ Reducción de ~95% en tiempo de respuesta tras primera ejecución (30s → 1s)
+- ✅ Menor carga en servidor FlareSolverr
+- ✅ Gestión eficiente de recursos (Chromium)
+- ✅ Mejor experiencia de usuario
+
 ### Bypass de Cloudflare
 
-Para foros detrás de Cloudflare (como DescargasDD), hay dos estrategias:
-
-- Playwright (Chromium): navegación automática para pasar el reto y enviar formularios.
-- FlareSolverr: servicio dedicado para resolver el reto y devolver cookies.
-
-Para usar FlareSolverr, configura en `.env.local`:
+Para foros detrás de Cloudflare (como DescargasDD), se utiliza **FlareSolverr** (recomendado):
 
 ```env
 FLARESOLVERR_URL=http://192.168.1.100:8191
 ```
 
-Si no configuras FlareSolverr, la app intentará con Playwright. Para Playwright, instala los navegadores:
+**Características**:
+
+- Resuelve challenges de Cloudflare Turnstile
+- Gestión automática de cookies y headers
+- Sesiones persistentes con TTL configurable
+- Limpieza automática de sesiones expiradas
+
+**Fallback con Playwright**: Si no configuras FlareSolverr, la app intentará con Playwright (limitado). Instala navegadores:
 
 ```bash
 npx playwright install chromium
 ```
+
+### Extracción de Metadatos con IA
+
+El sistema puede usar IA para enriquecer metadatos de contenido:
+
+**Heurísticas integradas** (sin IA):
+
+- Detección de tipo (serie/película) vía keywords
+- Extracción de año (1950-2027)
+- Temporadas: T1, Temp1, S1, Temporada 1ª, 1ª Temporada
+- Calidad: 4K/2160p, 1080p, 720p + fuente (BluRay, WEB-DL, etc.)
+- Idiomas: Audio y subtítulos (es-ES, es-LA, en, fr)
+- Episodios: Formato X/Y (ej: 10/12)
+- Tamaño: GB, GiB, MB con decimales (2.5GB, 3.14GiB)
+
+**Con IA** (enriquecimiento):
+
+- Validación y corrección de metadatos heurísticos
+- Extracción de géneros
+- Mejor precisión en títulos ambiguos
+- Normalización de datos
 
 ### Proveedores de IA Soportados
 

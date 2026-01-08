@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 
-interface Forum {
+interface ForumOption {
     id: string;
     name: string;
     baseUrl: string;
@@ -33,15 +33,22 @@ interface SearchResult {
 }
 
 interface SearchTesterProps {
-    forums: Forum[];
-    onSearchResults?: (results: SearchResult[], forumId: string, query: string) => void;
+    forums: ForumOption[];
+    onSearchResults?: (results: SearchResult[], forumId: string, query: string, searchMode: 'native' | 'google_site' | 'google_cse', searchId?: string, totalResults?: number) => void;
 }
 
 export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
     const [selectedForum, setSelectedForum] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [titleOnly, setTitleOnly] = useState<boolean>(false);
     const [isSearching, setIsSearching] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Initialize default forum to the first configured one
+    // when the component mounts or forums change and no forum is selected
+    if (!selectedForum && forums && forums.length > 0) {
+        setSelectedForum(forums[0].id);
+    }
 
     const handleSearch = async () => {
         if (!selectedForum || !searchQuery.trim()) {
@@ -59,13 +66,14 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
                 body: JSON.stringify({
                     forumId: selectedForum,
                     query: searchQuery,
+                    titleOnly,
                 }),
             });
 
             const data = await response.json();
 
             if (data.success) {
-                onSearchResults?.(data.results, selectedForum, searchQuery);
+                onSearchResults?.(data.results, selectedForum, searchQuery, data.searchMode || 'google_site', data.searchId, data.totalResults);
             } else {
                 setError(data.error || 'Error al buscar');
             }
@@ -124,7 +132,59 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
                                 )}
                                 Buscar
                             </Button>
+                            <Button
+                                variant="outline"
+                                onClick={async () => {
+                                    if (!selectedForum || !searchQuery.trim()) {
+                                        setError('Selecciona un foro e introduce una búsqueda');
+                                        return;
+                                    }
+                                    setIsSearching(true);
+                                    setError(null);
+                                    try {
+                                        const response = await fetch('/api/testing/search', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                forumId: selectedForum,
+                                                query: searchQuery,
+                                                titleOnly,
+                                                fetchAll: true,
+                                                maxPages: 20,
+                                            }),
+                                        });
+                                        const data = await response.json();
+                                        if (data.success) {
+                                            onSearchResults?.(data.results, selectedForum, searchQuery, data.searchMode || 'google_site', data.searchId, data.totalResults);
+                                        } else {
+                                            setError(data.error || 'Error al buscar');
+                                        }
+                                    } catch (err) {
+                                        setError('Error de conexión al buscar');
+                                        console.error('Search all error:', err);
+                                    } finally {
+                                        setIsSearching(false);
+                                    }
+                                }}
+                                disabled={isSearching || !selectedForum || !searchQuery.trim()}
+                            >
+                                {isSearching ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Search className="h-4 w-4 mr-2" />
+                                )}
+                                Buscar todos
+                            </Button>
                         </div>
+                        <label className="text-sm font-medium flex items-center gap-2 mt-2">
+                            <input
+                                type="checkbox"
+                                checked={titleOnly}
+                                onChange={(e) => setTitleOnly(e.target.checked)}
+                                className="h-4 w-4"
+                            />
+                            Buscar solo en el título
+                        </label>
                     </div>
                 </div>
 

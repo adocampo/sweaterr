@@ -53,7 +53,14 @@ export class FlareSolverrClient {
         }
     }
 
-    async request(url: string, method: 'GET' | 'POST' = 'GET', postData?: Record<string, any>, sessionId?: string): Promise<FlareSolverrSolution> {
+    async request(
+        url: string,
+        method: 'GET' | 'POST' = 'GET',
+        postData?: Record<string, any>,
+        sessionId?: string,
+        headers?: Record<string, string>,
+        cookies?: Array<{ name: string; value: string }>
+    ): Promise<FlareSolverrSolution> {
         const buildPayload = () => {
             const payload: any = {
                 cmd: method === 'GET' ? 'request.get' : 'request.post',
@@ -63,6 +70,12 @@ export class FlareSolverrClient {
             };
             if (sessionId) {
                 payload.session = sessionId;
+            }
+            if (headers && Object.keys(headers).length > 0) {
+                payload.headers = headers;
+            }
+            if (cookies && cookies.length > 0) {
+                payload.cookies = cookies;
             }
             if (method === 'POST' && postData) {
                 payload.postData = new URLSearchParams(postData).toString();

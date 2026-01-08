@@ -56,6 +56,7 @@
     "forumName": "Forum Name",
     "baseUrl": "Base URL",
     "searchMode": "Search Mode",
+    "searchForumLabel": "Forum Label (Advanced Search)",
     "credentials": "Credentials",
     "username": "Username",
     "testConnection": "Test Connection",
@@ -66,7 +67,12 @@
     "linksExtracted": "Links Extracted",
     "extractionFailed": "Extraction Failed",
     "noLinksFound": "No Links Found",
-    "sendToJDownloader": "Send to JDownloader"
+    "sendToJDownloader": "Send to JDownloader",
+    "sessionDuration": "FlareSolverr Session Duration",
+    "sessionDurationDescription": "How long the session with the protection bypass service (CloudFlare) remains active. Higher values reduce loading times but consume more resources.",
+    "sessionDurationMinutes": "minutes",
+    "sessionDurationHours": "hours",
+    "sessionDurationHint": "Between 5 minutes and 24 hours. Default: 30 minutes"
   },
   "downloads": {
     "title": "Downloads",

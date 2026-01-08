@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { ExternalLink, Download, Loader2, Copy, Check, Send } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ExternalLink, Download, Loader2, Copy, Check, Send, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -26,14 +26,39 @@ interface ExtractedLink {
     filename?: string;
 }
 
+interface MediaMetadata {
+    type: 'series' | 'movie' | 'unknown';
+    title?: string | null;
+    year?: number | null;
+    season?: number | null;
+    quality?: string | null;
+    audioLanguages?: string[];
+    subtitleLanguages?: string[];
+    episodesAvailable?: number | null;
+    episodesTotal?: number | null;
+    genres?: string[];
+    size?: string | null;
+}
+
+interface MetadataResult {
+    url: string;
+    metadata?: MediaMetadata;
+    error?: string;
+}
+
 interface ResultViewerProps {
     results: SearchResult[];
     forumId: string;
     searchQuery: string;
+    searchMode?: 'native' | 'google_site' | 'google_cse';
+    totalResults?: number;
     onExtractLinks?: (links: ExtractedLink[], postUrl: string) => void;
+    onLoadMore?: () => Promise<void> | void;
+    onLoadAll?: () => Promise<void> | void;
+    loadingMore?: boolean;
 }
 
-export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: ResultViewerProps) {
+export function ResultViewer({ results, forumId, searchQuery, searchMode, totalResults, onExtractLinks, onLoadMore, onLoadAll, loadingMore }: ResultViewerProps) {
     const [selectedPost, setSelectedPost] = useState<string | null>(null);
     const [extractingLinks, setExtractingLinks] = useState(false);
     const [extractedByPost, setExtractedByPost] = useState<Record<string, ExtractedLink[]>>({});
@@ -43,6 +68,12 @@ export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: 
     const [sendingToJd, setSendingToJd] = useState<Record<string, boolean>>({});
     const [sendErrors, setSendErrors] = useState<Record<string, string | null>>({});
     const [sendSuccess, setSendSuccess] = useState<Record<string, boolean>>({});
+    const [metadataByPost, setMetadataByPost] = useState<Record<string, MediaMetadata>>({});
+    const [metadataErrors, setMetadataErrors] = useState<Record<string, string>>({});
+    const [metadataLoading, setMetadataLoading] = useState(false);
+    const [metadataTime, setMetadataTime] = useState<number | null>(null);
+    const [metadataMode, setMetadataMode] = useState<string | null>(null);
+    const [totalMetadataResults, setTotalMetadataResults] = useState<number | null>(null);
     const { loading: bulkLoading, resolveTitles } = useBulkTitles();
     const [bulkError, setBulkError] = useState<string | null>(null);
 
@@ -134,13 +165,15 @@ export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: 
         setSendErrors(prev => ({ ...prev, [postUrl]: null }));
         setSendSuccess(prev => ({ ...prev, [postUrl]: false }));
 
+        const resolvedPackage = packageName || metadataByPost[postUrl]?.title || titles[postUrl] || postUrl;
+
         try {
             const response = await fetch('/api/testing/jdownloader/add-links', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     links: links.map(l => l.url),
-                    packageName,
+                    packageName: resolvedPackage,
                 }),
             });
 
@@ -219,6 +252,74 @@ export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: 
         }
     };
 
+    useEffect(() => {
+        let cancelled = false;
+        const run = async () => {
+            setMetadataByPost({});
+            setMetadataErrors({});
+            if (!forumId || results.length === 0) {
+                setMetadataLoading(false);
+                return;
+            }
+
+            setMetadataLoading(true);
+            const metaStartTime = Date.now();
+            try {
+                const isNative = searchMode === 'native';
+                const body = isNative
+                    ? {
+                        forumId,
+                        directTitles: results.map((r) => ({
+                            url: r.url,
+                            title: r.title,
+                            snippet: r.snippet || '',
+                        })),
+                        searchQuery,
+                    }
+                    : {
+                        forumId,
+                        postUrls: results.map((r) => r.url),
+                        searchQuery,
+                    };
+
+                const response = await fetch('/api/testing/metadata', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                const data = await response.json();
+                const metaEndTime = Date.now();
+                const metaElapsed = metaEndTime - metaStartTime;
+                if (cancelled) return;
+
+                if (data.success && data.data?.results) {
+                    const metaMap: Record<string, MediaMetadata> = {};
+                    const errorMap: Record<string, string> = {};
+                    (data.data.results as MetadataResult[]).forEach((item) => {
+                        if (item.metadata) metaMap[item.url] = item.metadata;
+                        if (item.error) errorMap[item.url] = item.error;
+                    });
+                    setMetadataByPost(metaMap);
+                    setMetadataErrors(errorMap);
+                    setMetadataTime(metaElapsed);
+                    setMetadataMode(data.data?.mode || null);
+                    setTotalMetadataResults(data.data?.totalResults || null);
+                } else {
+                    setMetadataErrors({ general: data.error || 'No se pudieron obtener metadatos' });
+                }
+            } catch (err: any) {
+                if (cancelled) return;
+                setMetadataErrors({ general: err?.message || 'Error obteniendo metadatos' });
+            } finally {
+                if (!cancelled) setMetadataLoading(false);
+            }
+        };
+
+        run();
+        return () => { cancelled = true; };
+    }, [forumId, results, searchQuery, searchMode]);
+
     if (results.length === 0) {
         return (
             <Card>
@@ -239,151 +340,271 @@ export function ResultViewer({ results, forumId, searchQuery, onExtractLinks }: 
 
     return (
         <>
-            {/* Search Results */}
             <Card>
                 <CardHeader>
                     <CardTitle>Resultados de Búsqueda</CardTitle>
                     <CardDescription>
-                        {results.length} resultado{results.length !== 1 ? 's' : ''} para &quot;{searchQuery}&quot;
+                        {totalResults && results.length < totalResults 
+                          ? `Mostrando ${results.length} de ${totalResults} resultados`
+                          : totalResults && results.length === totalResults 
+                            ? `Mostrando los ${totalResults} resultados`
+                            : `Mostrando ${results.length} resultado${results.length !== 1 ? 's' : ''}`}
+                        {` para "${searchQuery}"`}
+                        {metadataTime !== null && (
+                            <span className="ml-2 text-xs">
+                                • Metadatos: {metadataTime}ms
+                                {metadataMode && <span className="ml-1">({metadataMode})</span>}
+                                {totalMetadataResults !== null && totalMetadataResults !== results.length && (
+                                    <span className="ml-1">• Total procesados: {totalMetadataResults}</span>
+                                )}
+                            </span>
+                        )}
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <div className="flex items-center justify-between mb-3 gap-2">
+                <CardContent className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="text-sm text-muted-foreground">
                             Resolver títulos en lote para aprovechar la misma sesión de FlareSolverr.
                         </div>
-                        <Button variant="outline" size="sm" onClick={handleBulkTitles} disabled={bulkLoading}>
-                            {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                            Completar todos los títulos
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            {metadataLoading && (
+                                <span className="text-xs flex items-center gap-1 text-muted-foreground">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Analizando metadatos...
+                                </span>
+                            )}
+                            <Button variant="outline" size="sm" onClick={handleBulkTitles} disabled={bulkLoading}>
+                                {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                                Completar todos los títulos
+                            </Button>
+                            {onLoadMore && (
+                                <Button variant="outline" size="sm" onClick={() => onLoadMore()} disabled={!!loadingMore || (totalResults ? results.length >= totalResults : false)}>
+                                    {loadingMore ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                                    Mostrar más
+                                    {totalResults && results.length < totalResults && ` (${results.length} de ${totalResults})`}
+                                </Button>
+                            )}
+                            {onLoadAll && (
+                                <Button variant="outline" size="sm" onClick={() => onLoadAll()} disabled={!!loadingMore || (totalResults ? results.length >= totalResults : false)}>
+                                    {loadingMore ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                                    Cargar todos
+                                    {totalResults && results.length < totalResults && ` (${totalResults - results.length} pendientes)`}
+                                </Button>
+                            )}
+                        </div>
                     </div>
+
                     {bulkError && (
-                        <div className="text-sm text-red-600 dark:text-red-400 mb-3">{bulkError}</div>
+                        <div className="text-sm text-red-600 dark:text-red-400">{bulkError}</div>
                     )}
-                    <div className="space-y-3">
-                        {results.map((result, index) => {
-                            const postLinks = extractedByPost[result.url] || [];
-                            return (
-                                <div
-                                    key={index}
-                                    className={`border rounded-lg p-4 hover:bg-accent transition-colors ${selectedPost === result.url ? 'bg-accent' : ''
-                                        }`}
-                                >
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1 space-y-1">
-                                            <h3 className="font-medium leading-tight">
-                                                {titles[result.url] || result.title}
-                                            </h3>
-                                            {!titles[result.url] && /\.\.\./.test(result.title) && (
-                                                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                                    <Button size="sm" variant="ghost" onClick={() => enrichTitle(result.url, result.title)} disabled={!!enriching[result.url]}>
-                                                        {enriching[result.url] ? (
-                                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                        ) : null}
-                                                        Completar título
+                    {metadataErrors.general && (
+                        <div className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            {metadataErrors.general}
+                        </div>
+                    )}
+
+                    <div className="overflow-x-auto border rounded-md">
+                        <table className="min-w-full text-sm">
+                            <thead className="bg-muted/60">
+                                <tr className="text-left">
+                                    <th className="px-3 py-2">Título</th>
+                                    <th className="px-3 py-2">Tipo</th>
+                                    <th className="px-3 py-2">Año</th>
+                                    <th className="px-3 py-2">Temporada</th>
+                                    <th className="px-3 py-2">Capítulos</th>
+                                    <th className="px-3 py-2">Calidad</th>
+                                    <th className="px-3 py-2">Audio / Subs</th>
+                                    <th className="px-3 py-2">Género</th>
+                                    <th className="px-3 py-2">Tamaño</th>
+                                    <th className="px-3 py-2 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {results.map((result, index) => {
+                                    const postLinks = extractedByPost[result.url] || [];
+                                    const meta = metadataByPost[result.url];
+                                    const displayTitle = meta?.title || titles[result.url] || result.title;
+                                    const typeLabel = meta?.type === 'series' ? 'Serie' : meta?.type === 'movie' ? 'Película' : 'Desconocido';
+                                    const episodesLabel = meta?.type === 'series'
+                                        ? (meta?.episodesAvailable ?? meta?.episodesTotal
+                                            ? `${meta?.episodesAvailable ?? '—'}/${meta?.episodesTotal ?? '—'}`
+                                            : '—')
+                                        : '—';
+                                    const seasonLabel = meta?.type === 'series' && meta?.season ? `T${meta.season}` : '—';
+                                    const qualityLabel = meta?.quality || '—';
+                                    const yearLabel = meta?.year || result.date || '—';
+                                    const audioLabel = meta?.audioLanguages?.length ? meta.audioLanguages.join(', ') : '—';
+                                    const subsLabel = meta?.subtitleLanguages?.length ? meta.subtitleLanguages.join(', ') : '—';
+                                    const genresLabel = meta?.genres?.length ? meta.genres.join(', ') : '—';
+                                    const sizeLabel = meta?.size || '—';
+                                    const metaError = metadataErrors[result.url];
+
+                                    return (
+                                        <tr key={index} className={`border-b ${selectedPost === result.url ? 'bg-accent/40' : ''}`}>
+                                            <td className="px-3 py-2 align-top">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="font-medium leading-tight">{displayTitle}</span>
+                                                        <a
+                                                            href={result.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+                                                        >
+                                                            <ExternalLink className="h-3 w-3" />
+                                                            Abrir
+                                                        </a>
+                                                    </div>
+                                                    {result.snippet && (
+                                                        <p className="text-xs text-muted-foreground line-clamp-2">{result.snippet}</p>
+                                                    )}
+                                                    {metaError && (
+                                                        <div className="text-xs text-red-500 flex items-center gap-1">
+                                                            <AlertCircle className="h-3 w-3" />
+                                                            {metaError}
+                                                        </div>
+                                                    )}
+                                                    {!meta?.title && !titles[result.url] && /\.\.\./.test(result.title) && (
+                                                        <Button size="sm" variant="ghost" onClick={() => enrichTitle(result.url, result.title)} disabled={!!enriching[result.url]} className="h-7 px-2">
+                                                            {enriching[result.url] ? (
+                                                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                            ) : null}
+                                                            Completar título
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-2 align-top">{typeLabel}</td>
+                                            <td className="px-3 py-2 align-top">{yearLabel}</td>
+                                            <td className="px-3 py-2 align-top">{seasonLabel}</td>
+                                            <td className="px-3 py-2 align-top">{episodesLabel}</td>
+                                            <td className="px-3 py-2 align-top">{qualityLabel}</td>
+                                            <td className="px-3 py-2 align-top">
+                                                <div className="space-y-1">
+                                                    <div className="text-xs">Audio: {audioLabel}</div>
+                                                    <div className="text-xs">Subs: {subsLabel}</div>
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-2 align-top">{genresLabel}</td>
+                                            <td className="px-3 py-2 align-top">{sizeLabel}</td>
+                                            <td className="px-3 py-2 align-top">
+                                                <div className="flex items-center gap-2 justify-end">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleExtractLinks(result.url)}
+                                                        disabled={extractingLinks && selectedPost === result.url}
+                                                    >
+                                                        {extractingLinks && selectedPost === result.url ? (
+                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                        ) : (
+                                                            <Download className="h-4 w-4 mr-2" />
+                                                        )}
+                                                        Extraer
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        disabled={sendingToJd[result.url] || postLinks.length === 0}
+                                                        onClick={() => sendToJDownloader(result.url, postLinks, meta?.title || titles[result.url] || result.title)}
+                                                    >
+                                                        {sendingToJd[result.url] ? (
+                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                        ) : (
+                                                            <Send className="h-4 w-4 mr-2" />
+                                                        )}
+                                                        Enviar
                                                     </Button>
                                                 </div>
-                                            )}
-                                            {result.snippet && (
-                                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                                    {result.snippet}
-                                                </p>
-                                            )}
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                <a
-                                                    href={result.url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-1 hover:text-primary"
-                                                >
-                                                    <ExternalLink className="h-3 w-3" />
-                                                    Abrir en nueva pestaña
-                                                </a>
-                                                {result.date && <span>• {result.date}</span>}
-                                            </div>
+                                                {sendSuccess[result.url] && (
+                                                    <div className="text-[11px] text-green-600 text-right mt-1">Enviado a JDownloader</div>
+                                                )}
+                                                {sendErrors[result.url] && (
+                                                    <div className="text-[11px] text-red-600 text-right mt-1">{sendErrors[result.url]}</div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {Object.entries(metadataErrors).filter(([key]) => key !== 'general').length > 0 && (
+                        <div className="text-xs text-red-500 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            Algunos posts no devolvieron metadatos. Revisa las filas marcadas.
+                        </div>
+                    )}
+
+                    {Object.entries(extractedByPost).length > 0 && (
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-medium mt-2">Enlaces extraídos</h4>
+                            {Object.entries(extractedByPost).map(([postUrl, postLinks]) => (
+                                <div key={postUrl} className="border rounded-md p-3 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-1">
+                                            <div className="font-medium text-sm">{metadataByPost[postUrl]?.title || titles[postUrl] || postUrl}</div>
+                                            <div className="text-xs text-muted-foreground">{postLinks.length} enlace{postLinks.length !== 1 ? 's' : ''} encontrados</div>
                                         </div>
                                         <Button
                                             size="sm"
-                                            variant="outline"
-                                            onClick={() => handleExtractLinks(result.url)}
-                                            disabled={extractingLinks && selectedPost === result.url}
+                                            variant="secondary"
+                                            disabled={sendingToJd[postUrl]}
+                                            onClick={() => sendToJDownloader(postUrl, postLinks, metadataByPost[postUrl]?.title || titles[postUrl] || postUrl)}
                                         >
-                                            {extractingLinks && selectedPost === result.url ? (
+                                            {sendingToJd[postUrl] ? (
                                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                             ) : (
-                                                <Download className="h-4 w-4 mr-2" />
+                                                <Send className="h-4 w-4 mr-2" />
                                             )}
-                                            Extraer Enlaces
+                                            Enviar a JDownloader
                                         </Button>
                                     </div>
-
-                                    {postLinks.length > 0 && (
-                                        <div className="mt-3 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-xs text-muted-foreground">
-                                                    {postLinks.length} enlace{postLinks.length !== 1 ? 's' : ''} de descarga directa encontrado{postLinks.length !== 1 ? 's' : ''}
-                                                </div>
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    disabled={sendingToJd[result.url]}
-                                                    onClick={() => sendToJDownloader(result.url, postLinks, titles[result.url] || result.title)}
-                                                >
-                                                    {sendingToJd[result.url] ? (
-                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                    ) : (
-                                                        <Send className="h-4 w-4 mr-2" />
-                                                    )}
-                                                    Enviar a JDownloader
-                                                </Button>
-                                            </div>
-
-                                            {sendSuccess[result.url] && (
-                                                <div className="text-xs text-green-500">Enlaces enviados a JDownloader</div>
-                                            )}
-                                            {sendErrors[result.url] && (
-                                                <div className="text-xs text-red-500">{sendErrors[result.url]}</div>
-                                            )}
-
-                                            <div className="space-y-3">
-                                                {Object.entries(groupLinksByHosting(postLinks)).map(([hosting, links]) => (
-                                                    <div key={hosting} className="space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge variant="secondary">{hosting}</Badge>
-                                                            <span className="text-sm text-muted-foreground">
-                                                                {links.length} enlace{links.length !== 1 ? 's' : ''}
-                                                            </span>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            {links.map((link, linkIndex) => (
-                                                                <div
-                                                                    key={linkIndex}
-                                                                    className="flex items-center gap-2 bg-muted/50 rounded-md p-2"
-                                                                >
-                                                                    <code className="flex-1 text-sm truncate">{link.url}</code>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        onClick={() => copyToClipboard(link.url)}
-                                                                    >
-                                                                        {copiedUrl === link.url ? (
-                                                                            <Check className="h-4 w-4 text-green-500" />
-                                                                        ) : (
-                                                                            <Copy className="h-4 w-4" />
-                                                                        )}
-                                                                    </Button>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                                    {sendSuccess[postUrl] && (
+                                        <div className="text-xs text-green-500">Enlaces enviados a JDownloader</div>
                                     )}
+                                    {sendErrors[postUrl] && (
+                                        <div className="text-xs text-red-500">{sendErrors[postUrl]}</div>
+                                    )}
+                                    <div className="space-y-3">
+                                        {Object.entries(groupLinksByHosting(postLinks)).map(([hosting, links]) => (
+                                            <div key={hosting} className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="secondary">{hosting}</Badge>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {links.length} enlace{links.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {links.map((link, linkIndex) => (
+                                                        <div
+                                                            key={linkIndex}
+                                                            className="flex items-center gap-2 bg-muted/50 rounded-md p-2"
+                                                        >
+                                                            <code className="flex-1 text-sm truncate">{link.url}</code>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => copyToClipboard(link.url)}
+                                                            >
+                                                                {copiedUrl === link.url ? (
+                                                                    <Check className="h-4 w-4 text-green-500" />
+                                                                ) : (
+                                                                    <Copy className="h-4 w-4" />
+                                                                )}
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            );
-                        })}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </>

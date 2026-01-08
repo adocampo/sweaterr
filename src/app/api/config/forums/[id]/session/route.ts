@@ -6,9 +6,10 @@ import { verifyTokenEdge } from '@/lib/edge-jwt';
 // GET /api/config/forums/[id]/session - Get session info
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const token = request.cookies.get('sweaterr-auth')?.value;
         if (!token) {
             return NextResponse.json(
@@ -26,7 +27,7 @@ export async function GET(
         }
 
         const forum = await db.forum.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         if (!forum) {
@@ -36,13 +37,13 @@ export async function GET(
             );
         }
 
-        const sessionInfo = sessionManager.getSessionInfo(params.id);
+        const sessionInfo = sessionManager.getSessionInfo(id);
         const ttlMs = forum.flaresolverrSessionTTL || 30 * 60 * 1000;
 
         return NextResponse.json({
             success: true,
             data: {
-                forumId: params.id,
+                forumId: id,
                 forumName: forum.name,
                 ttlMs,
                 ttlMinutes: Math.round(ttlMs / 60000),
@@ -68,9 +69,10 @@ export async function GET(
 // PATCH /api/config/forums/[id]/session - Update session TTL
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const token = request.cookies.get('sweaterr-auth')?.value;
         if (!token) {
             return NextResponse.json(
@@ -88,7 +90,7 @@ export async function PATCH(
         }
 
         const forum = await db.forum.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         if (!forum) {
@@ -102,7 +104,7 @@ export async function PATCH(
 
         if (typeof ttlMinutes !== 'number' || ttlMinutes < 1 || ttlMinutes > 1440) {
             return NextResponse.json(
-                { success: false, error: 'TTL debe estar entre 1 y 1440 minutos (24 horas)' },
+                { success: false, error: 'La duración de sesión debe estar entre 1 y 1440 minutos (24 horas)' },
                 { status: 400 }
             );
         }
@@ -110,7 +112,7 @@ export async function PATCH(
         const ttlMs = ttlMinutes * 60 * 1000;
 
         await db.forum.update({
-            where: { id: params.id },
+            where: { id },
             data: { flaresolverrSessionTTL: ttlMs },
         });
 

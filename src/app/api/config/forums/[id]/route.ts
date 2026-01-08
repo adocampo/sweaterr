@@ -7,12 +7,14 @@ const forumConfigSchema = z.object({
     baseUrl: z.string().url(),
     searchPath: z.string().optional(),
     searchMode: z.enum(['native', 'google_site', 'google_cse']).optional(),
+    searchForumLabel: z.string().optional(),
     cseId: z.string().optional(),
     thankButtonSelector: z.string().optional(),
     linksContainerSelector: z.string().optional(),
     postTitleSelector: z.string().optional(),
     username: z.string().optional(),
     password: z.string().optional(),
+    flaresolverrSessionTTL: z.number().min(5).max(1440).optional(),
 });
 
 // PUT /api/config/forums/[id] - Update existing forum
@@ -44,12 +46,18 @@ export async function PUT(
             data: {
                 name: validatedData.name,
                 baseUrl: validatedData.baseUrl,
-                searchPath: validatedData.searchPath,
+                searchPath: validatedData.searchPath || '/search.php',
                 searchMode: validatedData.searchMode,
+                searchForumLabel: validatedData.searchForumLabel,
                 cseId: validatedData.cseId,
                 thankButtonSelector: validatedData.thankButtonSelector,
                 linksContainerSelector: validatedData.linksContainerSelector,
                 postTitleSelector: validatedData.postTitleSelector,
+                // Persist TTL in milliseconds if provided (incoming value is minutes)
+                flaresolverrSessionTTL:
+                    typeof validatedData.flaresolverrSessionTTL === 'number'
+                        ? validatedData.flaresolverrSessionTTL * 60 * 1000
+                        : undefined,
                 credentials: validatedData.username && validatedData.password
                     ? existingForum.credentials
                         ? {

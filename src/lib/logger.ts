@@ -15,7 +15,7 @@ if (typeof window === 'undefined') {
   }
 }
 
-export type LogModule = 'forum' | 'search' | 'extract' | 'auth' | 'jdownloader' | 'cloudflare' | 'api' | 'testing' | 'db';
+export type LogModule = 'forum' | 'search' | 'extract' | 'auth' | 'jdownloader' | 'cloudflare' | 'api' | 'testing' | 'db' | 'metadata';
 
 class Logger {
   private logToFile(module: LogModule, level: 'info' | 'warn' | 'error', message: string, data?: any) {
@@ -40,8 +40,8 @@ class Logger {
 
   info(module: LogModule, message: string, data?: any) {
     this.logToFile(module, 'info', message, data);
-    // Only show essential info in console (skip 'db' to avoid query spam)
-    if (process.env.NODE_ENV === 'development' && module !== 'db') {
+    // Only show essential info in console (skip noisy modules)
+    if (process.env.NODE_ENV === 'development' && module !== 'db' && module !== 'search' && module !== 'jdownloader') {
       console.log(`[${module}] ${message}`);
     }
   }

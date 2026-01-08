@@ -6,6 +6,7 @@ export interface Forum {
   baseUrl: string;
   searchPath: string;
   searchMode?: 'native' | 'google_site' | 'google_cse';
+  searchForumLabel?: string | null;
   cseId?: string;
   enabled: boolean;
   thankButtonSelector?: string;
@@ -92,12 +93,14 @@ export interface ForumConfigForm {
   baseUrl: string;
   searchPath?: string;
   searchMode?: 'native' | 'google_site' | 'google_cse';
+  searchForumLabel?: string;
   cseId?: string;
   thankButtonSelector?: string;
   linksContainerSelector?: string;
   postTitleSelector?: string;
   username?: string;
   password?: string;
+  flaresolverrSessionTTL?: number;
 }
 
 export interface JDownloaderConfigForm {

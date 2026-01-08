@@ -14,6 +14,13 @@ export interface ForumSearchResult {
   views?: number;
   hasLinks?: boolean;
   thankRequired?: boolean;
+  snippet?: string;
+}
+
+export interface ForumSearchResponse {
+  results: ForumSearchResult[];
+  searchId?: string; // For pagination in native vBulletin search
+  totalResults?: number; // Total results available in this search
 }
 
 export interface ForumPost {
@@ -32,6 +39,7 @@ export interface ForumConfig {
   baseUrl: string;
   searchPath: string;
   searchMode?: 'native' | 'google_site' | 'google_cse';
+  searchForumLabel?: string;
   cseId?: string;
   thankButtonSelector?: string;
   linksContainerSelector?: string;
@@ -183,7 +191,11 @@ export class ForumService {
   }
 
   // Search forum for content
-  async searchForum(forumId: string, query: string): Promise<ForumSearchResult[]> {
+  async searchForum(
+    forumId: string,
+    query: string,
+    options?: { page?: number; fetchAll?: boolean; maxPages?: number; titleOnly?: boolean; searchId?: string }
+  ): Promise<ForumSearchResponse> {
     const config = this.configs.get(forumId);
     const client = this.clients.get(forumId);
 
@@ -203,7 +215,9 @@ export class ForumService {
           }
         });
 
-        const gq = `site:${config.baseUrl.replace(/https?:\/\//, '')} ${query}`;
+        const gqBase = `site:${config.baseUrl.replace(/https?:\/\//, '')}`;
+        const gqQuery = options?.titleOnly ? `intitle:${query}` : query;
+        const gq = `${gqBase} ${gqQuery}`;
         logger.info('search', `Google site search query: ${gq}`);
 
         const res = await googleClient.get('/search', { params: { q: gq, hl: 'es', num: 50 } });
@@ -282,7 +296,7 @@ export class ForumService {
         const finalResults = Array.from(unique.values());
 
         logger.info('search', `After deduplication: ${finalResults.length} unique results`);
-        return finalResults;
+        return { results: finalResults, totalResults: finalResults.length };
       }
 
       // If using Google CSE (Custom Search Engine)
@@ -296,157 +310,928 @@ export class ForumService {
 
         if (!flaresolverrUrl) {
           logger.error('search', 'Google CSE requires FlareSolverr to be configured');
-          return [];
+          return { results: [] };
         }
 
         try {
-          const cseUrl = `https://cse.google.com/cse?cx=${cseId}&q=${encodeURIComponent(query)}`;
-          logger.info('search', `Google CSE search URL: ${cseUrl}`);
+          const buildCseUrl = (page?: number) => {
+            // Google CSE is JS-driven and uses hash for pagination, not query params
+            const base = `https://cse.google.com/cse?cx=${cseId}&q=${encodeURIComponent(query)}`;
+            if (page && page > 1) {
+              return `${base}#gsc.tab=0&gsc.q=${encodeURIComponent(query)}&gsc.page=${page}`;
+            }
+            return base;
+          };
 
-          const FlareSolverrClientModule = await import('./flaresolverr-client');
-          const cseClient = new FlareSolverrClientModule.FlareSolverrClient(flaresolverrUrl);
-          const solution = await cseClient.request(cseUrl, 'GET');
-          const html = solution.response || '';
+          const fetchPageHtml = async (page?: number) => {
+            const url = buildCseUrl(page);
+            logger.info('search', `Google CSE search URL: ${url}`);
+            const FlareSolverrClientModule = await import('./flaresolverr-client');
+            const cseClient = new FlareSolverrClientModule.FlareSolverrClient(flaresolverrUrl);
+            const solution = await cseClient.request(url, 'GET');
+            return solution.response || '';
+          };
 
+          const parseResultsFromHtml = (html: string) => {
+            // Prefer structured parsing over regex to avoid duplicates across pages
+            const out: ForumSearchResult[] = [];
+            const forumHost = new URL(config.baseUrl).host;
+
+            try {
+              const $ = cheerio.load(html);
+              // Google CSE renders results with these classes
+              // Each result: div.gsc-result > a.gs-title (may have data-ctorig with original URL)
+              const anchors = $('.gsc-results .gsc-result .gs-title a[href], .gsc-results .gsc-webResult .gs-title a[href]');
+
+              if (anchors.length === 0) {
+                // Fallback: some CSE templates use different containers
+                const altAnchors = $('a.gs-title[href], a.gs-title[data-ctorig]');
+                altAnchors.each((idx, el) => anchors.push(el));
+              }
+
+              let matchCount = 0;
+              anchors.each((idx, el) => {
+                const $a = $(el);
+                const href = ($a.attr('data-ctorig') || $a.attr('href') || '').trim();
+                const titleRaw = ($a.text() || '').replace(/\s+/g, ' ').trim();
+                if (!href) return;
+
+                matchCount++;
+                try {
+                  let absoluteUrl = href;
+                  if (href.startsWith('/')) {
+                    absoluteUrl = config.baseUrl + href;
+                  } else if (!/^https?:\/\//i.test(href)) {
+                    absoluteUrl = config.baseUrl.replace(/\/$/, '') + '/' + href.replace(/^\//, '');
+                  }
+                  const u = new URL(absoluteUrl);
+                  logger.info('search', `CSE Match ${matchCount}: Checking URL ${absoluteUrl} (host: ${u.host})`);
+
+                  if (u.host.endsWith(forumHost) && /showthread/i.test(absoluteUrl)) {
+                    out.push({
+                      title: titleRaw || absoluteUrl,
+                      url: absoluteUrl,
+                      forum: config.name,
+                      hasLinks: false,
+                      thankRequired: false,
+                    });
+                  }
+                } catch (e) {
+                  // ignore malformed URLs
+                }
+              });
+
+              logger.info('search', `CSE parsed ${matchCount} links, ${out.length} valid`);
+            } catch (err) {
+              logger.warn('search', `CSE cheerio parse failed, falling back to regex: ${err instanceof Error ? err.message : String(err)}`);
+
+              // Fallback regex in case cheerio fails (rare)
+              const showthreadRe = /<a[^>]*href=["']([^"']*showthread[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+              let match: RegExpExecArray | null;
+              let matchCount = 0;
+              while ((match = showthreadRe.exec(html)) !== null) {
+                matchCount++;
+                const url = match[1];
+                const titleRaw = match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                if (titleRaw && url) {
+                  try {
+                    let absoluteUrl = url;
+                    if (url.startsWith('/')) {
+                      absoluteUrl = config.baseUrl + url;
+                    } else if (!url.startsWith('http')) {
+                      absoluteUrl = config.baseUrl + '/' + url;
+                    }
+                    const u = new URL(absoluteUrl);
+                    logger.info('search', `CSE Match ${matchCount}: Checking URL ${absoluteUrl} (host: ${u.host})`);
+                    if (u.host.endsWith(forumHost)) {
+                      out.push({
+                        title: titleRaw,
+                        url: absoluteUrl,
+                        forum: config.name,
+                        hasLinks: false,
+                        thankRequired: false,
+                      });
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }
+              }
+              logger.info('search', `CSE (fallback) parsed ${matchCount} links, ${out.length} valid`);
+            }
+
+            return out;
+          };
+
+          const deDup = (arr: ForumSearchResult[]) => {
+            const unique = new Map<string, ForumSearchResult>();
+            arr.forEach(r => { if (!unique.has(r.url)) unique.set(r.url, r); });
+            return Array.from(unique.values());
+          };
+
+          let results: ForumSearchResult[] = [];
+
+          // fetchAll mode: iterate pages until no new results or maxPages reached
+          if (options?.fetchAll) {
+            const maxPages = Math.max(1, options.maxPages ?? 5);
+            let page = 1;
+            let lastTotal = 0;
+            while (page <= maxPages) {
+              const html = await fetchPageHtml(page);
+              if (!html) {
+                logger.warn('search', `Google CSE empty response at page ${page}`);
+                break;
+              }
+              const pageResults = parseResultsFromHtml(html);
+              const before = results.length;
+              results = deDup([...results, ...pageResults]);
+              const after = results.length;
+              logger.info('search', `CSE page ${page}: +${after - before} new (total unique: ${after})`);
+              // stop if no growth in unique results
+              if (after <= lastTotal) break;
+              lastTotal = after;
+              page++;
+            }
+            return { results: results };
+          }
+
+          // single page mode (specific page or first page)
+          const page = options?.page && options.page > 1 ? options.page : 1;
+          const html = await fetchPageHtml(page);
           if (!html) {
             logger.warn('search', 'Google CSE returned empty response');
-            return [];
+            return { results: [] };
           }
 
           logger.info('search', `Google CSE HTML length: ${html.length}`);
+          const pageResults = parseResultsFromHtml(html);
+          return { results: deDup(pageResults) };
 
-          const results: ForumSearchResult[] = [];
-          const forumHost = new URL(config.baseUrl).host;
 
-          // Parse Google CSE results using regex to extract showthread URLs
-          // Google CSE wraps results in various containers, use regex for robustness
-          // This regex handles:
-          // - href="/showthread.php?p=123" or href='showthread.php?...'
-          // - href="https://domain/showthread.php?..."
-          // - Various text content in the <a> tag
-          const showthreadRe = /<a[^>]*href=["']([^"']*showthread[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
-          let match: RegExpExecArray | null;
-          let matchCount = 0;
-
-          while ((match = showthreadRe.exec(html)) !== null) {
-            matchCount++;
-            const url = match[1];
-            const titleRaw = match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-
-            if (titleRaw && url) {
-              try {
-                // Handle relative URLs
-                let absoluteUrl = url;
-                if (url.startsWith('/')) {
-                  absoluteUrl = config.baseUrl + url;
-                } else if (!url.startsWith('http')) {
-                  absoluteUrl = config.baseUrl + '/' + url;
-                }
-
-                const u = new URL(absoluteUrl);
-                logger.info('search', `CSE Match ${matchCount}: Checking URL ${absoluteUrl} (host: ${u.host})`);
-
-                if (u.host.endsWith(forumHost)) {
-                  results.push({
-                    title: titleRaw,
-                    url: absoluteUrl,
-                    forum: config.name,
-                    hasLinks: false,
-                    thankRequired: false,
-                  });
-                  logger.info('search', `CSE Match ${matchCount}: ✓ Added result: ${titleRaw.substring(0, 80)}`);
-                } else {
-                  logger.info('search', `CSE Match ${matchCount}: Skipped (host mismatch: ${u.host} vs ${forumHost})`);
-                }
-              } catch (err) {
-                logger.warn('search', `CSE Match ${matchCount}: Invalid URL: ${url}`, err);
-              }
-            } else {
-              logger.info('search', `CSE Match ${matchCount}: Skipped (empty title or url)`);
-            }
-          }
-
-          logger.info('search', `Google CSE parsed ${matchCount} showthread links, found ${results.length} valid results for "${query}"`);
-
-          // De-duplicate by URL
-          const unique = new Map<string, ForumSearchResult>();
-          results.forEach(r => { if (!unique.has(r.url)) unique.set(r.url, r); });
-          const finalResults = Array.from(unique.values());
-
-          logger.info('search', `After deduplication: ${finalResults.length} unique results`);
-          return finalResults;
 
         } catch (error) {
           logger.error('search', `Google CSE search error: ${error instanceof Error ? error.message : String(error)}`);
           if (error instanceof Error && error.stack) {
             logger.error('search', `Stack: ${error.stack.substring(0, 200)}`);
           }
-          return [];
+          return { results: [] };
         }
       }
 
-      // Default native search (legacy) with Cloudflare fallback via FlareSolverr
-      let html: string | null = null;
-      try {
-        const searchResponse = await client.get(config.searchPath, {
-          params: {
-            keywords: query,
-            search: 'Search'
+      // Native search for vBulletin-style forums (descargasdd search.php)
+      // IMPORTANT: run as authenticated user when credentials are configured.
+      // Axios client already carries persistent cookies from the authentication step.
+      const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+
+      const joinUrl = (base: string, path: string) => {
+        const baseTrimmed = (base || '').replace(/\/$/, '');
+        const pathTrimmed = (path || '').trim();
+        if (!pathTrimmed) return baseTrimmed;
+        if (/^https?:\/\//i.test(pathTrimmed)) return pathTrimmed;
+        if (pathTrimmed.startsWith('/')) return `${baseTrimmed}${pathTrimmed}`;
+        return `${baseTrimmed}/${pathTrimmed}`;
+      };
+
+      const extractSearchResultsUrl = (input: string) => {
+        if (!input) return '';
+        // Match URLs like: search.php?searchid=123 or search.php?do=process&searchid=123&page=2
+        const match = input.match(/search\.php\?[^\s"'>]*searchid=\d+[^\s"'>]*/i);
+        if (!match) return '';
+        return match[0];
+      };
+
+      const extractSearchIdValue = (input: string) => {
+        if (!input) return '';
+        const m = input.match(/name=["']searchid["'][^>]*value=["'](\d+)["']/i);
+        return m?.[1] || '';
+      };
+
+      const safeSnippet = (html: string, maxLen = 2500) => {
+        if (!html) return '';
+        const clipped = html.length > maxLen ? `${html.slice(0, maxLen)}\n...<clipped>...` : html;
+        // Avoid writing potential tokens/credentials to disk.
+        return clipped
+          .replace(/(password\s*["']?\s*[:=]\s*["']).*?(["'])/gi, '$1<redacted>$2')
+          .replace(/(securitytoken\s*["']?\s*value=["']).*?(["'])/gi, '$1<redacted>$2')
+          .replace(/(token\s*["']?\s*value=["']).*?(["'])/gi, '$1<redacted>$2');
+      };
+
+      const redactPostDataForLog = (data: Record<string, string>) => {
+        const out: Record<string, string> = {};
+        for (const [k, v] of Object.entries(data)) {
+          const key = k.toLowerCase();
+          if (key.includes('pass') || key.includes('password')) {
+            out[k] = '<redacted>';
+            continue;
           }
+          if (key.includes('token')) {
+            out[k] = v ? '<redacted>' : '';
+            continue;
+          }
+          out[k] = typeof v === 'string' && v.length > 120 ? `${v.slice(0, 120)}...` : v;
+        }
+        return out;
+      };
+
+      const ensureAbsoluteSearchUrl = (maybeRelative: string) => {
+        if (!maybeRelative) return '';
+        if (/^https?:\/\//i.test(maybeRelative)) return maybeRelative;
+        if (maybeRelative.startsWith('/')) return joinUrl(config.baseUrl, maybeRelative);
+        // If the match starts at search.php?... (no leading slash)
+        return joinUrl(config.baseUrl, `/${maybeRelative}`);
+      };
+
+      const getAbs = (href: string) => {
+        if (!href) return href;
+        if (/^https?:\/\//i.test(href)) return href;
+        if (href.startsWith('/')) return `${config.baseUrl}${href}`;
+        return `${config.baseUrl.replace(/\/$/, '')}/${href}`;
+      };
+
+      const getAxiosDefaultHeader = (name: string): string | undefined => {
+        const h = client.defaults.headers as any;
+        // axios can keep defaults in different buckets
+        return (
+          h?.[name] ||
+          h?.[name.toLowerCase()] ||
+          h?.common?.[name] ||
+          h?.common?.[name.toLowerCase()] ||
+          h?.post?.[name] ||
+          h?.post?.[name.toLowerCase()] ||
+          h?.get?.[name] ||
+          h?.get?.[name.toLowerCase()]
+        );
+      };
+
+      const pickSearchForm = ($doc: cheerio.CheerioAPI) => {
+        const forms = $doc('form');
+        let best: { score: number; form: cheerio.Cheerio<cheerio.Element> } | null = null;
+
+        forms.each((_, el) => {
+          const $f = $doc(el);
+          const actionRaw = ($f.attr('action') || '').trim();
+          const actionAbs = getAbs(actionRaw || '');
+          const hasQuery = $f.find('input[name="query"], input[name="keywords"], input[name="dosearch"]').length > 0;
+          const hasSecurityToken = $f.find('input[name="securitytoken"]').length > 0;
+          const hasLoginFields = $f.find('input[name^="vb_login"], input[name="vb_login_username"], input[name="vb_login_password"]').length > 0;
+          const doVal = ($f.find('input[name="do"]').attr('value') || '').toLowerCase();
+
+          const forumFieldCount = $f
+            .find('select, input[type="checkbox"], input[type="radio"]')
+            .filter((_, node) => {
+              const $node = $doc(node);
+              const name = ($node.attr('name') || '').toLowerCase();
+              const id = ($node.attr('id') || '').toLowerCase();
+              return name.includes('forum') || name.includes('cat') || id.includes('forum') || id.includes('cat');
+            })
+            .length;
+          const multiSelectCount = $f.find('select[multiple], select[size]')
+            .filter((_, node) => {
+              const $node = $doc(node);
+              const name = ($node.attr('name') || '').toLowerCase();
+              const id = ($node.attr('id') || '').toLowerCase();
+              return name.includes('forum') || id.includes('forum');
+            })
+            .length;
+
+          let score = 0;
+          if (actionAbs && /\/search\.php/i.test(actionAbs)) score += 5;
+          if (hasQuery) score += 3;
+          if (hasSecurityToken) score += 1;
+          if (doVal === 'process') score += 2;
+          if (forumFieldCount > 0) score += 4 + forumFieldCount;
+          if (multiSelectCount > 0) score += 3 + multiSelectCount;
+          if (config.searchForumLabel && forumFieldCount > 0) score += 3;
+          if (hasLoginFields) score -= 10;
+
+          if (!best || score > best.score) best = { score, form: $f };
         });
-        html = searchResponse.data;
-      } catch (err: any) {
-        const status = err?.response?.status;
-        console.error(`Native search failed for ${config.name} (status ${status || 'unknown'}), trying FlareSolverr...`);
-        const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
-        if (flaresolverrUrl) {
-          try {
-            const qs = new URLSearchParams({ keywords: query, search: 'Search' }).toString();
-            const fullUrl = `${config.baseUrl}${config.searchPath}?${qs}`;
-            const { response } = await new (await import('./flaresolverr-client')).FlareSolverrClient(flaresolverrUrl).request(fullUrl, 'GET');
-            html = response || '';
-          } catch (fsErr: any) {
-            console.error(`FlareSolverr search failed for ${config.name}:`, fsErr?.message || fsErr);
-          }
-        }
-      }
 
-      if (!html) {
-        return [];
-      }
+        if (!best || best.score <= 0) return null;
+        return best.form;
+      };
 
-      const $ = cheerio.load(html);
-      const results: ForumSearchResult[] = [];
+      let forumFilterApplied = false;
 
-      $('.topic-list .topic, .search-result .result, tr.topic').each((index, element) => {
-        const $element = $(element);
-        const title = $element.find('.title a, .subject a, a[href*="topic"]').first().text().trim();
-        const url = $element.find('.title a, .subject a, a[href*="topic"]').first().attr('href');
-        const author = $element.find('.author, .poster, .username').first().text().trim();
-        const replies = parseInt($element.find('.replies, .posts').first().text().replace(/[^\d]/g, '')) || 0;
-        const views = parseInt($element.find('.views').first().text().replace(/[^\d]/g, '')) || 0;
-        const date = $element.find('.date, .timestamp, .lastpost').first().text().trim();
+      const parseResults = (html: string) => {
+        const $ = cheerio.load(html || '');
+        const out: ForumSearchResult[] = [];
+        const seen = new Set<string>();
 
-        if (title && url) {
-          results.push({
+        const selectors = [
+          'a[id^="thread_title"]',
+          'a.threadtitle',
+          'h3.searchtitle a',
+          'h3 a.threadtitle',
+          'a[href*="showthread.php?t="]',
+        ];
+
+        const addResult = ($a: cheerio.Cheerio<cheerio.Element>) => {
+          const href = getAbs($a.attr('href') || '');
+          if (!href || seen.has(href)) return;
+          if (!/showthread\.php\?t=\d+/i.test(href)) return;
+          const title = ($a.text() || '').replace(/\s+/g, ' ').trim();
+          if (!title || title.length < 3) return;
+
+          // Drop banners/avisos/donaciones
+          if (/donaciones|aviso del foro|aviso del for/i.test(title)) return;
+
+          const row = $a.closest('tr, li, div');
+          const snippet = (row.find('.excerpt, .post_preview, .postpreview').first().text() || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          let forumText = '';
+          let dateText = '';
+          const rowText = row.text();
+          const forumMatch = rowText.match(/Foros:\s*([^\n]+)/i);
+          if (forumMatch) forumText = forumMatch[1].trim();
+          const lastMatch = rowText.match(/Último mensaje:\s*([^\n]+)/i);
+          if (lastMatch) dateText = lastMatch[1].trim();
+
+          out.push({
             title,
-            url: url.startsWith('http') ? url : config.baseUrl + url,
-            forum: config.name,
-            date,
-            author,
-            replies,
-            views,
+            url: href,
+            forum: forumText || config.name,
+            date: dateText,
             hasLinks: false,
             thankRequired: false,
+            snippet: snippet || undefined,
+          });
+          seen.add(href);
+        };
+
+        selectors.forEach((sel) => {
+          $(sel).each((_, el) => addResult($(el)));
+        });
+
+        if (out.length === 0) {
+          $('a[href*="showthread.php"]').each((_, el) => addResult($(el)));
+        }
+
+        return out;
+      };
+
+      const extractTotalResults = (html: string): number | undefined => {
+        if (!html) return undefined;
+        const $ = cheerio.load(html);
+        
+        // Look for total results count in various formats
+        const text = $.text() || '';
+        
+        // Try different patterns
+        const patterns = [
+          /Results?\s+\d+\s*-\s*\d+\s+of\s+(\d+)/i,  // English: Results 1 - 25 of 30
+          /Resultados?\s+\d+\s*(?:-|a|al)\s*\d+\s+de\s+(\d+)/i,  // Spanish: Resultados 1 al 25 de 30 (supports '-', 'a', 'al')
+          /Mostrando\s+resultados?\s+(?:del\s+)?\d+\s*(?:-|a|al)\s*\d+\s+de\s+(\d+)/i, // Spanish: Mostrando resultados del 1 al 25 de 30
+          /Mostrando\s+(?:mensajes|resultados)[^\d]*(\d+)[^\d]*(\d+)[^\d]*de\s+(\d+)/i, // Spanish variant with words in between
+          /of\s+(\d+)\s+results?/i,  // of 30 results
+          /de\s+(\d+)\s+resultados?/i,  // de 30 resultados
+          /\(\d+\s+de\s+(\d+)\)/i,  // (25 de 30)
+          /total\s*[:\s]+(\d+)/i,  // total: 30
+        ];
+        
+        for (const pattern of patterns) {
+          const match = text.match(pattern);
+          // Some patterns may capture multiple groups; prefer the last numeric group
+          const group = match ? match[match.length - 1] : undefined;
+          if (group) {
+            const total = parseInt(group, 10);
+            if (!isNaN(total) && total > 0) {
+              logger.info('search', `[${config.name}] Extracted totalResults: ${total} (pattern: ${pattern})`);
+              return total;
+            }
+          }
+        }
+        
+        // Try to find in page navigation or info elements
+        const navText = $('div.pagenav, div.pagination, .paging, nav, .pageinfo').text() || '';
+        for (const pattern of patterns) {
+          const match = navText.match(pattern);
+          if (match?.[1]) {
+            const total = parseInt(match[1], 10);
+            if (!isNaN(total) && total > 0) {
+              logger.info('search', `[${config.name}] Extracted totalResults from nav: ${total}`);
+              return total;
+            }
+          }
+        }
+        
+        logger.warn('search', `[${config.name}] Could not extract totalResults from HTML`);
+        return undefined;
+      };
+
+      const filterResults = (list: ForumSearchResult[]) => {
+        let filtered = list;
+        if (config.searchForumLabel && !forumFilterApplied) {
+          const label = config.searchForumLabel.toLowerCase();
+          filtered = filtered.filter(r => (r.forum || '').toLowerCase().includes(label));
+        }
+        return filtered;
+      };
+
+      const selectForumByLabel = (
+        $doc: cheerio.CheerioAPI,
+        $form: cheerio.Cheerio<cheerio.Element>,
+        postData: Record<string, string>
+      ) => {
+        if (!config.searchForumLabel) return;
+        logger.info('search', `[${config.name}] Using searchForumLabel: ${config.searchForumLabel}`);
+        const normalize = (text: string) =>
+          (text || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .toLowerCase()
+            .trim();
+
+        const label = normalize(config.searchForumLabel);
+
+        // Prefer selects that look like forum/category filters
+        const selects = $form.find('select[name]');
+        // Some forums use checkbox/radio lists like forumchoice[]
+        const forumInputs = $form.find('input[type="checkbox"], input[type="radio"]');
+
+        const isForumFieldName = (name: string) => {
+          const lower = name.toLowerCase();
+          return lower.includes('forum') || lower.includes('cat') || lower.includes('search');
+        };
+
+        let applied = false;
+
+        const tryApply = (name: string, value: string) => {
+          if (!name || !value || applied) return;
+          postData[name] = value;
+          logger.info('search', `[${config.name}] Selected forum field ${name}: ${value}`);
+          applied = true;
+        };
+
+        selects.each((_, sel) => {
+          if (applied) return;
+          const $sel = $doc(sel);
+          const selName = ($sel.attr('name') || '').trim();
+          const selId = ($sel.attr('id') || '').trim();
+          if (!selName || (!isForumFieldName(selName) && !isForumFieldName(selId))) return;
+
+          let foundValue: string | null = null;
+          $sel.find('option').each((_, opt) => {
+            const $opt = $doc(opt);
+            const optText = ($opt.text() || '').replace(/\s+/g, ' ').trim();
+            const optValue = ($opt.attr('value') || '').trim();
+            if (!optText && !optValue) return;
+            const matchText = normalize(optText);
+            const matchValue = normalize(optValue);
+            if (matchText.includes(label) || matchValue.includes(label)) {
+              foundValue = optValue || optText;
+            }
+          });
+
+          if (foundValue) {
+            tryApply(selName, foundValue);
+            postData['childforums'] = postData['childforums'] || '1';
+            forumFilterApplied = true;
+          }
+        });
+
+        // Fallback: checkbox/radio forum selectors (common in search.php?search_type=1)
+        forumInputs.each((_, el) => {
+          if (applied) return;
+          const $el = $doc(el);
+          const name = ($el.attr('name') || '').trim();
+          if (!name || !isForumFieldName(name)) return;
+          const value = ($el.attr('value') || '').trim();
+
+          // Try to read the text next to the input (same parent or label)
+          let text = '';
+          const parentText = $el.parent().text();
+          if (parentText) text = parentText.replace(/\s+/g, ' ').trim();
+          if (!text && $el.next().length) {
+            text = $el.next().text().replace(/\s+/g, ' ').trim();
+          }
+          if (!text && $el.prev().length) {
+            text = $el.prev().text().replace(/\s+/g, ' ').trim();
+          }
+
+          if (normalize(text).includes(label) || normalize(value).includes(label)) {
+            tryApply(name, value);
+            postData['childforums'] = postData['childforums'] || '1';
+            forumFilterApplied = true;
+          }
+        });
+
+        if (!applied) {
+          const selectNames = selects
+            .map((_, el) => ($doc(el).attr('name') || '').trim())
+            .get()
+            .filter(Boolean);
+          const inputNames = forumInputs
+            .map((_, el) => ($doc(el).attr('name') || '').trim())
+            .get()
+            .filter(Boolean);
+          logger.warn('search', `[${config.name}] searchForumLabel configured but no matching forum field found`, {
+            label: config.searchForumLabel,
+            selectNames,
+            inputNames,
           });
         }
-      });
+      };
 
-      return results;
+      const buildPostDataFromForm = (
+        $doc: cheerio.CheerioAPI,
+        $form: cheerio.Cheerio<cheerio.Element>
+      ) => {
+        const postData: Record<string, string> = {};
+        $form.find('input, select, textarea').each((_, el) => {
+          const $el = $doc(el);
+          const name = ($el.attr('name') || '').trim();
+          if (!name) return;
+
+          const type = ($el.attr('type') || '').toLowerCase();
+          // Skip submit/button/image controls unless it is the actual search submit (dosearch)
+          if (type === 'submit' || type === 'button' || type === 'image') {
+            if (name !== 'dosearch') return;
+          }
+
+          if ($el.is('input[type="radio"], input[type="checkbox"]')) {
+            const checked = !!$el.attr('checked');
+            if (!checked) return;
+          }
+
+          const raw = $el.val();
+          const value = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '');
+          postData[name] = String(value);
+        });
+
+        postData['query'] = query;
+        postData['keywords'] = query;
+        postData['showresults'] = postData['showresults'] || 'threads';
+        postData['childforums'] = postData['childforums'] || '1';
+        postData['do'] = postData['do'] || 'process';
+        postData['search_type'] = postData['search_type'] || '1';
+
+        return postData;
+      };
+
+      const resolveResultsUrl = (finalUrl: string, html: string) => {
+        const urlFromFinal = ensureAbsoluteSearchUrl(extractSearchResultsUrl(finalUrl || ''));
+        const urlFromBody = ensureAbsoluteSearchUrl(extractSearchResultsUrl(html || ''));
+        const searchIdFromBody = extractSearchIdValue(html || '');
+        const urlFromHiddenSearchId = searchIdFromBody
+          ? ensureAbsoluteSearchUrl(`search.php?searchid=${searchIdFromBody}`)
+          : '';
+        return {
+          resultUrl: urlFromFinal || urlFromBody || urlFromHiddenSearchId,
+          urlFromFinal,
+          urlFromBody,
+          searchIdFromBody: searchIdFromBody || null,
+        };
+      };
+
+      const isGuestHtml = (html: string) => {
+        const h = html || '';
+        return /SECURITYTOKEN\s*=\s*"guest"/i.test(h) || /LOGGEDIN\s*=\s*0\s*>\s*0\s*\?/i.test(h) || /LOGGEDIN\s*=\s*0\b/i.test(h);
+      };
+
+      // 1) Primary path: axios with authenticated cookies
+      
+      // If searchId is provided (pagination), skip form submission and go directly to results pages
+      if (options?.searchId) {
+        const pageNum = options.page || 1;
+        const baseSearchUrl = joinUrl(config.baseUrl, `/search.php?searchid=${options.searchId}`);
+        logger.info('search', `[${config.name}] Using existing searchid for pagination: ${options.searchId}, page ${pageNum}`);
+        
+        try {
+          if (options?.fetchAll) {
+            const maxPages = Math.max(1, options.maxPages ?? 10);
+            const aggregated: ForumSearchResult[] = [];
+            const seen = new Set<string>();
+            let firstHtml = '';
+            for (let p = 1; p <= maxPages; p++) {
+              const pageParam = `&page=${p}`;
+              const url = `${baseSearchUrl}${pageParam}`;
+              const resp = await client.get(url);
+              const html = String(resp.data || '');
+              if (!firstHtml) firstHtml = html;
+              const pageResults = parseResults(html);
+              let added = 0;
+              for (const r of pageResults) {
+                if (r.url && !seen.has(r.url)) {
+                  aggregated.push(r);
+                  seen.add(r.url);
+                  added++;
+                }
+              }
+              const totalResults = extractTotalResults(firstHtml);
+              if (totalResults && aggregated.length >= totalResults) break;
+              if (added === 0) break;
+            }
+            const totalResults = extractTotalResults(firstHtml);
+            return { results: aggregated, searchId: options.searchId, totalResults };
+          } else {
+            const searchUrl = `${baseSearchUrl}&page=${pageNum}`;
+            const resultsResp = await client.get(searchUrl);
+            const pageResults = parseResults(String(resultsResp.data || ''));
+            const totalResults = extractTotalResults(String(resultsResp.data || ''));
+            return { results: pageResults, searchId: options.searchId, totalResults };
+          }
+        } catch (err) {
+          logger.warn('search', `[${config.name}] Axios pagination failed with searchid ${options.searchId}, will try FlareSolverr`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          // Fall through to FlareSolverr path below
+        }
+      }
+      
+      // Normal first search (no searchId yet)
+      if (!options?.searchId) {
+        try {
+          const firstPageUrl = joinUrl(config.baseUrl, config.searchPath);
+          const firstPage = await client.get(firstPageUrl);
+          const $formDoc = cheerio.load(String(firstPage.data || ''));
+
+        const form = pickSearchForm($formDoc);
+
+        if (!form || form.length === 0) {
+          logger.warn('search', `[${config.name}] Native search form not found via axios at ${firstPageUrl}`);
+          throw new Error('Native search form not found via axios');
+        }
+
+        let action = form.attr('action') || firstPageUrl;
+        action = getAbs(action);
+
+        if (!/\/search\.php/i.test(action)) {
+          logger.warn('search', `[${config.name}] Picked non-search form via axios; refusing to POST`, {
+            action,
+          });
+          throw new Error('Picked non-search form via axios');
+        }
+
+        const postData = buildPostDataFromForm($formDoc, form);
+        // Apply titleOnly filter when present
+        if (options?.titleOnly) {
+          postData['titleonly'] = '1';
+        } else {
+          // Ensure explicit 0 to avoid inherited defaults
+          postData['titleonly'] = '0';
+        }
+        selectForumByLabel($formDoc, form, postData);
+
+        const payload = new URLSearchParams(postData).toString();
+        const resp = await client.post(action, payload, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Referer: firstPageUrl,
+          },
+        });
+
+        const html = String(resp.data || '');
+        const finalUrl = (resp as any)?.request?.res?.responseUrl || action;
+
+        if (isGuestHtml(html)) {
+          logger.warn('search', `[${config.name}] Native search response looks like guest (cookies not applied).`);
+        }
+
+        const { resultUrl, urlFromFinal, urlFromBody, searchIdFromBody } = resolveResultsUrl(finalUrl, html);
+
+        if (!resultUrl) {
+          const directResults = parseResults(html);
+          if (directResults.length > 0) {
+            logger.info('search', `[${config.name}] Native search returned results directly via axios (no searchid).`);
+            const totalResults = extractTotalResults(html);
+            return { results: directResults, searchId: searchIdFromBody || undefined, totalResults };
+          }
+
+          logger.warn('search', `[${config.name}] Could not extract search results URL (searchid) via axios`);
+          logger.info('search', `[${config.name}] Native search debug (POST/axios)`, {
+            firstPageUrl,
+            action,
+            processedFinalUrl: finalUrl,
+            responseLength: html.length,
+            extractedSearchId: searchIdFromBody,
+            extractedUrlFromFinal: urlFromFinal || null,
+            extractedUrlFromBody: urlFromBody || null,
+            postDataKeys: Object.keys(postData),
+            postDataPreview: redactPostDataForLog(postData),
+          });
+          logger.info('search', `[${config.name}] Native search debug HTML snippet (POST/axios)`, safeSnippet(html));
+
+          // Fall through to FlareSolverr fallback if available.
+        } else {
+          // Pagination: single page or fetchAll
+          if (options?.fetchAll) {
+            const maxPages = Math.max(1, options.maxPages ?? 10);
+            const aggregated: ForumSearchResult[] = [];
+            const seen = new Set<string>();
+            const totalResults = extractTotalResults(html);
+            
+            for (let p = 1; p <= maxPages; p++) {
+              const pageParam = p > 1 ? `&page=${p}` : '';
+              const resultsPageResp = await client.get(`${resultUrl}${pageParam}`);
+              const pageResults = parseResults(String(resultsPageResp.data || ''));
+              let added = 0;
+              for (const r of pageResults) {
+                if (r.url && !seen.has(r.url)) {
+                  aggregated.push(r);
+                  seen.add(r.url);
+                  added++;
+                }
+              }
+              // Stop if we've collected all available results or no new results
+              if (totalResults && aggregated.length >= totalResults) break;
+              if (added === 0) break;
+            }
+            return { results: aggregated, searchId: searchIdFromBody || undefined, totalResults };
+          }
+
+          const pageParam = options?.page && options.page > 1 ? `&page=${options.page}` : '';
+          const resultsPageResp = await client.get(`${resultUrl}${pageParam}`);
+          const pageResults = parseResults(String(resultsPageResp.data || ''));
+          const totalResults = extractTotalResults(String(resultsPageResp.data || ''));
+          return { results: pageResults, searchId: searchIdFromBody || undefined, totalResults };
+        }
+        } catch (err) {
+          logger.warn('search', `[${config.name}] Axios native search attempt failed, will try FlareSolverr fallback`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      } // End of normal first search try block
+
+      // 2) Fallback path: FlareSolverr with injected Cookie/User-Agent headers
+      if (!flaresolverrUrl) {
+        logger.warn('search', `[${config.name}] FlareSolverr not configured; cannot fallback for native search`);
+        return { results: [] };
+      }
+
+      const FlareSolverrClientModule = await import('./flaresolverr-client');
+      const fsClient = new FlareSolverrClientModule.FlareSolverrClient(flaresolverrUrl);
+      // Note: We do NOT create a session here because FlareSolverr sessions manage their own cookies.
+      // Instead, we pass custom headers directly to each request to inject our authenticated cookies.
+      try {
+
+        // Prefer persisted cookies from config (most reliable), then axios defaults
+        const { cookies: storedCookies, userAgent: storedUserAgent } = this.parseStoredCookies(config.persistentCookies);
+        const userAgentHeader = storedUserAgent || getAxiosDefaultHeader('User-Agent');
+
+        logger.info('search', `[${config.name}] FlareSolverr fallback cookie/UA injection`, {
+          storedCookiesCount: storedCookies.length,
+          storedCookieNames: storedCookies.map(c => c.name),
+          hasUserAgent: !!userAgentHeader,
+        });
+
+        const headers: Record<string, string> = {
+          'Accept-Language': 'es-ES,es;q=0.9',
+        };
+        if (typeof userAgentHeader === 'string' && userAgentHeader.trim()) headers['User-Agent'] = userAgentHeader;
+
+        logger.info('search', `[${config.name}] FlareSolverr fallback: passing ${storedCookies.length} cookies directly to FlareSolverr API`);
+
+        // If searchId is provided (pagination), skip form submission and go directly to results pages
+        if (options?.searchId) {
+          const baseSearchUrl = joinUrl(config.baseUrl, `/search.php?searchid=${options.searchId}`);
+          const pageNum = options.page || 1;
+          logger.info('search', `[${config.name}] FlareSolverr: Using existing searchid for pagination: ${options.searchId}, page ${pageNum}`);
+
+          if (options?.fetchAll) {
+            const maxPages = Math.max(1, options.maxPages ?? 10);
+            const aggregated: ForumSearchResult[] = [];
+            const seen = new Set<string>();
+            let firstHtml = '';
+            for (let p = 1; p <= maxPages; p++) {
+              const pageUrl = `${baseSearchUrl}&page=${p}`;
+              const resultsPage = await fsClient.request(pageUrl, 'GET', undefined, undefined, headers, storedCookies);
+              const html = resultsPage.response || '';
+              if (!firstHtml) firstHtml = html;
+              const pageResults = parseResults(html);
+              let added = 0;
+              for (const r of pageResults) {
+                if (r.url && !seen.has(r.url)) {
+                  aggregated.push(r);
+                  seen.add(r.url);
+                  added++;
+                }
+              }
+              const totalResults = extractTotalResults(firstHtml);
+              if (totalResults && aggregated.length >= totalResults) break;
+              if (added === 0) break;
+            }
+            const totalResults = extractTotalResults(firstHtml);
+            return { results: aggregated, searchId: options.searchId, totalResults };
+          } else {
+            const searchUrl = `${baseSearchUrl}&page=${pageNum}`;
+            const resultsPage = await fsClient.request(searchUrl, 'GET', undefined, undefined, headers, storedCookies);
+            const pageResults = parseResults(resultsPage.response || '');
+            const totalResults = extractTotalResults(resultsPage.response || '');
+            return { results: pageResults, searchId: options.searchId, totalResults };
+          }
+        }
+
+        const firstPageUrl = joinUrl(config.baseUrl, config.searchPath);
+        // Pass cookies as array to FlareSolverr (NOT as Cookie header - that doesn't work)
+        const firstPage = await fsClient.request(firstPageUrl, 'GET', undefined, undefined, headers, storedCookies);
+        const $formDoc = cheerio.load(firstPage.response || '');
+
+        const form = pickSearchForm($formDoc);
+
+        if (!form || form.length === 0) {
+          logger.warn('search', `[${config.name}] Native search form not found via FlareSolverr at ${firstPageUrl}`);
+          return { results: [] };
+        }
+
+        let action = form.attr('action') || firstPageUrl;
+        action = getAbs(action);
+
+        if (!/\/search\.php/i.test(action)) {
+          logger.warn('search', `[${config.name}] Picked non-search form via FlareSolverr; refusing to POST`, {
+            action,
+          });
+          logger.info('search', `[${config.name}] Debug HTML snippet (GET/FlareSolverr)`, safeSnippet(firstPage.response || ''));
+          return { results: [] };
+        }
+
+        const postData = buildPostDataFromForm($formDoc, form);
+        // Apply titleOnly filter when present
+        if (options?.titleOnly) {
+          postData['titleonly'] = '1';
+        } else {
+          postData['titleonly'] = '0';
+        }
+        selectForumByLabel($formDoc, form, postData);
+
+        const postHeaders = { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' };
+
+        const processed = await fsClient.request(action, 'POST', postData, undefined, postHeaders, storedCookies);
+
+        const html = processed.response || '';
+        const finalUrl = processed.url || action;
+        const { resultUrl, urlFromFinal, urlFromBody, searchIdFromBody } = resolveResultsUrl(finalUrl, html);
+
+        if (!resultUrl) {
+          const directResults = parseResults(html);
+          if (directResults.length > 0) {
+            logger.info('search', `[${config.name}] Native search returned results directly via FlareSolverr (no searchid).`);
+            const totalResults = extractTotalResults(html);
+            return { results: directResults, searchId: searchIdFromBody || undefined, totalResults };
+          }
+
+          logger.warn('search', `[${config.name}] Could not extract search results URL (searchid) via FlareSolverr`);
+          logger.info('search', `[${config.name}] Native search debug (POST/FlareSolverr)`, {
+            firstPageUrl,
+            action,
+            processedFinalUrl: finalUrl,
+            responseLength: html.length,
+            extractedSearchId: searchIdFromBody,
+            extractedUrlFromFinal: urlFromFinal || null,
+            extractedUrlFromBody: urlFromBody || null,
+            postDataKeys: Object.keys(postData),
+            postDataPreview: redactPostDataForLog(postData),
+          });
+          logger.info('search', `[${config.name}] Native search debug HTML snippet (POST/FlareSolverr)`, safeSnippet(html));
+          return { results: [] };
+        }
+
+        // Pagination: single page or fetchAll
+        if (options?.fetchAll) {
+          const maxPages = Math.max(1, options.maxPages ?? 10);
+          const aggregated: ForumSearchResult[] = [];
+          const seen = new Set<string>();
+          const totalResults = extractTotalResults(html);
+          logger.info('search', `[${config.name}] FlareSolverr fetchAll: using resultUrl=${resultUrl}, searchId=${searchIdFromBody}, totalResults=${totalResults}`);
+          for (let p = 1; p <= maxPages; p++) {
+            const pageParam = p > 1 ? `&page=${p}` : '';
+            const pageUrl = `${resultUrl}${pageParam}`;
+            logger.info('search', `[${config.name}] FlareSolverr fetchAll page ${p}: ${pageUrl}`);
+            const resultsPage = await fsClient.request(pageUrl, 'GET', undefined, undefined, headers, storedCookies);
+            const pageResults = parseResults(resultsPage.response || '');
+            logger.info('search', `[${config.name}] FlareSolverr fetchAll page ${p}: found ${pageResults.length} results`);
+            let added = 0;
+            for (const r of pageResults) {
+              if (r.url && !seen.has(r.url)) {
+                aggregated.push(r);
+                seen.add(r.url);
+                added++;
+              }
+            }
+            logger.info('search', `[${config.name}] FlareSolverr fetchAll page ${p}: added ${added} new results (total: ${aggregated.length}/${totalResults})`);
+            // Stop if we've collected all available results or no new results
+            if (totalResults && aggregated.length >= totalResults) break;
+            if (added === 0) break;
+          }
+          return { results: aggregated, searchId: searchIdFromBody || undefined, totalResults };
+        }
+
+        const pageParam = options?.page && options.page > 1 ? `&page=${options.page}` : '';
+        const resultsPage = await fsClient.request(`${resultUrl}${pageParam}`, 'GET', undefined, undefined, headers, storedCookies);
+        const pageResults = parseResults(resultsPage.response || '');
+        const totalResults = extractTotalResults(resultsPage.response || '');
+        return { results: pageResults, searchId: searchIdFromBody || undefined, totalResults };
+      } catch (fsError) {
+        logger.error('search', `[${config.name}] FlareSolverr fallback error:`, fsError);
+        return { results: [] };
+      }
 
     } catch (error) {
       console.error(`Search error for ${config.name}:`, error);
-      return [];
+      return { results: [] };
     }
   }
 

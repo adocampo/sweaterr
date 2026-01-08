@@ -8,6 +8,7 @@
 import { webcrypto } from 'node:crypto';
 // Import CryptoJS - used for MyJD authentication (matches official addon implementation)
 const CryptoJS = require('crypto-js');
+import { logger } from '@/lib/logger';
 
 // Extend CryptoJS WordArray with firstHalf() and secondHalf() methods (from jdapi.js lines 18-28)
 // MUST be defined BEFORE creating any WordArrays
@@ -106,7 +107,7 @@ export class JDownloaderLocalService {
 
   async addLinks(urls: string[], packageName?: string, autostart?: boolean, autoExtract?: boolean): Promise<boolean> {
     try {
-      console.log(`[LocalJD] Añadiendo ${urls.length} enlace(s)...`);
+      logger.info('jdownloader', `[LocalJD] Añadiendo ${urls.length} enlace(s)...`);
       // Según prueba del usuario, el endpoint correcto es /linkgrabberv2/addLinks
       const response = await fetch(`${this.baseUrl}/linkgrabberv2/addLinks`, {
         method: 'POST',
@@ -128,10 +129,10 @@ export class JDownloaderLocalService {
         throw new Error(`HTTP ${response.status}: ${text}`);
       }
 
-      console.log(`[LocalJD] Enlaces añadidos exitosamente`);
+      logger.info('jdownloader', `[LocalJD] Enlaces añadidos exitosamente`);
       return true;
     } catch (error) {
-      console.error('[LocalJD] Add links failed:', error);
+      logger.error('jdownloader', '[LocalJD] Add links failed:', error);
       return false;
     }
   }
@@ -152,7 +153,7 @@ export class JDownloaderLocalService {
 
       return await response.json();
     } catch (error) {
-      console.error('[LocalJD] Get status failed:', error);
+      logger.error('jdownloader', '[LocalJD] Get status failed:', error);
       return null;
     }
   }
@@ -204,22 +205,22 @@ export class JDownloaderService {
   // Authenticate with My JDownloader using official handshake
   async authenticate(): Promise<boolean> {
     try {
-      console.log('[MyJD] Iniciando autenticación...');
-      console.log('[MyJD] Email:', this.email);
+      logger.info('jdownloader', 'Iniciando autenticación...');
+      logger.info('jdownloader', `Email: ${this.email}`);
 
       // Step 1: Create login and device secrets
       this.createSecrets();
-      console.log('[MyJD] loginSecret (hex):', this.loginSecret!.toString().substring(0, 16) + '...');
-      console.log('[MyJD] loginSecret words count:', this.loginSecret!.words.length);
+      logger.info('jdownloader', `loginSecret (hex): ${this.loginSecret!.toString().substring(0, 16)}...`);
+      logger.info('jdownloader', `loginSecret words count: ${this.loginSecret!.words.length}`);
 
       // Test firstHalf and secondHalf
       try {
         const testFirstHalf = this.loginSecret!.firstHalf();
         const testSecondHalf = this.loginSecret!.secondHalf();
-        console.log('[MyJD] firstHalf words:', testFirstHalf.words.length);
-        console.log('[MyJD] secondHalf words:', testSecondHalf.words.length);
+        logger.info('jdownloader', `firstHalf words: ${testFirstHalf.words.length}`);
+        logger.info('jdownloader', `secondHalf words: ${testSecondHalf.words.length}`);
       } catch (e) {
-        console.error('[MyJD] ERROR calling firstHalf/secondHalf:', e);
+        logger.error('jdownloader', 'ERROR calling firstHalf/secondHalf', e);
         throw e;
       }
 
@@ -229,10 +230,10 @@ export class JDownloaderService {
       const signature = this.hmacSha256(connectQuery, this.loginSecret!);
       const connectUrl = `${this.baseUrl}${connectQuery}&signature=${signature}`;
 
-      console.log('[MyJD] Query:', connectQuery);
-      console.log('[MyJD] Signature:', signature.substring(0, 16) + '...');
-      console.log('[MyJD] Full URL:', connectUrl);
-      console.log('[MyJD] Conectando a MyJDownloader...');
+      logger.info('jdownloader', `Query: ${connectQuery}`);
+      logger.info('jdownloader', `Signature: ${signature.substring(0, 16)}...`);
+      logger.info('jdownloader', `Full URL: ${connectUrl}`);
+      logger.info('jdownloader', 'Conectando a MyJDownloader...');
 
       const connectResponse = await fetch(connectUrl, {
         method: 'POST',
@@ -242,31 +243,31 @@ export class JDownloaderService {
         },
       });
 
-      console.log('[MyJD] Response status:', connectResponse.status);
-      console.log('[MyJD] Response headers:', Object.fromEntries(connectResponse.headers.entries()));
+      logger.info('jdownloader', `Response status: ${connectResponse.status}`);
+      logger.info('jdownloader', 'Response headers', Object.fromEntries(connectResponse.headers.entries()));
 
       if (!connectResponse.ok) {
         const errorText = await connectResponse.text();
-        console.error('[MyJD] Connect failed:', connectResponse.status, errorText);
+        logger.error('jdownloader', `Connect failed: ${connectResponse.status}`, errorText);
         throw new Error(`Connect failed: ${connectResponse.status} - ${errorText}`);
       }
 
       // Response is encrypted with AES-CBC. Need to decrypt it.
       // Decryption key = loginSecret.secondHalf(), IV = loginSecret.firstHalf()
       const encryptedResponse = await connectResponse.text();
-      console.log('[MyJD] Response (encrypted, length):', encryptedResponse.length);
-      console.log('[MyJD] Response (encrypted, first 50):', encryptedResponse.substring(0, 50) + '...');
+      logger.info('jdownloader', `Response (encrypted, length): ${encryptedResponse.length}`);
+      logger.info('jdownloader', `Response (encrypted, first 50): ${encryptedResponse.substring(0, 50)}...`);
 
       // Decrypt response
-      console.log('[MyJD] Attempting to decrypt response...');
+      logger.info('jdownloader', 'Attempting to decrypt response...');
       try {
         const connectData = this.decryptAES(encryptedResponse, this.loginSecret!);
-        console.log('[MyJD] Decryption successful!');
-        console.log('[MyJD] Connect data keys:', Object.keys(connectData));
+        logger.info('jdownloader', 'Decryption successful!');
+        logger.info('jdownloader', `Connect data keys: ${Object.keys(connectData).join(', ')}`);
         this.sessionToken = connectData.sessiontoken;
         this.regainToken = connectData.regaintoken;
       } catch (decryptError) {
-        console.error('[MyJD] Decryption failed:', decryptError);
+        logger.error('jdownloader', 'Decryption failed', decryptError);
         throw new Error(`Failed to decrypt response: ${decryptError}`);
       }
 
@@ -281,7 +282,7 @@ export class JDownloaderService {
       const deviceTokenInput = this.deviceSecret!.concat(sessionTokenHex);
       this.deviceEncryptionToken = CryptoJS.SHA256(deviceTokenInput);
 
-      console.log('[MyJD] Sesión establecida, obteniendo dispositivos...');
+      logger.info('jdownloader', 'Sesión establecida, obteniendo dispositivos...');
 
       // Step 3: List devices
       const devicesPath = `/my/listdevices`;
@@ -299,7 +300,7 @@ export class JDownloaderService {
 
       if (!devicesResponse.ok) {
         const errorText = await devicesResponse.text();
-        console.error('[MyJD] List devices failed:', devicesResponse.status, errorText);
+        logger.error('jdownloader', `List devices failed: ${devicesResponse.status}`, errorText);
         throw new Error(`Failed to get devices: ${devicesResponse.status}`);
       }
 
@@ -308,21 +309,21 @@ export class JDownloaderService {
       const devicesData = this.decryptAES(encryptedDeviceResponse, this.serverEncryptionToken!);
       const devices: MyJDDevice[] = devicesData.list || [];
 
-      console.log('[MyJD] Dispositivos encontrados:', devices.map(d => d.name).join(', '));
+      logger.info('jdownloader', `Dispositivos encontrados: ${devices.map(d => d.name).join(', ')}`);
 
       const device = devices.find((d: MyJDDevice) => d.name.toLowerCase() === this.deviceName.toLowerCase());
 
       if (!device) {
-        console.error(`[MyJD] Dispositivo "${this.deviceName}" no encontrado. Disponibles:`, devices.map(d => d.name));
+        logger.error('jdownloader', `Dispositivo "${this.deviceName}" no encontrado. Disponibles: ${devices.map(d => d.name).join(', ')}`);
         throw new Error(`Device "${this.deviceName}" not found`);
       }
 
       this.deviceId = device.id;
-      console.log(`[MyJD] Autenticación exitosa con dispositivo: ${this.deviceName} (${this.deviceId})`);
+      logger.info('jdownloader', `Autenticación exitosa con dispositivo: ${this.deviceName} (${this.deviceId})`);
       return true;
 
     } catch (error) {
-      console.error('[MyJD] Authentication error:', error);
+      logger.error('jdownloader', 'Authentication error', error);
       return false;
     }
   }
@@ -330,17 +331,17 @@ export class JDownloaderService {
   // AES-CBC decryption helper (matches jdapi.js encryptJSON line 127-133)
   private decryptAES(encryptedBase64: string, secret: any): any {
     try {
-      console.log('[MyJD] decryptAES: Starting decryption');
-      console.log('[MyJD] decryptAES: Encrypted string length:', encryptedBase64.length);
-      console.log('[MyJD] decryptAES: Secret type:', typeof secret);
-      console.log('[MyJD] decryptAES: Secret has words:', !!secret.words);
+      logger.info('jdownloader', 'decryptAES: Starting decryption');
+      logger.info('jdownloader', `decryptAES: Encrypted string length: ${encryptedBase64.length}`);
+      logger.info('jdownloader', `decryptAES: Secret type: ${typeof secret}`);
+      logger.info('jdownloader', `decryptAES: Secret has words: ${!!secret.words}`);
 
       // Split secret using firstHalf() and secondHalf() methods (like jdapi.js)
       const iv = secret.firstHalf();
       const key = secret.secondHalf();
 
-      console.log('[MyJD] decryptAES: IV (hex):', iv.toString().substring(0, 16) + '...');
-      console.log('[MyJD] decryptAES: Key (hex):', key.toString().substring(0, 16) + '...');
+      logger.info('jdownloader', `decryptAES: IV (hex): ${iv.toString().substring(0, 16)}...`);
+      logger.info('jdownloader', `decryptAES: Key (hex): ${key.toString().substring(0, 16)}...`);
 
       const decrypted = CryptoJS.AES.decrypt(
         { ciphertext: CryptoJS.enc.Base64.parse(encryptedBase64) },
@@ -348,17 +349,17 @@ export class JDownloaderService {
         { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
       );
 
-      console.log('[MyJD] decryptAES: AES.decrypt completed');
+      logger.info('jdownloader', 'decryptAES: AES.decrypt completed');
       const decryptedText = decrypted.toString(CryptoJS.enc.Utf8);
-      console.log('[MyJD] decryptAES: Decrypted text length:', decryptedText.length);
-      console.log('[MyJD] decryptAES: Decrypted text (first 50):', decryptedText.substring(0, 50));
+      logger.info('jdownloader', `decryptAES: Decrypted text length: ${decryptedText.length}`);
+      logger.info('jdownloader', `decryptAES: Decrypted text (first 50): ${decryptedText.substring(0, 50)}`);
 
       const parsed = JSON.parse(decryptedText);
-      console.log('[MyJD] decryptAES: JSON parsed successfully');
+      logger.info('jdownloader', 'decryptAES: JSON parsed successfully');
       return parsed;
     } catch (error) {
-      console.error('[MyJD] Decryption error details:', error);
-      console.error('[MyJD] Stack:', (error as Error).stack);
+      logger.error('jdownloader', 'Decryption error details', error);
+      logger.error('jdownloader', `Stack: ${(error as Error).stack}`);
       throw error;
     }
   }
@@ -378,7 +379,7 @@ export class JDownloaderService {
 
       return encrypted.ciphertext.toString(CryptoJS.enc.Base64);
     } catch (error) {
-      console.error('[MyJD] Encryption error:', error);
+      logger.error('jdownloader', 'Encryption error', error);
       throw error;
     }
   }
@@ -395,7 +396,7 @@ export class JDownloaderService {
     }
 
     try {
-      console.log(`[MyJD] Añadiendo ${urls.length} enlace(s) a ${this.deviceName}...`);
+      logger.info('jdownloader', `Añadiendo ${urls.length} enlace(s) a ${this.deviceName}...`);
 
       const rid = Date.now();
       const endpoint = '/linkgrabberv2/addLinks';
@@ -426,7 +427,7 @@ export class JDownloaderService {
       // Encrypt request body with deviceEncryptionToken
       const encryptedBody = this.encryptAES(JSON.stringify(jdData), this.deviceEncryptionToken!);
 
-      console.log('[MyJD] Encrypted request body length:', encryptedBody.length);
+      logger.info('jdownloader', `Encrypted request body length: ${encryptedBody.length}`);
 
       const response = await fetch(`${this.baseUrl}${action}`, {
         method: 'POST',
@@ -438,15 +439,15 @@ export class JDownloaderService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[MyJD] Add links failed:', response.status, errorText);
+        logger.error('jdownloader', `Add links failed: ${response.status}`, errorText);
 
         // Try to decrypt error response (server sends errors encrypted too)
         try {
           const decryptedError = this.decryptAES(errorText, this.deviceEncryptionToken!);
-          console.error('[MyJD] Decrypted error:', JSON.stringify(decryptedError, null, 2));
+          logger.error('jdownloader', '[MyJD] Decrypted error:', JSON.stringify(decryptedError, null, 2));
           throw new Error(`Failed to add links: ${response.status} - ${JSON.stringify(decryptedError)}`);
         } catch (decryptError) {
-          console.error('[MyJD] Could not decrypt error response:', decryptError);
+          logger.error('jdownloader', '[MyJD] Could not decrypt error response:', decryptError);
           throw new Error(`Failed to add links: ${response.status} - ${errorText}`);
         }
       }
@@ -455,12 +456,12 @@ export class JDownloaderService {
       const encryptedResponse = await response.text();
       const result = this.decryptAES(encryptedResponse, this.deviceEncryptionToken!);
 
-      console.log('[MyJD] Enlaces añadidos correctamente');
-      console.log('[MyJD] Response:', result);
+      logger.info('jdownloader', 'Enlaces añadidos correctamente');
+      logger.info('jdownloader', 'Response', result);
       return true;
 
     } catch (error) {
-      console.error('[MyJD] Add links error:', error);
+      logger.error('jdownloader', 'Add links error', error);
       return false;
     }
   }
@@ -472,7 +473,7 @@ export class JDownloaderService {
     }
 
     try {
-      console.log('[MyJD] Getting downloads from LinkGrabber and DownloadController...');
+      logger.info('jdownloader', 'Getting downloads from LinkGrabber and DownloadController...');
 
       // Get packages from both sources
       const [linkGrabberPackages, downloadPackages] = await Promise.all([
@@ -480,7 +481,7 @@ export class JDownloaderService {
         this.queryPackages('/downloadsV2/queryPackages')
       ]);
 
-      console.log(`[MyJD] Found ${linkGrabberPackages.length} LinkGrabber packages and ${downloadPackages.length} Download packages`);
+      logger.info('jdownloader', `Found ${linkGrabberPackages.length} LinkGrabber packages and ${downloadPackages.length} Download packages`);
 
       // Get links for each package
       const allLinks: JDownloaderDownload[] = [];
@@ -491,11 +492,11 @@ export class JDownloaderService {
         allLinks.push(...links);
       }
 
-      console.log(`[MyJD] Total links found: ${allLinks.length}`);
+      logger.info('jdownloader', `Total links found: ${allLinks.length}`);
       return allLinks;
 
     } catch (error) {
-      console.error('[MyJD] Get downloads error:', error);
+      logger.error('jdownloader', 'Get downloads error', error);
       return [];
     }
   }
@@ -523,7 +524,7 @@ export class JDownloaderService {
 
       const encryptedBody = this.encryptAES(JSON.stringify(jdData), this.deviceEncryptionToken!);
 
-      console.log(`[MyJD] Querying ${endpoint}...`);
+      logger.info('jdownloader', `[MyJD] Querying ${endpoint}...`);
 
       const response = await fetch(`${this.baseUrl}${action}`, {
         method: 'POST',
@@ -535,14 +536,14 @@ export class JDownloaderService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[MyJD] Query ${endpoint} failed:`, response.status);
+        logger.error('jdownloader', `[MyJD] Query ${endpoint} failed:`, response.status);
 
         // Try to decrypt error message
         try {
           const decryptedError = this.decryptAES(errorText, this.deviceEncryptionToken!);
-          console.error(`[MyJD] Error:`, decryptedError);
+          logger.error('jdownloader', `[MyJD] Error:`, decryptedError);
         } catch (e) {
-          console.error(`[MyJD] Could not decrypt error`);
+          logger.error('jdownloader', `[MyJD] Could not decrypt error`);
         }
 
         return [];
@@ -552,11 +553,11 @@ export class JDownloaderService {
       const data = this.decryptAES(encryptedResponse, this.deviceEncryptionToken!);
 
       if (!data.data || !Array.isArray(data.data)) {
-        console.log(`[MyJD] No packages in ${endpoint}`);
+        logger.info('jdownloader', `[MyJD] No packages in ${endpoint}`);
         return [];
       }
 
-      console.log(`[MyJD] Found ${data.data.length} packages in ${endpoint}`);
+      logger.info('jdownloader', `[MyJD] Found ${data.data.length} packages in ${endpoint}`);
 
       return data.data.map((pkg: any) => ({
         uuid: pkg.uuid,
@@ -567,7 +568,7 @@ export class JDownloaderService {
         addedAt: pkg.added,
       }));
     } catch (error) {
-      console.error(`[MyJD] Query ${endpoint} error:`, error);
+      logger.error('jdownloader', `[MyJD] Query ${endpoint} error:`, error);
       return [];
     }
   }
@@ -615,7 +616,7 @@ export class JDownloaderService {
       });
 
       if (!response.ok) {
-        console.error(`[MyJD] Query links for package ${pkg.uuid} failed:`, response.status);
+        logger.error('jdownloader', `[MyJD] Query links for package ${pkg.uuid} failed:`, response.status);
         return [];
       }
 
@@ -655,7 +656,7 @@ export class JDownloaderService {
       });
 
     } catch (error) {
-      console.error(`[MyJD] Query links for package ${pkg.uuid} error:`, error);
+      logger.error('jdownloader', `[MyJD] Query links for package ${pkg.uuid} error:`, error);
       return [];
     }
   }
@@ -702,7 +703,7 @@ export class JDownloaderService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[MyJD] Query ${endpoint} failed:`, response.status, errorText);
+        logger.error('jdownloader', `[MyJD] Query ${endpoint} failed:`, response.status, errorText);
         return [];
       }
 
@@ -710,11 +711,11 @@ export class JDownloaderService {
       const encryptedResponse = await response.text();
       const data = this.decryptAES(encryptedResponse, this.deviceEncryptionToken!);
 
-      console.log(`[MyJD] ${endpoint} response:`, JSON.stringify(data).substring(0, 500));
+      logger.info('jdownloader', `[MyJD] ${endpoint} response:`, JSON.stringify(data).substring(0, 500));
 
       // Map JDownloader API response to our interface
       if (!data.data || !Array.isArray(data.data)) {
-        console.log(`[MyJD] No items found in ${endpoint}`);
+        logger.info('jdownloader', `[MyJD] No items found in ${endpoint}`);
         return [];
       }
 
@@ -747,7 +748,7 @@ export class JDownloaderService {
       });
 
     } catch (error) {
-      console.error(`[MyJD] Query ${endpoint} error:`, error);
+      logger.error('jdownloader', `[MyJD] Query ${endpoint} error:`, error);
       return [];
     }
   }
@@ -816,7 +817,7 @@ export class JDownloaderService {
       return await response.json();
 
     } catch (error) {
-      console.error('[MyJD] Get device status error:', error);
+      logger.error('jdownloader', 'Get device status error', error);
       return null;
     }
   }
@@ -830,7 +831,7 @@ export class JDownloaderService {
       .map((id) => (typeof id === 'number' ? id : Number.parseInt(id, 10)))
       .filter((id) => Number.isFinite(id));
     if (numeric.length === 0) {
-      console.error('[MyJD] normalizeIds: no valid ids', linkIds);
+      logger.error('jdownloader', 'normalizeIds: no valid ids', linkIds);
     }
     return numeric;
   }
@@ -844,7 +845,7 @@ export class JDownloaderService {
       const rid = Date.now();
       const action = `/t_${this.sessionToken}_${this.deviceId}${endpoint}`;
 
-      console.log(`[MyJD] Command ${endpoint} params:`, JSON.stringify(params));
+      logger.info('jdownloader', `[MyJD] Command ${endpoint} params:`, JSON.stringify(params));
 
       const jdData = {
         url: endpoint,
@@ -865,23 +866,23 @@ export class JDownloaderService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[MyJD] Command ${endpoint} failed:`, response.status, errorText.substring(0, 200));
+        logger.error('jdownloader', `[MyJD] Command ${endpoint} failed:`, response.status, errorText.substring(0, 200));
         try {
           const decrypted = this.decryptAES(errorText, this.deviceEncryptionToken!);
-          console.error(`[MyJD] Command ${endpoint} decrypted error:`, JSON.stringify(decrypted));
+          logger.error('jdownloader', `[MyJD] Command ${endpoint} decrypted error:`, JSON.stringify(decrypted));
           const message = (decrypted && (decrypted.data || decrypted.src || decrypted.message))
             ? JSON.stringify(decrypted)
             : `HTTP ${response.status}`;
           throw new Error(message);
         } catch (e) {
-          console.error('[MyJD] Could not decrypt command error');
+          logger.error('jdownloader', '[MyJD] Could not decrypt command error');
           throw new Error(`HTTP ${response.status}`);
         }
       }
 
       return true;
     } catch (error) {
-      console.error(`[MyJD] Command ${endpoint} error:`, error);
+      logger.error('jdownloader', `[MyJD] Command ${endpoint} error:`, error);
       throw error;
     }
   }
@@ -933,7 +934,7 @@ export class JDownloaderService {
       //       REMOVE_LINKS_ONLY to just remove from download list
       const mode = deleteFiles ? 'REMOVE_LINKS_AND_DELETE_FILES' : 'REMOVE_LINKS_ONLY';
 
-      console.log(`[MyJD] Command /downloadsV2/cleanup params:`, {
+      logger.info('jdownloader', `[MyJD] Command /downloadsV2/cleanup params:`, {
         linkIds: ids,
         packageIds: pkgIds,
         mode,
@@ -1109,7 +1110,7 @@ export class JDownloaderService {
     if (!ids.length && !pkgIds.length) return false;
 
     try {
-      console.log('[MyJD] setExtractAfterDownload: setting extract-after for', { ids, pkgIds });
+      logger.info('jdownloader', 'setExtractAfterDownload: setting extract-after for', { ids, pkgIds });
       const rid = Date.now();
       const getAction = `/t_${this.sessionToken}_${this.deviceId}/extraction/getArchiveInfo`;
 
@@ -1128,8 +1129,8 @@ export class JDownloaderService {
       });
       if (!responseGet.ok) {
         const errorText = await responseGet.text();
-        console.warn('[MyJD] getArchiveInfo failed:', responseGet.status, errorText.substring(0, 200));
-        console.log('[MyJD] But returning true anyway - archives may be created after download completes');
+        logger.warn('jdownloader', `getArchiveInfo failed: ${responseGet.status}`, errorText.substring(0, 200));
+        logger.info('jdownloader', 'But returning true anyway - archives may be created after download completes');
         // Return true anyway - might not have archives yet if still downloading
         return true;
       }
@@ -1154,7 +1155,7 @@ export class JDownloaderService {
 
       return true;
     } catch (error) {
-      console.error('[MyJD] setExtractAfterDownload error:', error);
+      logger.error('jdownloader', 'setExtractAfterDownload error', error);
       return false;
     }
   }
