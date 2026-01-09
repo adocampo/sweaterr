@@ -696,6 +696,28 @@ DEEPSEEK_API_KEY="..."
   - `src/locales/es.json` (5 claves nuevas)
 - 🎯 **Validación**: Tabla de Foros ahora muestra texto completamente traducido al cambiar entre idiomas
 
+### 2026-01-09 (Fix: Internacionalización de JDownloader Testing)
+
+- 🐛 **Problema**: La sección de pruebas de JDownloader (JDownloaderTester) mostraba todos los strings en español sin opción de cambiar idioma:
+  - Título del card: "JDownloader"
+  - Descripción: "Selecciona un servidor configurado..."
+  - Labels: "Servidor Configurado", "Enlace (opcional)", "Package (opcional)", "Auto-start", "Auto-extract"
+  - Botones: "Probar conexión", "Enviar enlace"
+  - Mensajes de error y carga
+- 🔍 **Causa raíz**: 
+  - El componente `JDownloaderTester` tiene `useI18n(language)` importado pero los strings no estaban reemplazados por `t()`
+  - Las claves de traducción ya existían en los locales
+- ✅ **Solución implementada**:
+  - Reemplazados 15+ strings hardcodeados con llamadas `t()`:
+    - Título y descripción: `t('testing.jdownloaderTesterTitle')` y `t('testing.jdownloaderTesterDescription')`
+    - Labels: `t('testing.configuredServer')`, `t('testing.optionalLink')`, `t('testing.optionalPackage')`, `t('testing.autoStart')`, `t('testing.autoExtract')`
+    - Botones: `t('testing.testConnection')`, `t('testing.sendLink')`
+    - Mensajes: `t('testing.loadingServers')`, `t('testing.noServers')`, `t('testing.selectServerFirst')`, `t('testing.sendLinkError')`, `t('testing.connectionTestError')`
+  - Todas las claves ya existían en `src/locales/en.json` y `es.json`
+- 📝 **Archivos modificados**:
+  - `src/components/testing/jdownloader-tester.tsx` (15 reemplazos)
+- 🎯 **Validación**: Sección de testing de JDownloader ahora se traduce completamente al cambiar idioma
+
 ### 2026-01-09 (Fix: Singleton Pattern para FlareSolverrSessionManager - Sessions Ahora Visibles en UI)
 
 - 🐛 **Bug crítico**: Las sesiones de FlareSolverr se creaban correctamente (logs lo confirmaban) pero no eran visibles en la UI de ForumsTable, que mostraba "Sin sesión".
