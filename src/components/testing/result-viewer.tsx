@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink, Download, Loader2, Copy, Check, Send, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/hooks/use-i18n';
 import {
     Card,
     CardContent,
@@ -56,9 +57,11 @@ interface ResultViewerProps {
     onLoadMore?: () => Promise<void> | void;
     onLoadAll?: () => Promise<void> | void;
     loadingMore?: boolean;
+    language?: 'es' | 'en';
 }
 
-export function ResultViewer({ results, forumId, searchQuery, searchMode, totalResults, onExtractLinks, onLoadMore, onLoadAll, loadingMore }: ResultViewerProps) {
+export function ResultViewer({ results, forumId, searchQuery, searchMode, totalResults, onExtractLinks, onLoadMore, onLoadAll, loadingMore, language = 'es' }: ResultViewerProps) {
+    const { t } = useI18n(language);
     const [selectedPost, setSelectedPost] = useState<string | null>(null);
     const [extractingLinks, setExtractingLinks] = useState(false);
     const [extractedByPost, setExtractedByPost] = useState<Record<string, ExtractedLink[]>>({});

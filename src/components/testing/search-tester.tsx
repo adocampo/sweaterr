@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/hooks/use-i18n';
 import {
     Card,
     CardContent,
@@ -35,9 +36,11 @@ interface SearchResult {
 interface SearchTesterProps {
     forums: ForumOption[];
     onSearchResults?: (results: SearchResult[], forumId: string, query: string, searchMode: 'native' | 'google_site' | 'google_cse', searchId?: string, totalResults?: number) => void;
+    language?: 'es' | 'en';
 }
 
-export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
+export function SearchTester({ forums, onSearchResults, language = 'es' }: SearchTesterProps) {
+    const { t } = useI18n(language);
     const [selectedForum, setSelectedForum] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState('');
     const [titleOnly, setTitleOnly] = useState<boolean>(false);
@@ -52,7 +55,7 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
 
     const handleSearch = async () => {
         if (!selectedForum || !searchQuery.trim()) {
-            setError('Selecciona un foro e introduce una búsqueda');
+            setError(t('testing.errorSelectForum'));
             return;
         }
 
@@ -75,10 +78,10 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
             if (data.success) {
                 onSearchResults?.(data.results, selectedForum, searchQuery, data.searchMode || 'google_site', data.searchId, data.totalResults);
             } else {
-                setError(data.error || 'Error al buscar');
+                setError(data.error || t('testing.searchError'));
             }
         } catch (err) {
-            setError('Error de conexión al buscar');
+            setError(t('testing.connectionError'));
             console.error('Search error:', err);
         } finally {
             setIsSearching(false);
@@ -88,15 +91,15 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Búsqueda en Foro</CardTitle>
+                <CardTitle>{t('testing.searchInForum')}</CardTitle>
                 <CardDescription>
-                    Busca contenido en un foro configurado y visualiza los resultados
+                    {t('testing.searchDescription')}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Foro</label>
+                        <label className="text-sm font-medium">{t('testing.forum')}</label>
                         <Select value={selectedForum} onValueChange={setSelectedForum}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Selecciona un foro" />
@@ -112,11 +115,11 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Búsqueda</label>
+                        <label className="text-sm font-medium">{t('testing.search')}</label>
                         <div className="flex gap-2">
                             <Input
                                 type="text"
-                                placeholder="Ej: Breaking Bad S01E01"
+                                placeholder={t('testing.searchPlaceholder')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => {
@@ -130,13 +133,13 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
                                 ) : (
                                     <Search className="h-4 w-4 mr-2" />
                                 )}
-                                Buscar
+                                {t('testing.search')}
                             </Button>
                             <Button
                                 variant="outline"
                                 onClick={async () => {
                                     if (!selectedForum || !searchQuery.trim()) {
-                                        setError('Selecciona un foro e introduce una búsqueda');
+                                        setError(t('testing.errorSelectForum'));
                                         return;
                                     }
                                     setIsSearching(true);
@@ -157,10 +160,10 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
                                         if (data.success) {
                                             onSearchResults?.(data.results, selectedForum, searchQuery, data.searchMode || 'google_site', data.searchId, data.totalResults);
                                         } else {
-                                            setError(data.error || 'Error al buscar');
+                                            setError(data.error || t('testing.searchError'));
                                         }
                                     } catch (err) {
-                                        setError('Error de conexión al buscar');
+                                        setError(t('testing.connectionError'));
                                         console.error('Search all error:', err);
                                     } finally {
                                         setIsSearching(false);
@@ -173,7 +176,7 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
                                 ) : (
                                     <Search className="h-4 w-4 mr-2" />
                                 )}
-                                Buscar todos
+                                {t('testing.searchAll')}
                             </Button>
                         </div>
                         <label className="text-sm font-medium flex items-center gap-2 mt-2">
@@ -183,7 +186,7 @@ export function SearchTester({ forums, onSearchResults }: SearchTesterProps) {
                                 onChange={(e) => setTitleOnly(e.target.checked)}
                                 className="h-4 w-4"
                             />
-                            Buscar solo en el título
+                            {t('testing.titleOnly')}
                         </label>
                     </div>
                 </div>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useI18n } from '@/hooks/use-i18n';
 import {
     Select,
     SelectContent,
@@ -24,7 +25,12 @@ type TestResponse =
         error: string;
     };
 
-export function JDownloaderTester() {
+interface JDownloaderTesterProps {
+    language?: 'es' | 'en';
+}
+
+export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
+    const { t } = useI18n(language);
     const [servers, setServers] = useState<any[]>([]);
     const [selectedServerId, setSelectedServerId] = useState<string>('');
     const [link, setLink] = useState('');
