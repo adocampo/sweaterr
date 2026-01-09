@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 /**
  * Test simple para verificar credenciales MyJDownloader
- * Abre esta URL en tu navegador: http://localhost:3000/api/config/jdownloader/test-credentials
+ * Abre esta URL en tu navegador: http://localhost:3000/api/config/jdownloader/check-credentials
  */
 export async function GET() {
   const html = `

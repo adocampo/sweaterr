@@ -605,6 +605,11 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-10 (Check endpoints)
+
+- 🛠️ Renamed auxiliary API routes from `/api/test/*` to `/api/check/*` to avoid `.gitignore` conflicts and clarify they are health checks, not automated tests.
+- 📌 Affected paths: `/api/config/forums/check`, `/api/check/jd-packages`, `/api/check/myjd-auth`, `/api/check/myjd-addlinks`.
+
 ### 2026-01-09 (Fix: Singleton Pattern para FlareSolverrSessionManager - Sessions Ahora Visibles en UI)
 
 - 🐛 **Bug crítico**: Las sesiones de FlareSolverr se creaban correctamente (logs lo confirmaban) pero no eran visibles en la UI de ForumsTable, que mostraba "Sin sesión".

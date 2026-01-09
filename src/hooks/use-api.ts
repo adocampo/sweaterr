@@ -192,7 +192,7 @@ export function useJDownloaderConfig() {
 
   const testConnection = async (configData: any) => {
     try {
-      const response = await fetch('/api/config/jdownloader/test', {
+      const response = await fetch('/api/config/jdownloader/check', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -605,7 +605,7 @@ export function useJDownloaders() {
 
   const testConnection = async (configData: any) => {
     try {
-      const response = await fetch('/api/config/jdownloader/test', {
+      const response = await fetch('/api/config/jdownloader/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(configData),

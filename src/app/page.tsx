@@ -574,7 +574,7 @@ export default function Home() {
                           await createJDownloader(values);
                         }}
                         onTestConnection={async (values) => {
-                          const res = await fetch('/api/config/jdownloader/test', {
+                          const res = await fetch('/api/config/jdownloader/check', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(values),
@@ -634,7 +634,7 @@ export default function Home() {
                                   setEditingJDownloader(null);
                                 }}
                                 onTestConnection={async (values) => {
-                                  const res = await fetch('/api/config/jdownloader/test', {
+                                  const res = await fetch('/api/config/jdownloader/check', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify(values),
