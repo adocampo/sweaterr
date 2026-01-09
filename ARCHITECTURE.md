@@ -623,6 +623,28 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-09 (Fix: Internacionalización completa de AIConfig)
+
+- 🐛 **Problema**: El componente `AIConfig` (configuración de modelos IA) mostraba todos los textos en español hardcodeados y crasheaba con error `t is not defined` al intentar abrir el diálogo para añadir un modelo.
+- 🔧 **Solución**:
+  - Añadido hook `useI18n(language)` e importación de `useI18n` faltante
+  - Integrado `useMemo` para crear el schema de validación dinámicamente con soporte a interpolación de mensajes
+  - Reemplazados todos los strings hardcodeados (botón "Añadir Modelo IA", títulos, labels, placeholders, descripciones, botones de test/guardar)
+  - Propag property `language={userLanguage}` en ambas instancias de `AIConfig` en `page.tsx`
+  - Translations para "No hay modelos de IA configurados" → `t('dashboard.noAIModels')`
+  - Importados iconos faltantes `CheckCircle` y `XCircle`
+- 📝 **Archivos modificados**:
+  - `src/components/config/ai-config.tsx` (reescrito con i18n completo)
+  - `src/app/page.tsx` (añadido `language={userLanguage}` en ambas instancias; traducidos textos de carga)
+- 🎯 **Validación**: El diálogo de IA abre correctamente, todos los labels y mensajes se muestran en el idioma seleccionado, el botón de test funciona sin errores.
+
+### 2026-01-09 (Fix: Interpolación i18n en useI18n)
+
+- 🐛 **Problema**: Los placeholders `{count}`, `{total}`, `{query}`, etc. se mostraban literales en la UI (ResultViewer y botones de carga) porque `useI18n` devolvía cadenas sin interpolar parámetros.
+- 🔧 **Solución**: Añadida interpolación de parámetros en `useI18n` y `getTranslation`, reemplazando tokens `{key}` por los valores pasados (strings, números o booleanos), convirtiendo `null/undefined` en cadena vacía para evitar artefactos visuales.
+- 📄 **Archivos**: `src/hooks/use-i18n.ts`.
+- 🎯 **Validación**: Los textos dinámicos de resultados y progresos muestran valores numéricos y la query sin placeholders visibles en ambos idiomas.
+
 ### 2026-01-09 (Fix: JDownloaderConfig i18n + estructura del diálogo)
 
 - 🐛 **Problema**: El componente `JDownloaderConfig` quedó corrupto tras el refactor de i18n (JSX incompleto, `t` indefinido) rompiendo el diálogo de configuración y el modo select.
@@ -658,7 +680,7 @@ DEEPSEEK_API_KEY="..."
   - "No configurado" aparecía en español en tres ubicaciones
   - "Connected" aparecía en inglés
   - Causando inconsistencia visual cuando JDownloader o IA no estaban configurados
-- 🔍 **Causa raíz**: 
+- 🔍 **Causa raíz**:
   - Strings hardcodeados `'No configurado'` en el objeto `stats` dentro de `src/app/page.tsx` (líneas 146, 151-152)
   - No estaban reemplazados por la clave i18n correspondiente como se había hecho en otros componentes
 - ✅ **Solución implementada**:
@@ -678,7 +700,7 @@ DEEPSEEK_API_KEY="..."
   - Tooltips: "Editar configuración" y "Eliminar foro"
   - Diálogo de confirmación: "¿Eliminar foro?" con mensaje sin traducir
   - Botones: "Cancelar" y "Eliminar"
-- 🔍 **Causa raíz**: 
+- 🔍 **Causa raíz**:
   - El componente `ForumsTable` recibe la prop `language` pero los strings no estaban reemplazados por llamadas `t()`
   - Las claves de traducción no existían en los archivos locales
 - ✅ **Solución implementada**:
@@ -704,7 +726,7 @@ DEEPSEEK_API_KEY="..."
   - Labels: "Servidor Configurado", "Enlace (opcional)", "Package (opcional)", "Auto-start", "Auto-extract"
   - Botones: "Probar conexión", "Enviar enlace"
   - Mensajes de error y carga
-- 🔍 **Causa raíz**: 
+- 🔍 **Causa raíz**:
   - El componente `JDownloaderTester` tiene `useI18n(language)` importado pero los strings no estaban reemplazados por `t()`
   - Las claves de traducción ya existían en los locales
 - ✅ **Solución implementada**:
@@ -1465,6 +1487,7 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 **Descripción**: Al cambiar el idioma a través del menú de usuario (UserMenu), la interfaz ocasionalmente se vuelve completamente en blanco con tema oscuro, desaparece el icono del menú, y la página se ve desconectada del servidor.
 
 **Condiciones de reproducción**:
+
 - Hacer clic en el idioma en el menú de usuario
 - Esperar a que se procese el cambio
 - La UI se pone en blanco/sin renderizar
@@ -1473,6 +1496,7 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 **Impacto**: Usuario debe hacer refresh manual; cambio de idioma eventual funciona pero con interrupcción visual.
 
 **Causa raíz**: Desconocida - posiblemente:
+
 - Problema en gestión de estado del lenguaje (userLanguage state en page.tsx)
 - Re-render completo del árbol de componentes no se propaga correctamente
 - Hook useI18n no se reinicializa correctamente
@@ -1480,7 +1504,8 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 
 **Mitigación actual**: Ninguna; usuario realiza F5 para refrescar.
 
-**Mejora pendiente**: 
+**Mejora pendiente**:
+
 - Investigar flujo de state management del lenguaje
 - Verificar si hay race conditions en actualización de userLanguage
 - Considerar usar Context/Provider más robusto para i18n si es necesario
@@ -1494,6 +1519,7 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 **Descripción**: Cuando el usuario refresca la página (F5), la aplicación se muestra en español durante 1-2 segundos y luego cambia al idioma seleccionado (ej: inglés). Esto causa una experiencia visual inconsistente.
 
 **Condiciones de reproducción**:
+
 - Navegar a cualquier página dentro de la aplicación (no es visible en login/setup)
 - Presionar F5 para refrescar
 - Observar que la UI se muestra en español antes de cambiar al idioma correcto
@@ -1501,6 +1527,7 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 **Impacto**: Experiencia de usuario inconsistente; debería mostrar el idioma correcto inmediatamente sin transición visual.
 
 **Causa raíz probable**:
+
 - El idioma por defecto es 'es' inicializado en `userLanguage` state en page.tsx
 - El idioma seleccionado del usuario se recupera de localStorage u otra fuente durante hydration
 - Hay un delay entre el SSR/hidratación y la aplicación del idioma correcto
@@ -1509,6 +1536,7 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 **Mitigación actual**: Ninguna; comportamiento aceptado pero no ideal.
 
 **Mejora pendiente**:
+
 - Determinar fuente del idioma (localStorage, cookie, header, user DB)
 - Investigar flujo de hidratación Next.js 15
 - Considerar usar dynamic imports con ssr:false para componentes i18n
@@ -1522,6 +1550,7 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 **Descripción**: Las páginas de login (`src/app/login/page.tsx`) y setup/registro (`src/app/setup/page.tsx`) no tienen selector de idioma visible. Aparecen en el idioma del navegador (detectado por Accept-Language header o idioma por defecto de la app).
 
 **Comportamiento actual**:
+
 - Sin usuario autenticado, no hay UserMenu (donde se cambiaría idioma)
 - Formularios aparecen en el idioma del navegador o idioma por defecto (español)
 - Una vez autenticado, el usuario puede cambiar idioma en el dashboard
@@ -1531,6 +1560,7 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 **Consideración de diseño**: ¿Agregar selector de idioma flotante en esquina de login/setup para que usuarios puedan cambiar idioma antes de autenticarse?
 
 **Mejora pendiente**:
+
 - Decidir si agregar selector de idioma en login/setup
 - Si sí: Implementar flotante o selector discreto (no interrumpe flujo)
 - Si no: Documento la decisión para referencia futura
@@ -1540,9 +1570,9 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 
 **Mitigación actual**: Ninguna; usuario realiza F5 para refrescar.
 
-**Mejora pendiente**: 
+**Mejora pendiente**:
+
 - Investigar flujo de state management del lenguaje
 - Verificar si hay race conditions en actualización de userLanguage
 - Considerar usar Context/Provider más robusto para i18n si es necesario
 - Revisar componentes que dependen del language prop vs useI18n hook
-

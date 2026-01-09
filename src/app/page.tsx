@@ -460,9 +460,9 @@ export default function Home() {
                     const response = await fetch('/api/testing/search', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ 
-                        forumId: testingForumId, 
-                        query: testingQuery, 
+                      body: JSON.stringify({
+                        forumId: testingForumId,
+                        query: testingQuery,
                         page: nextPage,
                         searchId: testingSearchId,
                       }),
@@ -495,9 +495,9 @@ export default function Home() {
                     const response = await fetch('/api/testing/search', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ 
-                        forumId: testingForumId, 
-                        query: testingQuery, 
+                      body: JSON.stringify({
+                        forumId: testingForumId,
+                        query: testingQuery,
                         fetchAll: true,
                         searchId: testingSearchId,
                       }),
@@ -592,6 +592,7 @@ export default function Home() {
                           return !!data.success;
                         }}
                         isAdd={true}
+                        language={userLanguage}
                       />
                     </div>
 
@@ -654,6 +655,7 @@ export default function Home() {
                                 isEdit={true}
                                 isOpen={editingJDownloader === jd.id}
                                 onOpenChange={(open) => setEditingJDownloader(open ? jd.id : null)}
+                                language={userLanguage}
                               />
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -724,14 +726,15 @@ export default function Home() {
                           return !!data.success;
                         }}
                         isAdd={true}
+                        language={userLanguage}
                       />
                     </div>
 
                     <div className="space-y-2">
                       {aiLoading ? (
-                        <p className="text-sm text-muted-foreground">Cargando...</p>
+                        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
                       ) : aiModels.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No hay modelos de IA configurados.</p>
+                        <p className="text-sm text-muted-foreground">{t('dashboard.noAIModels')}</p>
                       ) : (
                         aiModels.map((ai) => (
                           <div key={ai.id} className="flex items-center justify-between border rounded-md p-3">
@@ -777,6 +780,7 @@ export default function Home() {
                                 isEdit={true}
                                 isOpen={editingAIModel === ai.id}
                                 onOpenChange={(open) => setEditingAIModel(open ? ai.id : null)}
+                                language={userLanguage}
                               />
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -828,7 +832,7 @@ export default function Home() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ArrConfig />
+                  <ArrConfig language={userLanguage} />
                 </CardContent>
               </Card>
             </div>
