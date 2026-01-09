@@ -623,6 +623,13 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-09 (Fix: JDownloaderConfig i18n + estructura del diálogo)
+
+- 🐛 **Problema**: El componente `JDownloaderConfig` quedó corrupto tras el refactor de i18n (JSX incompleto, `t` indefinido) rompiendo el diálogo de configuración y el modo select.
+- 🔧 **Solución**: Reescrito el componente asegurando estructura válida de `Dialog`/`Select`, integración limpia con `useI18n(language)`, placeholders traducidos y mensajes de validación en inglés. Se mantiene compatibilidad con modos `local`/`cloud` y callbacks de test/guardar.
+- 📄 **Archivos**: `src/components/config/jdownloader-config.tsx` (reestructurado con traducciones y esquema de validación en inglés).
+- 🧪 **Validación**: Render del diálogo abre correctamente, el selector de modo cambia entre campos locales/cloud, los placeholders provienen de `t()` y el botón de test muestra feedback de éxito/error.
+
 ### 2026-01-09 (Localización i18n Completa)
 
 - ✨ **Sistema i18n completo**: Implementada localización exhaustiva reemplazando todas las cadenas hardcodeadas en español e inglés por labels traducibles desde `es.json` y `en.json`.
@@ -1120,11 +1127,13 @@ DEEPSEEK_API_KEY="..."
 **Estimación**: 1-2 horas
 
 **Problema**: El comando manual `npm run dev > /tmp/npm-dev.log 2>&1 &` es propenso a errores:
+
 - Fácil olvidar que ya hay un servidor corriendo
 - Causa conflictos de puerto (EADDRINUSE)
 - Requiere `pkill` manual para limpiar
 
-**Solución recomendada**: 
+**Solución recomendada**:
+
 - Crear un script bash (`scripts/dev.sh`) que:
   - Verifique si hay servidor corriendo en puerto 3000
   - Lo mate si existe

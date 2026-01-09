@@ -51,7 +51,7 @@ export function ForumSessionSettings({ forumId, forumName, language = 'es' }: Fo
             }
         } catch (err) {
             console.error('Error fetching session:', err);
-            setError('Error al obtener información de sesión');
+            setError(t('errors.failedToFetch'));
         } finally {
             setLoading(false);
         }
@@ -78,14 +78,14 @@ export function ForumSessionSettings({ forumId, forumName, language = 'es' }: Fo
 
             const json = await res.json();
             if (!res.ok || !json.success) {
-                throw new Error(json.error || 'Failed to update TTL');
+                throw new Error(json.error || t('errors.failedToFetch'));
             }
 
-            setSuccess('Configuración actualizada correctamente');
+            setSuccess(t('common.success'));
             setTimeout(() => setSuccess(null), 3000);
             fetchData();
         } catch (err: any) {
-            setError(err.message || 'Error al actualizar');
+            setError(err.message || t('errors.failedToFetch'));
         } finally {
             setUpdating(false);
         }

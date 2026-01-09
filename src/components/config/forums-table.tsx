@@ -62,13 +62,17 @@ interface ForumsTableProps {
     forums: Forum[];
     onEdit: (forum: Forum) => void;
     onDelete: (forumId: string) => Promise<void>;
+    language?: 'es' | 'en';
 }
 
-export function ForumsTable({ forums, onEdit, onDelete }: ForumsTableProps) {
+import { useI18n } from '@/hooks/use-i18n';
+
+export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: ForumsTableProps) {
     const [forumsWithSessions, setForumsWithSessions] = useState<ForumWithSession[]>(
         forums.map((f) => ({ ...f, sessionLoading: true }))
     );
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const { t } = useI18n(language);
 
     useEffect(() => {
         // Fetch session info for all forums
@@ -110,7 +114,7 @@ export function ForumsTable({ forums, onEdit, onDelete }: ForumsTableProps) {
     };
 
     const formatDuration = (seconds: number): string => {
-        if (seconds < 0) return 'Expirada';
+        if (seconds < 0) return t('forumsTable.expired');
         if (seconds < 60) return `${seconds}s`;
         const minutes = Math.floor(seconds / 60);
         if (minutes < 60) return `${minutes}m`;
@@ -120,7 +124,7 @@ export function ForumsTable({ forums, onEdit, onDelete }: ForumsTableProps) {
     };
 
     const formatTTL = (ttlMs: number | null | undefined): string => {
-        if (!ttlMs) return '30 min'; // Default
+        if (!ttlMs) return t('forumsTable.defaultTtl');
         const minutes = Math.round(ttlMs / 60000);
         if (minutes < 60) return `${minutes} min`;
         const hours = Math.floor(minutes / 60);
@@ -134,19 +138,19 @@ export function ForumsTable({ forums, onEdit, onDelete }: ForumsTableProps) {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Foro</TableHead>
-                            <TableHead>URL Base</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead>Sesión FlareSolverr</TableHead>
-                            <TableHead>Duración</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
+                            <TableHead>{t('forumsTable.forum')}</TableHead>
+                            <TableHead>{t('forumsTable.baseUrl')}</TableHead>
+                            <TableHead>{t('forumsTable.status')}</TableHead>
+                            <TableHead>{t('forumsTable.session')}</TableHead>
+                            <TableHead>{t('forumsTable.duration')}</TableHead>
+                            <TableHead className="text-right">{t('forumsTable.actions')}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {forumsWithSessions.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                                    No hay foros configurados
+                                    {t('forumsTable.noForums')}
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -168,12 +172,12 @@ export function ForumsTable({ forums, onEdit, onDelete }: ForumsTableProps) {
                                             {forum.enabled ? (
                                                 <>
                                                     <CheckCircle className="h-3 w-3 mr-1" />
-                                                    Activo
+                                                    {t('forumsTable.active')}
                                                 </>
                                             ) : (
                                                 <>
                                                     <XCircle className="h-3 w-3 mr-1" />
-                                                    Inactivo
+                                                    {t('forumsTable.inactive')}
                                                 </>
                                             )}
                                         </Badge>
@@ -182,7 +186,7 @@ export function ForumsTable({ forums, onEdit, onDelete }: ForumsTableProps) {
                                         {forum.sessionLoading ? (
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                 <Loader2 className="h-3 w-3 animate-spin" />
-                                                Cargando...
+                                                {t('forumsTable.loading')}
                                             </div>
                                         ) : forum.sessionInfo ? (
                                             <Tooltip>
@@ -194,7 +198,7 @@ export function ForumsTable({ forums, onEdit, onDelete }: ForumsTableProps) {
                                                             {forum.sessionInfo.isExpired ? (
                                                                 <>
                                                                     <XCircle className="h-3 w-3 mr-1" />
-                                                                    Expirada
+                                                                    {t('forumsTable.expired')}
                                                                 </>
                                                             ) : (
                                                                 <>
@@ -208,13 +212,13 @@ export function ForumsTable({ forums, onEdit, onDelete }: ForumsTableProps) {
                                                 <TooltipContent>
                                                     <div className="text-xs space-y-1">
                                                         <p>
-                                                            <strong>ID:</strong> {forum.sessionInfo.sessionId.slice(0, 8)}...
+                                                            <strong>{t('forumsTable.sessionId')}:</strong> {forum.sessionInfo.sessionId.slice(0, 8)}...
                                                         </p>
                                                         <p>
-                                                            <strong>Edad:</strong> {formatDuration(forum.sessionInfo.ageSeconds)}
+                                                            <strong>{t('forumsTable.age')}:</strong> {formatDuration(forum.sessionInfo.ageSeconds)}
                                                         </p>
                                                         <p>
-                                                            <strong>Expira en:</strong>{' '}
+                                                            <strong>{t('forumsTable.expiresIn')}:</strong>{' '}
                                                             {formatDuration(forum.sessionInfo.expiresInSeconds)}
                                                         </p>
                                                     </div>
