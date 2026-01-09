@@ -101,8 +101,8 @@ export function useForums() {
         throw new Error('Nombre y URL base son requeridos');
       }
 
-      // Call backend test endpoint
-      const response = await fetch('/api/config/forums/test', {
+      // Call backend check endpoint
+      const response = await fetch('/api/config/forums/check', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
