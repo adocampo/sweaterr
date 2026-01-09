@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
+import { useI18n } from '@/hooks/use-i18n';
 
 interface SessionInfo {
     sessionId: string;
@@ -35,6 +36,7 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const { t } = useI18n('es');
 
     const fetchData = async () => {
         try {
@@ -103,7 +105,7 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
             <Card>
                 <CardContent className="flex justify-center items-center py-8">
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Cargando información de sesión...
+                    {t('testing.loadingSession')}
                 </CardContent>
             </Card>
         );
@@ -112,9 +114,9 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Sesión de FlareSolverr</CardTitle>
+                <CardTitle>{t('forum.sessionSettings')}</CardTitle>
                 <CardDescription>
-                    Gestiona la sesión persistente de navegador para resolver desafíos de Cloudflare
+                    {t('forum.manageSession')}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -125,7 +127,7 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
                                 <span className="font-medium text-green-900 dark:text-green-100">
-                                    Sesión activa
+                                    {t('forum.sessionActive')}
                                 </span>
                             </div>
                             <Badge variant="outline" className="text-xs">
@@ -134,10 +136,10 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
                         </div>
                         <div className="space-y-1 text-sm text-green-800 dark:text-green-200">
                             <div>
-                                <strong>Edad:</strong> {formatTime(data.session.ageSeconds)}
+                                <strong>{t('forum.age')}:</strong> {formatTime(data.session.ageSeconds)}
                             </div>
                             <div>
-                                <strong>Expira en:</strong>{' '}
+                                <strong>{t('forum.expiresIn')}:</strong>{' '}
                                 <span
                                     className={
                                         data.session.expiresInSeconds < 300
@@ -155,18 +157,18 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
                         <div className="flex items-center gap-2 mb-2">
                             <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
                             <span className="font-medium text-slate-700 dark:text-slate-300">
-                                Sin sesión activa
+                                {t('forum.noActiveSession')}
                             </span>
                         </div>
                         <p className="text-sm text-slate-600 dark:text-slate-400">
-                            Se creará automáticamente cuando se necesite resolver un desafío de Cloudflare
+                            {t('components.automaticallySaved')}
                         </p>
                     </div>
                 )}
 
                 {/* Configuración de TTL */}
                 <div className="space-y-3">
-                    <Label htmlFor="ttl-{forumId}">Duración de la sesión (minutos)</Label>
+                    <Label htmlFor="ttl-{forumId}">{t('components.sessionDuration')}</Label>
                     <div className="flex gap-2">
                         <Input
                             id={`ttl-${forumId}`}
@@ -185,10 +187,10 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
                             {updating ? (
                                 <>
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                    Guardando...
+                                    {t('components.saving')}
                                 </>
                             ) : (
-                                'Guardar'
+                                t('components.save')
                             )}
                         </Button>
                     </div>
@@ -198,20 +200,20 @@ export function ForumSessionSettings({ forumId, forumName }: ForumSessionSetting
 
                     <div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
                         <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">
-                            💡 Recomendaciones de duración:
+                            💡 {t('components.recommendations')}:
                         </p>
                         <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1 ml-4">
                             <li>
-                                <strong>5-10 minutos:</strong> Uso esporádico
+                                <strong>5-10 {t('forums.sessionDurationMinutes')}:</strong> {t('components.sporadic')}
                             </li>
                             <li>
-                                <strong>30 minutos:</strong> Uso moderado (recomendado)
+                                <strong>30 {t('forums.sessionDurationMinutes')}:</strong> {t('components.moderate')}
                             </li>
                             <li>
-                                <strong>1-2 horas:</strong> Uso intensivo
+                                <strong>1-2 {t('forums.sessionDurationHours')}:</strong> {t('components.intensive')}
                             </li>
                             <li>
-                                <strong>8-24 horas:</strong> Máxima reutilización (sesión disponible todo el día)
+                                <strong>8-24 {t('forums.sessionDurationHours')}:</strong> {t('components.maxReusable')}
                             </li>
                         </ul>
                     </div>

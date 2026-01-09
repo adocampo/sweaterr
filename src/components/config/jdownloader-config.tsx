@@ -198,7 +198,7 @@ export function JDownloaderConfig({
                       <FormLabel>Nombre de la Conexión</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Mi JDownloader, JD Oficina, etc."
+                          placeholder={t('components.connectionNameExample')}
                           {...field}
                         />
                       </FormControl>
@@ -218,7 +218,7 @@ export function JDownloaderConfig({
                       <FormLabel>Host / IP</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="192.168.1.100 o jdownloader.local"
+                          placeholder={t('components.localHostExample')}
                           {...field}
                         />
                       </FormControl>
@@ -239,7 +239,7 @@ export function JDownloaderConfig({
                       <FormControl>
                         <Input
                           type="number"
-                          placeholder="3128"
+                          placeholder={t('components.portExample')}
                           {...field}
                           onChange={(e) => field.onChange(Number(e.target.value))}
                         />
@@ -266,7 +266,7 @@ export function JDownloaderConfig({
                       <FormControl>
                         <Input
                           type="email"
-                          placeholder="tu@email.com"
+                          placeholder={t('components.emailExample')}
                           {...field}
                         />
                       </FormControl>
@@ -287,7 +287,7 @@ export function JDownloaderConfig({
                       <FormControl>
                         <Input
                           type="password"
-                          placeholder="••••••••"
+                          placeholder={t('components.passwordExample')}
                           {...field}
                         />
                       </FormControl>
@@ -307,7 +307,7 @@ export function JDownloaderConfig({
                       <FormLabel>Nombre del Dispositivo</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Samael"
+                          placeholder={t('components.deviceNameExample')}
                           {...field}
                         />
                       </FormControl>
