@@ -1114,6 +1114,37 @@ DEEPSEEK_API_KEY="..."
 
 ### Features futuras (aún no implementadas)
 
+#### 0. Script/Unit File para Arrancar Servidor de Desarrollo
+
+**Estado**: ⏭️ Pendiente  
+**Estimación**: 1-2 horas
+
+**Problema**: El comando manual `npm run dev > /tmp/npm-dev.log 2>&1 &` es propenso a errores:
+- Fácil olvidar que ya hay un servidor corriendo
+- Causa conflictos de puerto (EADDRINUSE)
+- Requiere `pkill` manual para limpiar
+
+**Solución recomendada**: 
+- Crear un script bash (`scripts/dev.sh`) que:
+  - Verifique si hay servidor corriendo en puerto 3000
+  - Lo mate si existe
+  - Inicie uno nuevo
+  - Muestre un mensaje claro del estado
+- O crear un systemd user unit file (`sweaterr-dev.service`) para desarrollo
+
+**Tareas**:
+
+- [ ] Crear script bash con validación de puerto
+- [ ] Agregar comando `npm run dev:start` que use el script
+- [ ] Agregar comando `npm run dev:stop` para detener
+- [ ] Documentar en README.md
+
+**Archivos afectados**:
+
+- `scripts/dev.sh` (nuevo)
+- `package.json` (actualizar scripts)
+- `README.md` (documentación)
+
 #### 1. Detección de Idiomas Mejorada
 
 **Estado**: ⏭️ Pendiente  
