@@ -143,13 +143,13 @@ export default function Home() {
       deviceName:
         (jdownloaders as any[])[0]?.mode === 'local'
           ? `${(jdownloaders as any[])[0]?.localHost ?? ''}:${(jdownloaders as any[])[0]?.localPort ?? ''}`
-          : (jdownloaders as any[])[0]?.deviceName || 'No configurado',
+          : (jdownloaders as any[])[0]?.deviceName || t('dashboard.notConfigured'),
       downloadsActive: downloads.filter(d => d.status === 'downloading').length,
       downloadsTotal: downloads.length
     },
     ai: {
-      provider: aiModels[0]?.provider || 'No configurado',
-      model: aiModels[0]?.model || 'No configurado',
+      provider: aiModels[0]?.provider || t('dashboard.notConfigured'),
+      model: aiModels[0]?.model || t('dashboard.notConfigured'),
       connected: aiModels.length > 0
     }
   };
@@ -360,6 +360,7 @@ export default function Home() {
           ) : (
             <ForumsTable
               forums={forums}
+              language={userLanguage}
               onEdit={(forum) => {
                 setEditingForum(forum.id);
               }}
@@ -427,10 +428,11 @@ export default function Home() {
           </div>
 
           <div className="space-y-6">
-            <TestingSettings />
+            <TestingSettings language={userLanguage} />
 
             <SearchTester
               forums={forums as any}
+              language={userLanguage}
               onSearchResults={(results, forumId, query, searchMode, searchId, totalResults) => {
                 setTestingResults(results);
                 setTestingForumId(forumId);
@@ -450,6 +452,7 @@ export default function Home() {
                 searchMode={testingSearchMode}
                 loadingMore={loadingMore}
                 totalResults={testingTotalResults}
+                language={userLanguage}
                 onLoadMore={async () => {
                   try {
                     setLoadingMore(true);
@@ -525,7 +528,7 @@ export default function Home() {
               />
             )}
 
-            <JDownloaderTester />
+            <JDownloaderTester language={userLanguage} />
           </div>
         </TabsContent>
 
