@@ -72,8 +72,8 @@ interface JDDownload {
   category?: string;
 }
 
-export function DownloadsManager() {
-  const { t } = useI18n('es');
+export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }) {
+  const { t } = useI18n(language);
   const [downloads, setDownloads] = useState<JDDownload[]>([]);
   const [filteredDownloads, setFilteredDownloads] = useState<JDDownload[]>([]);
   const [loading, setLoading] = useState(true);

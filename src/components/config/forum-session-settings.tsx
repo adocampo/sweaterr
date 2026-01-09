@@ -27,16 +27,17 @@ interface ForumSessionData {
 interface ForumSessionSettingsProps {
     forumId: string;
     forumName: string;
+    language?: 'es' | 'en';
 }
 
-export function ForumSessionSettings({ forumId, forumName }: ForumSessionSettingsProps) {
+export function ForumSessionSettings({ forumId, forumName, language = 'es' }: ForumSessionSettingsProps) {
     const [data, setData] = useState<ForumSessionData | null>(null);
     const [ttlMinutes, setTtlMinutes] = useState<number>(30);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
-    const { t } = useI18n('es');
+    const { t } = useI18n(language);
 
     const fetchData = async () => {
         try {

@@ -56,7 +56,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('overview');
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
-  const { t } = useI18n('es');
+  const { t } = useI18n(currentUser?.language || 'es');
 
   // Testing state
   const [testingResults, setTestingResults] = useState<any[]>([]);
@@ -527,7 +527,7 @@ export default function Home() {
 
         {/* Downloads Tab */}
         <TabsContent value="downloads" className="space-y-6">
-          <DownloadsManager />
+          <DownloadsManager language={currentUser?.language || 'es'} />
         </TabsContent>
 
         {/* Configuration Tab */}
