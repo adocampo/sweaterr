@@ -40,6 +40,13 @@ export async function GET(
         const sessionInfo = sessionManager.getSessionInfo(id);
         const ttlMs = forum.flaresolverrSessionTTL || 30 * 60 * 1000;
 
+        console.log(`[SessionAPI] GET session for forum ${id}:`, {
+            sessionFound: !!sessionInfo,
+            sessionId: sessionInfo?.sessionId?.substring(0, 8),
+            ageSeconds: sessionInfo ? Math.round(sessionInfo.ageMs / 1000) : null,
+            expiresInSeconds: sessionInfo ? Math.round(sessionInfo.expiresInMs / 1000) : null,
+        });
+
         return NextResponse.json({
             success: true,
             data: {

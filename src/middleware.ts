@@ -26,6 +26,7 @@ export async function middleware(request: NextRequest) {
         '/api/auth/login',
         '/api/auth/reset-password', // Emergency password reset
         '/api/arr', // All *arr APIs are public
+        '/api/config/forums/check', // Forum connectivity test (allows unauthenticated testing)
     ];
 
     // Check if the current route is public
