@@ -1,4 +1,4 @@
-# ARCHITECTURE.md - Blazarr Direct Download Automation System
+# ARCHITECTURE.md - Sweaterr Direct Download Automation System
 
 ---
 

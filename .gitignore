@@ -51,7 +51,7 @@ logs/
 .github
 
 # docs
-ARCHITECTURE.md
+
 
 # browser addon bundle
 addon/

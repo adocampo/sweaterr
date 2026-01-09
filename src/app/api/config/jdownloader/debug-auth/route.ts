@@ -8,9 +8,9 @@ import { webcrypto } from 'node:crypto';
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const email = searchParams.get('email') || 'malevolent@zoho.com';
+        const email = searchParams.get('email') || 'email@example.com';
         const password = searchParams.get('password') || 'Test123456';
-        const deviceName = searchParams.get('device') || 'Samael';
+        const deviceName = searchParams.get('device') || 'ServerName';
 
         const logs: string[] = [];
         const log = (msg: string) => {
