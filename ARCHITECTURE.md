@@ -652,6 +652,25 @@ DEEPSEEK_API_KEY="..."
 - 📊 **Estadísticas**: 10 archivos modificados, 365 inserciones(+), 99 eliminaciones(-)
 - 🎯 **Convención establecida**: De ahora en adelante, **todos** los textos nuevos deben añadirse primero a ambos archivos de localización (es.json y en.json) antes de ser usados en componentes
 
+### 2026-01-09 (Fix: Traducciones de Tarjetas Overview)
+
+- 🐛 **Problema**: El dashboard mostraba interface mixta español/inglés en las tarjetas de estado (Overview cards):
+  - "No configurado" aparecía en español en tres ubicaciones
+  - "Connected" aparecía en inglés
+  - Causando inconsistencia visual cuando JDownloader o IA no estaban configurados
+- 🔍 **Causa raíz**: 
+  - Strings hardcodeados `'No configurado'` en el objeto `stats` dentro de `src/app/page.tsx` (líneas 146, 151-152)
+  - No estaban reemplazados por la clave i18n correspondiente como se había hecho en otros componentes
+- ✅ **Solución implementada**:
+  - Agregada nueva clave `dashboard.notConfigured` a `src/locales/en.json` ("Not Configured") y `es.json` ("No configurado")
+  - Reemplazados los 3 strings hardcodeados con `t('dashboard.notConfigured')` en el objeto stats
+  - Garantiza que el estado "no configurado" se traduce correctamente en ambos idiomas
+- 📝 **Archivos modificados**:
+  - `src/app/page.tsx` (3 líneas actualizadas)
+  - `src/locales/en.json` (agregada clave)
+  - `src/locales/es.json` (agregada clave)
+- 🎯 **Validación**: Overview cards ahora muestran texto consistentemente traducido al cambiar entre inglés y español
+
 ### 2026-01-09 (Fix: Singleton Pattern para FlareSolverrSessionManager - Sessions Ahora Visibles en UI)
 
 - 🐛 **Bug crítico**: Las sesiones de FlareSolverr se creaban correctamente (logs lo confirmaban) pero no eran visibles en la UI de ForumsTable, que mostraba "Sin sesión".
