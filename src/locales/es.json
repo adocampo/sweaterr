@@ -136,7 +136,12 @@
     "sessionId": "ID",
     "age": "Edad",
     "expiresIn": "Expira en",
-    "defaultTtl": "30 min"
+    "defaultTtl": "30 min",
+    "noSession": "Sin sesión",
+    "editConfiguration": "Editar configuración",
+    "deleteForumAction": "Eliminar foro",
+    "confirmDeleteForum": "¿Eliminar foro?",
+    "undoNotPossible": "Esta acción no se puede deshacer. El foro se eliminará de forma permanente."
   },
   "forumForm": {
     "baseUrlDescription": "URL principal del foro",

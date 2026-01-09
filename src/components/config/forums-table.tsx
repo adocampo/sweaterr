@@ -225,7 +225,7 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                                                 </TooltipContent>
                                             </Tooltip>
                                         ) : (
-                                            <span className="text-sm text-muted-foreground">Sin sesión</span>
+                                            <span className="text-sm text-muted-foreground">{t('forumsTable.noSession')}</span>
                                         )}
                                     </TableCell>
                                     <TableCell>
@@ -243,7 +243,7 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                                                         <Settings className="h-4 w-4" />
                                                     </Button>
                                                 </TooltipTrigger>
-                                                <TooltipContent>Editar configuración</TooltipContent>
+                                                <TooltipContent>{t('forumsTable.editConfiguration')}</TooltipContent>
                                             </Tooltip>
 
                                             <AlertDialog>
@@ -263,23 +263,22 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                                                             </Button>
                                                         </AlertDialogTrigger>
                                                     </TooltipTrigger>
-                                                    <TooltipContent>Eliminar foro</TooltipContent>
+                                                    <TooltipContent>{t('forumsTable.deleteForumAction')}</TooltipContent>
                                                 </Tooltip>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle>¿Eliminar foro?</AlertDialogTitle>
+                                                        <AlertDialogTitle>{t('forumsTable.confirmDeleteForum')}</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Esta acción no se puede deshacer. Se eliminará el foro "{forum.name}"
-                                                            de forma permanente.
+                                                            {t('forumsTable.undoNotPossible')} "{forum.name}"
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                                                         <AlertDialogAction
                                                             onClick={() => handleDelete(forum.id)}
                                                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                                         >
-                                                            Eliminar
+                                                            {t('common.delete')}
                                                         </AlertDialogAction>
                                                     </AlertDialogFooter>
                                                 </AlertDialogContent>
