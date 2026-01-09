@@ -451,9 +451,9 @@ export default function Home() {
                     const response = await fetch('/api/testing/search', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ 
-                        forumId: testingForumId, 
-                        query: testingQuery, 
+                      body: JSON.stringify({
+                        forumId: testingForumId,
+                        query: testingQuery,
                         page: nextPage,
                         searchId: testingSearchId,
                       }),
@@ -486,9 +486,9 @@ export default function Home() {
                     const response = await fetch('/api/testing/search', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ 
-                        forumId: testingForumId, 
-                        query: testingQuery, 
+                      body: JSON.stringify({
+                        forumId: testingForumId,
+                        query: testingQuery,
                         fetchAll: true,
                         searchId: testingSearchId,
                       }),
