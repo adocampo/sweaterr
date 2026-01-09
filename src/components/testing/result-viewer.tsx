@@ -80,6 +80,24 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
     const { loading: bulkLoading, resolveTitles } = useBulkTitles();
     const [bulkError, setBulkError] = useState<string | null>(null);
 
+    const formatResultsSummary = () => {
+        if (totalResults) {
+            if (results.length < totalResults) {
+                return t('testing.showingResultsOfTotal', {
+                    count: results.length,
+                    total: totalResults,
+                    query: searchQuery
+                });
+            }
+            return t('testing.showingAllResults', { total: totalResults, query: searchQuery });
+        }
+        return t('testing.showingResults', {
+            count: results.length,
+            plural: results.length !== 1 ? 's' : '',
+            query: searchQuery
+        });
+    };
+
     const handleExtractLinks = async (postUrl: string) => {
         setSelectedPost(postUrl);
         setExtractingLinks(true);
@@ -182,12 +200,12 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
 
             const data = await response.json();
             if (!data.success) {
-                throw new Error(data.error || 'No se pudieron enviar los enlaces');
+                throw new Error(data.error || t('testing.sendLinksError'));
             }
 
             setSendSuccess(prev => ({ ...prev, [postUrl]: true }));
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Error desconocido enviando a JDownloader';
+            const message = err instanceof Error ? err.message : t('testing.sendLinksUnknownError');
             setSendErrors(prev => ({ ...prev, [postUrl]: message }));
         } finally {
             setSendingToJd(prev => ({ ...prev, [postUrl]: false }));
@@ -247,11 +265,11 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                     setTitles(prev => ({ ...prev, ...updated }));
                 }
                 if ((data.totalErrors ?? 0) > 0) {
-                    setBulkError(`Errores en ${data.totalErrors} títulos`);
+                    setBulkError(t('testing.bulkTitleErrors', { count: data.totalErrors }));
                 }
             }
         } catch (err) {
-            setBulkError(err instanceof Error ? err.message : 'Error resolviendo títulos');
+            setBulkError(err instanceof Error ? err.message : t('testing.resolveTitlesError'));
         }
     };
 
@@ -309,11 +327,11 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                     setMetadataMode(data.data?.mode || null);
                     setTotalMetadataResults(data.data?.totalResults || null);
                 } else {
-                    setMetadataErrors({ general: data.error || 'No se pudieron obtener metadatos' });
+                    setMetadataErrors({ general: data.error || t('testing.metadataFetchError') });
                 }
             } catch (err: any) {
                 if (cancelled) return;
-                setMetadataErrors({ general: err?.message || 'Error obteniendo metadatos' });
+                setMetadataErrors({ general: err?.message || t('testing.metadataFetchUnknownError') });
             } finally {
                 if (!cancelled) setMetadataLoading(false);
             }
@@ -327,14 +345,14 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Resultados de Búsqueda</CardTitle>
+                    <CardTitle>{t('testing.results')}</CardTitle>
                     <CardDescription>
-                        Posts encontrados en el foro
+                        {t('testing.postsFoundDescription')}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="text-center py-8 text-muted-foreground">
-                        Ejecuta una búsqueda para ver resultados
+                        {t('testing.executeSearchPrompt')}
                     </div>
                 </CardContent>
             </Card>
@@ -345,20 +363,15 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
         <>
             <Card>
                 <CardHeader>
-                    <CardTitle>Resultados de Búsqueda</CardTitle>
+                    <CardTitle>{t('testing.results')}</CardTitle>
                     <CardDescription>
-                        {totalResults && results.length < totalResults 
-                          ? `Mostrando ${results.length} de ${totalResults} resultados`
-                          : totalResults && results.length === totalResults 
-                            ? `Mostrando los ${totalResults} resultados`
-                            : `Mostrando ${results.length} resultado${results.length !== 1 ? 's' : ''}`}
-                        {` para "${searchQuery}"`}
+                        {formatResultsSummary()}
                         {metadataTime !== null && (
                             <span className="ml-2 text-xs">
-                                • Metadatos: {metadataTime}ms
-                                {metadataMode && <span className="ml-1">({metadataMode})</span>}
+                                {t('testing.metadataTime', { ms: metadataTime })}
+                                {metadataMode && <span className="ml-1">{t('testing.metadataMode', { mode: metadataMode })}</span>}
                                 {totalMetadataResults !== null && totalMetadataResults !== results.length && (
-                                    <span className="ml-1">• Total procesados: {totalMetadataResults}</span>
+                                    <span className="ml-1">{t('testing.metadataTotalProcessed', { count: totalMetadataResults })}</span>
                                 )}
                             </span>
                         )}
@@ -367,31 +380,31 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                 <CardContent className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="text-sm text-muted-foreground">
-                            Resolver títulos en lote para aprovechar la misma sesión de FlareSolverr.
+                            {t('testing.batchResolveNote')}
                         </div>
                         <div className="flex items-center gap-2">
                             {metadataLoading && (
                                 <span className="text-xs flex items-center gap-1 text-muted-foreground">
                                     <Loader2 className="h-3 w-3 animate-spin" />
-                                    Analizando metadatos...
+                                    {t('testing.metadataAnalyzing')}
                                 </span>
                             )}
                             <Button variant="outline" size="sm" onClick={handleBulkTitles} disabled={bulkLoading}>
                                 {bulkLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                                Completar todos los títulos
+                                {t('testing.resolveTitles')}
                             </Button>
                             {onLoadMore && (
                                 <Button variant="outline" size="sm" onClick={() => onLoadMore()} disabled={!!loadingMore || (totalResults ? results.length >= totalResults : false)}>
                                     {loadingMore ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                                    Mostrar más
-                                    {totalResults && results.length < totalResults && ` (${results.length} de ${totalResults})`}
+                                    {t('testing.loadMore')}
+                                    {totalResults && results.length < totalResults && ` ${t('testing.loadMoreProgress', { current: results.length, total: totalResults })}`}
                                 </Button>
                             )}
                             {onLoadAll && (
                                 <Button variant="outline" size="sm" onClick={() => onLoadAll()} disabled={!!loadingMore || (totalResults ? results.length >= totalResults : false)}>
                                     {loadingMore ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                                    Cargar todos
-                                    {totalResults && results.length < totalResults && ` (${totalResults - results.length} pendientes)`}
+                                    {t('testing.loadAll')}
+                                    {totalResults && results.length < totalResults && ` ${t('testing.loadAllRemaining', { remaining: totalResults - results.length })}`}
                                 </Button>
                             )}
                         </div>
@@ -411,16 +424,16 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                         <table className="min-w-full text-sm">
                             <thead className="bg-muted/60">
                                 <tr className="text-left">
-                                    <th className="px-3 py-2">Título</th>
-                                    <th className="px-3 py-2">Tipo</th>
-                                    <th className="px-3 py-2">Año</th>
-                                    <th className="px-3 py-2">Temporada</th>
-                                    <th className="px-3 py-2">Capítulos</th>
-                                    <th className="px-3 py-2">Calidad</th>
-                                    <th className="px-3 py-2">Audio / Subs</th>
-                                    <th className="px-3 py-2">Género</th>
-                                    <th className="px-3 py-2">Tamaño</th>
-                                    <th className="px-3 py-2 text-right">Acciones</th>
+                                    <th className="px-3 py-2">{t('testing.tableTitle')}</th>
+                                    <th className="px-3 py-2">{t('testing.tableType')}</th>
+                                    <th className="px-3 py-2">{t('testing.tableYear')}</th>
+                                    <th className="px-3 py-2">{t('testing.tableSeason')}</th>
+                                    <th className="px-3 py-2">{t('testing.tableEpisodes')}</th>
+                                    <th className="px-3 py-2">{t('testing.tableQuality')}</th>
+                                    <th className="px-3 py-2">{t('testing.tableAudioSubs')}</th>
+                                    <th className="px-3 py-2">{t('testing.tableGenre')}</th>
+                                    <th className="px-3 py-2">{t('testing.tableSize')}</th>
+                                    <th className="px-3 py-2 text-right">{t('testing.tableActions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -428,13 +441,19 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                     const postLinks = extractedByPost[result.url] || [];
                                     const meta = metadataByPost[result.url];
                                     const displayTitle = meta?.title || titles[result.url] || result.title;
-                                    const typeLabel = meta?.type === 'series' ? 'Serie' : meta?.type === 'movie' ? 'Película' : 'Desconocido';
+                                    const typeLabel = meta?.type === 'series'
+                                        ? t('testing.typeSeries')
+                                        : meta?.type === 'movie'
+                                            ? t('testing.typeMovie')
+                                            : t('testing.typeUnknown');
                                     const episodesLabel = meta?.type === 'series'
                                         ? (meta?.episodesAvailable ?? meta?.episodesTotal
                                             ? `${meta?.episodesAvailable ?? '—'}/${meta?.episodesTotal ?? '—'}`
                                             : '—')
                                         : '—';
-                                    const seasonLabel = meta?.type === 'series' && meta?.season ? `T${meta.season}` : '—';
+                                    const seasonLabel = meta?.type === 'series' && meta?.season
+                                        ? t('testing.seasonLabel', { season: meta.season })
+                                        : '—';
                                     const qualityLabel = meta?.quality || '—';
                                     const yearLabel = meta?.year || result.date || '—';
                                     const audioLabel = meta?.audioLanguages?.length ? meta.audioLanguages.join(', ') : '—';
@@ -456,7 +475,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                             className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1"
                                                         >
                                                             <ExternalLink className="h-3 w-3" />
-                                                            Abrir
+                                                            {t('testing.open')}
                                                         </a>
                                                     </div>
                                                     {result.snippet && (
@@ -473,7 +492,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                             {enriching[result.url] ? (
                                                                 <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                                                             ) : null}
-                                                            Completar título
+                                                            {t('testing.completeTitle')}
                                                         </Button>
                                                     )}
                                                 </div>
@@ -485,8 +504,8 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                             <td className="px-3 py-2 align-top">{qualityLabel}</td>
                                             <td className="px-3 py-2 align-top">
                                                 <div className="space-y-1">
-                                                    <div className="text-xs">Audio: {audioLabel}</div>
-                                                    <div className="text-xs">Subs: {subsLabel}</div>
+                                                    <div className="text-xs">{t('testing.audioLabel')}: {audioLabel}</div>
+                                                    <div className="text-xs">{t('testing.subsLabel')}: {subsLabel}</div>
                                                 </div>
                                             </td>
                                             <td className="px-3 py-2 align-top">{genresLabel}</td>
@@ -504,7 +523,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                         ) : (
                                                             <Download className="h-4 w-4 mr-2" />
                                                         )}
-                                                        Extraer
+                                                        {t('testing.extractLinks')}
                                                     </Button>
                                                     <Button
                                                         size="sm"
@@ -517,11 +536,11 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                         ) : (
                                                             <Send className="h-4 w-4 mr-2" />
                                                         )}
-                                                        Enviar
+                                                        {t('testing.send')}
                                                     </Button>
                                                 </div>
                                                 {sendSuccess[result.url] && (
-                                                    <div className="text-[11px] text-green-600 text-right mt-1">Enviado a JDownloader</div>
+                                                    <div className="text-[11px] text-green-600 text-right mt-1">{t('testing.sentToJDownloader')}</div>
                                                 )}
                                                 {sendErrors[result.url] && (
                                                     <div className="text-[11px] text-red-600 text-right mt-1">{sendErrors[result.url]}</div>
@@ -537,19 +556,19 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                     {Object.entries(metadataErrors).filter(([key]) => key !== 'general').length > 0 && (
                         <div className="text-xs text-red-500 flex items-center gap-1">
                             <AlertCircle className="h-3 w-3" />
-                            Algunos posts no devolvieron metadatos. Revisa las filas marcadas.
+                            {t('testing.someMetadataMissing')}
                         </div>
                     )}
 
                     {Object.entries(extractedByPost).length > 0 && (
                         <div className="space-y-3">
-                            <h4 className="text-sm font-medium mt-2">Enlaces extraídos</h4>
+                            <h4 className="text-sm font-medium mt-2">{t('testing.extractedLinks')}</h4>
                             {Object.entries(extractedByPost).map(([postUrl, postLinks]) => (
                                 <div key={postUrl} className="border rounded-md p-3 space-y-3">
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-1">
                                             <div className="font-medium text-sm">{metadataByPost[postUrl]?.title || titles[postUrl] || postUrl}</div>
-                                            <div className="text-xs text-muted-foreground">{postLinks.length} enlace{postLinks.length !== 1 ? 's' : ''} encontrados</div>
+                                            <div className="text-xs text-muted-foreground">{t('testing.linksFound', { count: postLinks.length, plural: postLinks.length !== 1 ? 's' : '' })}</div>
                                         </div>
                                         <Button
                                             size="sm"
@@ -562,11 +581,11 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                             ) : (
                                                 <Send className="h-4 w-4 mr-2" />
                                             )}
-                                            Enviar a JDownloader
+                                            {t('testing.sendToJDownloader')}
                                         </Button>
                                     </div>
                                     {sendSuccess[postUrl] && (
-                                        <div className="text-xs text-green-500">Enlaces enviados a JDownloader</div>
+                                        <div className="text-xs text-green-500">{t('testing.linksSentToJDownloader')}</div>
                                     )}
                                     {sendErrors[postUrl] && (
                                         <div className="text-xs text-red-500">{sendErrors[postUrl]}</div>
@@ -577,7 +596,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                 <div className="flex items-center gap-2">
                                                     <Badge variant="secondary">{hosting}</Badge>
                                                     <span className="text-sm text-muted-foreground">
-                                                        {links.length} enlace{links.length !== 1 ? 's' : ''}
+                                                        {t('testing.linksCount', { count: links.length, plural: links.length !== 1 ? 's' : '' })}
                                                     </span>
                                                 </div>
                                                 <div className="space-y-2">
