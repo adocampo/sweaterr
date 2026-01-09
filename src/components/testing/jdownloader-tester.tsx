@@ -74,7 +74,7 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
         try {
             const selectedServer = servers.find(s => s.id === selectedServerId);
             if (!selectedServer) {
-                setError('Selecciona un servidor primero');
+                setError(t('testing.selectServerFirst'));
                 setIsTesting(false);
                 return;
             }
@@ -95,7 +95,7 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
 
             if (withLink) {
                 if (!link.trim()) {
-                    setError('Introduce un enlace para enviar a JDownloader');
+                    setError(t('testing.sendLinkError'));
                     setIsTesting(false);
                     return;
                 }
@@ -115,11 +115,11 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
             setResult(data);
 
             if (!data.success) {
-                setError(data.error || 'Error al probar conexión JDownloader');
+                setError(data.error || t('testing.connectionTestError'));
             }
         } catch (err) {
             console.error('JDownloader test error:', err);
-            setError('Error de conexión al probar JDownloader');
+            setError(t('testing.connectionTestError'));
         } finally {
             setIsTesting(false);
         }
@@ -128,20 +128,20 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>JDownloader</CardTitle>
+                <CardTitle>{t('testing.jdownloaderTesterTitle')}</CardTitle>
                 <CardDescription>
-                    Selecciona un servidor configurado para probar conexión o enviar enlaces
+                    {t('testing.jdownloaderTesterDescription')}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 {isLoadingServers ? (
-                    <p className="text-sm text-muted-foreground">Cargando servidores...</p>
+                    <p className="text-sm text-muted-foreground">{t('testing.loadingServers')}</p>
                 ) : servers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No hay servidores configurados. Ve a Configuración para añadir uno.</p>
+                    <p className="text-sm text-muted-foreground">{t('testing.noServers')}</p>
                 ) : (
                     <>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Servidor Configurado</label>
+                            <label className="text-sm font-medium">{t('testing.configuredServer')}</label>
                             <Select value={selectedServerId} onValueChange={setSelectedServerId}>
                                 <SelectTrigger>
                                     <SelectValue />
@@ -159,7 +159,7 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Enlace (opcional)</label>
+                            <label className="text-sm font-medium">{t('testing.optionalLink')}</label>
                             <Input
                                 type="url"
                                 placeholder="https://..."
@@ -170,7 +170,7 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Package (opcional)</label>
+                            <label className="text-sm font-medium">{t('testing.optionalPackage')}</label>
                             <Input
                                 type="text"
                                 placeholder="test-package"
@@ -189,7 +189,7 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
                                     disabled={isTesting}
                                 />
                                 <label htmlFor="autostart" className="text-sm font-medium cursor-pointer">
-                                    Auto-start
+                                    {t('testing.autoStart')}
                                 </label>
                             </div>
 
@@ -201,7 +201,7 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
                                     disabled={isTesting}
                                 />
                                 <label htmlFor="autoextract" className="text-sm font-medium cursor-pointer">
-                                    Auto-extract
+                                    {t('testing.autoExtract')}
                                 </label>
                             </div>
                         </div>
@@ -217,7 +217,7 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
                                 ) : (
                                     <PlugZap className="h-4 w-4 mr-2" />
                                 )}
-                                Probar conexión
+                                {t('testing.testConnection')}
                             </Button>
 
                             <Button
@@ -229,7 +229,7 @@ export function JDownloaderTester({ language = 'es' }: JDownloaderTesterProps) {
                                 ) : (
                                     <Send className="h-4 w-4 mr-2" />
                                 )}
-                                Enviar enlace
+                                {t('testing.sendLink')}
                             </Button>
                         </div>
 
