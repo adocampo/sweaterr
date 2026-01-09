@@ -1450,3 +1450,63 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 - Considerar usar Context/Provider más robusto para i18n si es necesario
 - Revisar componentes que dependen del language prop vs useI18n hook
 
+### 5. Flash de Idioma en Refresh (Spanish Flash)
+
+**Severidad**: Media  
+**Estado**: Identificado, requiere investigación
+
+**Descripción**: Cuando el usuario refresca la página (F5), la aplicación se muestra en español durante 1-2 segundos y luego cambia al idioma seleccionado (ej: inglés). Esto causa una experiencia visual inconsistente.
+
+**Condiciones de reproducción**:
+- Navegar a cualquier página dentro de la aplicación (no es visible en login/setup)
+- Presionar F5 para refrescar
+- Observar que la UI se muestra en español antes de cambiar al idioma correcto
+
+**Impacto**: Experiencia de usuario inconsistente; debería mostrar el idioma correcto inmediatamente sin transición visual.
+
+**Causa raíz probable**:
+- El idioma por defecto es 'es' inicializado en `userLanguage` state en page.tsx
+- El idioma seleccionado del usuario se recupera de localStorage u otra fuente durante hydration
+- Hay un delay entre el SSR/hidratación y la aplicación del idioma correcto
+- Re-renders de todos los componentes cuando cambia userLanguage cause visual flicker
+
+**Mitigación actual**: Ninguna; comportamiento aceptado pero no ideal.
+
+**Mejora pendiente**:
+- Determinar fuente del idioma (localStorage, cookie, header, user DB)
+- Investigar flujo de hidratación Next.js 15
+- Considerar usar dynamic imports con ssr:false para componentes i18n
+- Posible solución: Guardar idioma en cookie de servidor para SSR correcto desde inicio
+
+### 6. Login y Setup Sin Selector de Idioma
+
+**Severidad**: Baja  
+**Estado**: Identificado, comportamiento por diseño
+
+**Descripción**: Las páginas de login (`src/app/login/page.tsx`) y setup/registro (`src/app/setup/page.tsx`) no tienen selector de idioma visible. Aparecen en el idioma del navegador (detectado por Accept-Language header o idioma por defecto de la app).
+
+**Comportamiento actual**:
+- Sin usuario autenticado, no hay UserMenu (donde se cambiaría idioma)
+- Formularios aparecen en el idioma del navegador o idioma por defecto (español)
+- Una vez autenticado, el usuario puede cambiar idioma en el dashboard
+
+**Impacto**: Bajo; usuarios pueden esperar selector de idioma en login, pero es funcional una vez autenticado.
+
+**Consideración de diseño**: ¿Agregar selector de idioma flotante en esquina de login/setup para que usuarios puedan cambiar idioma antes de autenticarse?
+
+**Mejora pendiente**:
+- Decidir si agregar selector de idioma en login/setup
+- Si sí: Implementar flotante o selector discreto (no interrumpe flujo)
+- Si no: Documento la decisión para referencia futura
+- Re-render completo del árbol de componentes no se propaga correctamente
+- Hook useI18n no se reinicializa correctamente
+- Context o Provider i18n tiene memory leak o estado inconsistente
+
+**Mitigación actual**: Ninguna; usuario realiza F5 para refrescar.
+
+**Mejora pendiente**: 
+- Investigar flujo de state management del lenguaje
+- Verificar si hay race conditions en actualización de userLanguage
+- Considerar usar Context/Provider más robusto para i18n si es necesario
+- Revisar componentes que dependen del language prop vs useI18n hook
+
