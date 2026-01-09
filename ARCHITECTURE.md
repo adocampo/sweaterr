@@ -718,6 +718,20 @@ DEEPSEEK_API_KEY="..."
   - `src/components/testing/jdownloader-tester.tsx` (15 reemplazos)
 - 🎯 **Validación**: Sección de testing de JDownloader ahora se traduce completamente al cambiar idioma
 
+### 2026-01-09 (Fix: Internacionalización de ResultViewer - Resultados de Búsqueda)
+
+- 🐛 **Problema**: La vista de resultados de búsqueda (ResultViewer) en la pestaña Testing mostraba todos los textos en castellano: títulos, descripciones, cabeceras de tabla, botones, estados de carga y mensajes de error.
+- 🔍 **Causa raíz**:
+  - El componente `ResultViewer` ya recibía `language` y usaba `useI18n(language)`, pero las cadenas estaban hardcodeadas en español.
+  - Faltaban claves de traducción para métricas, tablas, contadores y mensajes contextuales.
+- ✅ **Solución implementada**:
+  - Añadidas ~35 claves nuevas en `testing` (en/es) para cabeceras, botones, contadores, metadatos, errores y textos auxiliares.
+  - Reemplazadas todas las cadenas hardcodeadas por `t()` incluyendo resúmenes dinámicos de resultados, indicadores de metadatos y textos de acción (extraer, enviar, completar títulos, etc.).
+- 📝 **Archivos modificados**:
+  - `src/components/testing/result-viewer.tsx` (sustitución completa de strings por `t()`)
+  - `src/locales/en.json` y `src/locales/es.json` (nuevas claves en sección `testing`)
+- 🎯 **Validación**: Tabla de resultados, botones y mensajes se traducen correctamente al alternar entre español e inglés.
+
 ### 2026-01-09 (Fix: Singleton Pattern para FlareSolverrSessionManager - Sessions Ahora Visibles en UI)
 
 - 🐛 **Bug crítico**: Las sesiones de FlareSolverr se creaban correctamente (logs lo confirmaban) pero no eran visibles en la UI de ForumsTable, que mostraba "Sin sesión".
