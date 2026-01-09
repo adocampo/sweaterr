@@ -99,7 +99,7 @@ export function JDownloaderTester() {
                 payload.autoExtract = autoExtract;
             }
 
-            const response = await fetch('/api/config/jdownloader/test', {
+            const response = await fetch('/api/config/jdownloader/check', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
