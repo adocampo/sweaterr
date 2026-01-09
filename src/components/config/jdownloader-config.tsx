@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -34,29 +34,24 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Plus, Settings, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { useI18n } from '@/hooks/use-i18n';
 
-// Modo Local: IP/Hostname + Puerto
-const localModeSchema = z.object({
-  mode: z.literal('local'),
-  connectionName: z.string().min(1, 'Nombre de conexión requerido'),
-  localHost: z.string().min(1, 'Host/IP requerido'),
-  localPort: z.number().min(1, 'Puerto requerido'),
-});
-
-// Modo Cloud: Email + Password + Device Name
-const cloudModeSchema = z.object({
-  mode: z.literal('cloud'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(1, 'Contraseña requerida'),
-  deviceName: z.string().min(1, 'Nombre de dispositivo requerido'),
-});
-
-const jdownloaderSchema = z.discriminatedUnion('mode', [
-  localModeSchema,
-  cloudModeSchema,
+const createSchema = (t: ReturnType<typeof useI18n>['t']) => z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('local'),
+    connectionName: z.string().min(1, t('validation.connectionNameRequired')),
+    localHost: z.string().min(1, t('validation.hostRequired')),
+    localPort: z.number().min(1, t('validation.portRequired')),
+  }),
+  z.object({
+    mode: z.literal('cloud'),
+    email: z.string().email(t('validation.emailInvalid')),
+    password: z.string().min(1, t('validation.passwordRequired')),
+    deviceName: z.string().min(1, t('validation.deviceNameRequired')),
+  }),
 ]);
 
-type JDownloaderFormData = z.infer<typeof jdownloaderSchema>;
+type JDownloaderFormData = z.infer<ReturnType<typeof createSchema>>;
 
 interface JDownloaderConfigProps {
   config?: any | null;
@@ -66,6 +61,7 @@ interface JDownloaderConfigProps {
   isEdit?: boolean;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  language?: 'es' | 'en';
 }
 
 export function JDownloaderConfig({
@@ -76,7 +72,9 @@ export function JDownloaderConfig({
   isEdit,
   isOpen: externalIsOpen,
   onOpenChange,
+  language = 'es',
 }: JDownloaderConfigProps) {
+  const { t } = useI18n(language);
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
   const setIsOpen = (open: boolean) => {
@@ -89,6 +87,8 @@ export function JDownloaderConfig({
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [mode, setMode] = useState<'local' | 'cloud'>(config?.mode || 'local');
+
+  const jdownloaderSchema = useMemo(() => createSchema(t), [t]);
 
   const form = useForm<JDownloaderFormData>({
     resolver: zodResolver(jdownloaderSchema),
@@ -143,7 +143,7 @@ export function JDownloaderConfig({
           {isAdd ? (
             <>
               <Plus className="h-4 w-4 mr-2" />
-              Añadir JDownloader
+              {t('jdownloaderConfig.add')}
             </>
           ) : (
             <Settings className="h-4 w-4" />
@@ -152,21 +152,20 @@ export function JDownloaderConfig({
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar' : 'Configurar'} JDownloader</DialogTitle>
+          <DialogTitle>{isEdit ? t('jdownloaderConfig.edit') : t('jdownloaderConfig.configure')}</DialogTitle>
           <DialogDescription>
-            Elige entre conexión local (API Deprecated) o cloud (MyJDownloader)
+            {t('jdownloaderConfig.description')}
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
-            {/* Mode selector */}
             <FormField
               control={form.control}
               name="mode"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
-                  <FormLabel>Modo de Conexión</FormLabel>
+                  <FormLabel>{t('jdownloaderConfig.mode')}</FormLabel>
                   <Select value={mode} onValueChange={handleModeChange}>
                     <FormControl>
                       <SelectTrigger>
@@ -174,12 +173,12 @@ export function JDownloaderConfig({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="local">Modo Local</SelectItem>
-                      <SelectItem value="cloud">Modo Cloud</SelectItem>
+                      <SelectItem value="local">{t('jdownloaderConfig.local')}</SelectItem>
+                      <SelectItem value="cloud">{t('jdownloaderConfig.cloud')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Local: conecta directamente a tu JD2 vía LAN. Cloud: usa MyJDownloader para acceso remoto
+                    {t('jdownloaderConfig.modeDescription')}
                   </FormDescription>
                 </FormItem>
               )}
@@ -187,7 +186,6 @@ export function JDownloaderConfig({
 
             <Separator />
 
-            {/* Local mode fields */}
             {mode === 'local' && (
               <>
                 <FormField
@@ -195,7 +193,7 @@ export function JDownloaderConfig({
                   name="connectionName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nombre de la Conexión</FormLabel>
+                      <FormLabel>{t('jdownloaderConfig.connectionName')}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder={t('components.connectionNameExample')}
@@ -203,7 +201,7 @@ export function JDownloaderConfig({
                         />
                       </FormControl>
                       <FormDescription>
-                        Nombre descriptivo para identificar esta conexión
+                        {t('jdownloaderConfig.connectionNameDescription')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -215,7 +213,7 @@ export function JDownloaderConfig({
                   name="localHost"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Host / IP</FormLabel>
+                      <FormLabel>{t('jdownloaderConfig.host')}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder={t('components.localHostExample')}
@@ -223,7 +221,7 @@ export function JDownloaderConfig({
                         />
                       </FormControl>
                       <FormDescription>
-                        IP o hostname de tu servidor JDownloader
+                        {t('jdownloaderConfig.hostDescription')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -235,7 +233,7 @@ export function JDownloaderConfig({
                   name="localPort"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Puerto</FormLabel>
+                      <FormLabel>{t('jdownloaderConfig.port')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -245,7 +243,7 @@ export function JDownloaderConfig({
                         />
                       </FormControl>
                       <FormDescription>
-                        Puerto expuesto del servicio RemoteAPI (normalmente 3128)
+                        {t('jdownloaderConfig.portDescription')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -254,7 +252,6 @@ export function JDownloaderConfig({
               </>
             )}
 
-            {/* Cloud mode fields */}
             {mode === 'cloud' && (
               <>
                 <FormField
@@ -262,17 +259,10 @@ export function JDownloaderConfig({
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t('jdownloaderConfig.email')}</FormLabel>
                       <FormControl>
-                        <Input
-                          type="email"
-                          placeholder={t('components.emailExample')}
-                          {...field}
-                        />
+                        <Input type="email" placeholder={t('components.emailExample')} {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Email de tu cuenta My JDownloader
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -283,17 +273,10 @@ export function JDownloaderConfig({
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contraseña</FormLabel>
+                      <FormLabel>{t('jdownloaderConfig.password')}</FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
-                          placeholder={t('components.passwordExample')}
-                          {...field}
-                        />
+                        <Input type="password" placeholder={t('components.passwordExample')} {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Contraseña de tu cuenta My JDownloader
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -304,15 +287,12 @@ export function JDownloaderConfig({
                   name="deviceName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nombre del Dispositivo</FormLabel>
+                      <FormLabel>{t('jdownloaderConfig.deviceName')}</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder={t('components.deviceNameExample')}
-                          {...field}
-                        />
+                        <Input placeholder={t('components.deviceNameExample')} {...field} />
                       </FormControl>
                       <FormDescription>
-                        Nombre del dispositivo en My JDownloader
+                        {t('jdownloaderConfig.deviceNameDescription')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -334,11 +314,11 @@ export function JDownloaderConfig({
                 {isTesting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Probando...
+                    {t('jdownloaderConfig.testing')}
                   </>
                 ) : (
                   <>
-                    Probar Conexión
+                    {t('jdownloaderConfig.test')}
                   </>
                 )}
               </Button>
@@ -348,12 +328,12 @@ export function JDownloaderConfig({
                   {testResult === 'success' ? (
                     <>
                       <CheckCircle className="h-3 w-3 mr-1" />
-                      Conectado
+                      {t('jdownloaderConfig.testSuccess')}
                     </>
                   ) : (
                     <>
                       <XCircle className="h-3 w-3 mr-1" />
-                      Error
+                      {t('jdownloaderConfig.testError')}
                     </>
                   )}
                 </Badge>
@@ -362,10 +342,10 @@ export function JDownloaderConfig({
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
               <Button type="submit">
-                {isEdit ? 'Actualizar' : 'Guardar'} Configuración
+                {isEdit ? t('jdownloaderConfig.save') : t('jdownloaderConfig.add')}
               </Button>
             </DialogFooter>
           </form>
