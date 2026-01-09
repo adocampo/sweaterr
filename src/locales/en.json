@@ -136,7 +136,12 @@
     "sessionId": "ID",
     "age": "Age",
     "expiresIn": "Expires in",
-    "defaultTtl": "30 min"
+    "defaultTtl": "30 min",
+    "noSession": "No session",
+    "editConfiguration": "Edit configuration",
+    "deleteForumAction": "Delete forum",
+    "confirmDeleteForum": "Delete forum?",
+    "undoNotPossible": "This action cannot be undone. The forum will be permanently deleted."
   },
   "forumForm": {
     "baseUrlDescription": "Main URL of the forum",
