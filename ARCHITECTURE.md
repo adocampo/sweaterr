@@ -1396,9 +1396,32 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 
 **Mejora pendiente**: Cache de respuestas FlareSolverr o configurar FlareSolverr con VPN para evitar bloqueos regionales.
 
----
+### 4. Cambio de Idioma Causa Pantalla en Blanco
 
-### FIN DEL DOCUMENTO
+**Severidad**: Media  
+**Estado**: Identificado, sin solución investigada aún
 
-**Versión**: 1.4.0 (09/01/2026)  
-**Estado**: En desarrollo activo  
+**Descripción**: Al cambiar el idioma a través del menú de usuario (UserMenu), la interfaz ocasionalmente se vuelve completamente en blanco con tema oscuro, desaparece el icono del menú, y la página se ve desconectada del servidor.
+
+**Condiciones de reproducción**:
+- Hacer clic en el idioma en el menú de usuario
+- Esperar a que se procese el cambio
+- La UI se pone en blanco/sin renderizar
+- Presionar F5 recarga la página correctamente
+
+**Impacto**: Usuario debe hacer refresh manual; cambio de idioma eventual funciona pero con interrupcción visual.
+
+**Causa raíz**: Desconocida - posiblemente:
+- Problema en gestión de estado del lenguaje (userLanguage state en page.tsx)
+- Re-render completo del árbol de componentes no se propaga correctamente
+- Hook useI18n no se reinicializa correctamente
+- Context o Provider i18n tiene memory leak o estado inconsistente
+
+**Mitigación actual**: Ninguna; usuario realiza F5 para refrescar.
+
+**Mejora pendiente**: 
+- Investigar flujo de state management del lenguaje
+- Verificar si hay race conditions en actualización de userLanguage
+- Considerar usar Context/Provider más robusto para i18n si es necesario
+- Revisar componentes que dependen del language prop vs useI18n hook
+
