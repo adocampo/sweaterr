@@ -242,5 +242,16 @@ class FlareSolverrSessionManager {
     }
 }
 
-// Global singleton instance
-export const sessionManager = new FlareSolverrSessionManager();
+// Global singleton instance with guaranteed uniqueness
+// This pattern ensures the same instance is reused even in hot-reload scenarios
+let globalSessionManagerInstance: FlareSolverrSessionManager | null = null;
+
+function getGlobalSessionManager(): FlareSolverrSessionManager {
+    if (!globalSessionManagerInstance) {
+        globalSessionManagerInstance = new FlareSolverrSessionManager();
+        console.log('[SessionManager] Created new global instance');
+    }
+    return globalSessionManagerInstance;
+}
+
+export const sessionManager = getGlobalSessionManager();
