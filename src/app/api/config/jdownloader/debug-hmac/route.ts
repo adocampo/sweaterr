@@ -8,8 +8,8 @@ import { webcrypto } from 'node:crypto';
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const email = searchParams.get('email') || 'malevolent@zoho.com';
-        const password = searchParams.get('password') || 'ePdaL003';
+        const email = searchParams.get('email') || 'email@example.com';
+        const password = searchParams.get('password') || 'Test123456';
         const rid = Date.now().toString();
 
         const logs: string[] = [];

@@ -8,9 +8,9 @@ import CryptoJS from 'crypto-js';
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const email = searchParams.get('email') || 'malevolent@zoho.com';
+        const email = searchParams.get('email') || 'email@example.com';
         const password = searchParams.get('password') || 'Test123456';
-        const deviceName = searchParams.get('device') || 'Samael';
+        const deviceName = searchParams.get('device') || 'ServerName';
         const appkey = searchParams.get('appkey') || 'myjd_webextension_firefox';
 
         const logs: string[] = [];

@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
  * Abre esta URL en tu navegador: http://localhost:3000/api/config/jdownloader/test-credentials
  */
 export async function GET() {
-    const html = `
+  const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -31,13 +31,13 @@ export async function GET() {
   
   <form id="testForm">
     <label>Email:</label>
-    <input type="email" id="email" value="malevolent@zoho.com" required />
+    <input type="email" id="email" value="email@example.com" required />
     
     <label>Password:</label>
-    <input type="password" id="password" value="ePdaL003" required />
+    <input type="password" id="password" value="Test123456" required />
     
     <label>Device Name:</label>
-    <input type="text" id="device" value="Samael" required />
+    <input type="text" id="device" value="ServerName" required />
     
     <label>App Key (prueba diferentes):</label>
     <select id="appkey">
@@ -105,7 +105,7 @@ export async function GET() {
 </html>
   `;
 
-    return new NextResponse(html, {
-        headers: { 'Content-Type': 'text/html' },
-    });
+  return new NextResponse(html, {
+    headers: { 'Content-Type': 'text/html' },
+  });
 }
