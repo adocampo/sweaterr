@@ -238,7 +238,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                     <FormLabel>{t('forums.forumName')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="DescargasDD"
+                        placeholder={t('components.forumNameExample')}
                         {...field}
                         onChange={(e) => {
                           field.onChange(e);
@@ -345,7 +345,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                       <FormLabel>{t('forums.searchForumLabel')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Zona Series"
+                          placeholder={t('components.searchForumExample')}
                           {...field}
                         />
                       </FormControl>
@@ -434,7 +434,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                         <FormControl>
                           <Input
                             type="password"
-                            placeholder="••••••••"
+                            placeholder={t('components.passwordExample')}
                             {...field}
                           />
                         </FormControl>
@@ -467,7 +467,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                       />
                     </FormControl>
                     <FormDescription>
-                      Selector CSS para el botón de "Gracias"
+                      {t('components.thankButtonSelector')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -577,7 +577,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                     Borrando...
                   </>
                 ) : (
-                  'Borrar Cookies'
+                  '{t('components.clearCookies')}'
                 )}
               </Button>
               <div className="flex-1" />

@@ -28,19 +28,19 @@ export default function SetupPage() {
 
         // Client-side validation
         if (!username) {
-            setError('Username is required');
+            setError(t('setup.usernameRequired'));
             setIsLoading(false);
             return;
         }
 
         if (username.length < 3) {
-            setError('Username must be at least 3 characters long');
+            setError(t('setup.usernameTooShort'));
             setIsLoading(false);
             return;
         }
 
         if (!password) {
-            setError('Password is required');
+            setError(t('setup.passwordRequired'));
             setIsLoading(false);
             return;
         }
@@ -76,7 +76,7 @@ export default function SetupPage() {
                 router.push('/login');
             }, 2000);
         } catch (err) {
-            setError('An error occurred. Please try again.');
+            setError(t('errors.tryAgain'));
             console.error(err);
         } finally {
             setIsLoading(false);
@@ -112,10 +112,10 @@ export default function SetupPage() {
                         )}
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Username</label>
+                            <label className="text-sm font-medium">{t('setup.usernameLabel')}</label>
                             <Input
                                 type="text"
-                                placeholder="admin"
+                                placeholder={t('setup.usernamePlaceholder')}
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 disabled={isLoading || success}
@@ -127,7 +127,7 @@ export default function SetupPage() {
                             <label className="text-sm font-medium">{t('auth.email')} (optional)</label>
                             <Input
                                 type="email"
-                                placeholder="admin@sweaterr.local"
+                                placeholder={t('setup.emailPlaceholder')}
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading || success}
@@ -172,7 +172,7 @@ export default function SetupPage() {
                                     {t('common.loading')}
                                 </>
                             ) : (
-                                'Create Admin Account'
+                                t('setup.createAdminAccount')
                             )}
                         </Button>
                     </form>

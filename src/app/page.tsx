@@ -50,11 +50,13 @@ import { useForums, useJDownloaderConfig, useAIConfig, useDownloads, useJDownloa
 import { useTheme } from '@/components/theme-provider';
 import { UserMenu } from '@/components/user-menu';
 import { UserManagement } from '@/components/config/user-management';
+import { useI18n } from '@/hooks/use-i18n';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('overview');
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
+  const { t } = useI18n('es');
 
   // Testing state
   const [testingResults, setTestingResults] = useState<any[]>([]);
@@ -158,13 +160,13 @@ export default function Home() {
             <span className="sr-only">Sweaterr</span>
           </div>
           <p className="text-muted-foreground">
-            Integración con foros de descarga directa para Sonarr/Radarr/Lidarr
+            {t('dashboard.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="flex items-center gap-1">
             <Activity className="h-3 w-3" />
-            Activo
+            {t('dashboard.active')}
           </Badge>
           {!loadingUser && currentUser && (
             <UserMenu user={currentUser} onThemeChange={(t) => setTheme(t)} currentTheme={theme} />
@@ -174,10 +176,10 @@ export default function Home() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
-          <TabsTrigger value="overview">Resumen</TabsTrigger>
-          <TabsTrigger value="forums">Foros</TabsTrigger>
-          <TabsTrigger value="testing">Testing</TabsTrigger>
-          <TabsTrigger value="downloads">Descargas</TabsTrigger>
+          <TabsTrigger value="overview">{t('dashboard.overview')}</TabsTrigger>
+          <TabsTrigger value="forums">{t('dashboard.forums')}</TabsTrigger>
+          <TabsTrigger value="testing">{t('dashboard.testing')}</TabsTrigger>
+          <TabsTrigger value="downloads">{t('dashboard.downloads')}</TabsTrigger>
           {isAdmin && <TabsTrigger value="config">Configuración</TabsTrigger>}
         </TabsList>
 
@@ -187,17 +189,17 @@ export default function Home() {
             {/* Forums Status */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Foros</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.forums')}</CardTitle>
                 <Globe className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.forums.online}/{stats.forums.total}</div>
                 <p className="text-xs text-muted-foreground">
-                  Conectados
+                  {t('dashboard.online')}
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   {getStatusIcon(stats.forums.online > 0)}
-                  <span className="text-xs">En línea</span>
+                  <span className="text-xs">{t('dashboard.online')}</span>
                 </div>
               </CardContent>
             </Card>
@@ -205,13 +207,13 @@ export default function Home() {
             {/* JDownloader Status */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">JDownloader</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.jdownloaderStatus')}</CardTitle>
                 <Download className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.jdownloader.downloadsActive}</div>
                 <p className="text-xs text-muted-foreground">
-                  Descargas activas
+                  {t('dashboard.activeDownloads')}
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   {getStatusIcon(stats.jdownloader.connected)}
@@ -223,7 +225,7 @@ export default function Home() {
             {/* AI Status */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">IA</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.aiStatus')}</CardTitle>
                 <Cpu className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -233,7 +235,7 @@ export default function Home() {
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   {getStatusIcon(stats.ai.connected)}
-                  <span className="text-xs">Conectado</span>
+                  <span className="text-xs">{t('dashboard.connected')}</span>
                 </div>
               </CardContent>
             </Card>
@@ -241,17 +243,17 @@ export default function Home() {
             {/* Total Downloads */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Descargas</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('dashboard.totalDownloads')}</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.jdownloader.downloadsTotal}</div>
                 <p className="text-xs text-muted-foreground">
-                  Histórico
+                  {t('dashboard.historical')}
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs">Operativo</span>
+                  <span className="text-xs">{t('dashboard.operational')}</span>
                 </div>
               </CardContent>
             </Card>
@@ -260,16 +262,16 @@ export default function Home() {
           {/* Recent Downloads */}
           <Card>
             <CardHeader>
-              <CardTitle>Descargas Recientes</CardTitle>
+              <CardTitle>{t('dashboard.recentDownloads')}</CardTitle>
               <CardDescription>
-                Últimas descargas procesadas desde los foros
+                {t('dashboard.lastDownloads')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {downloadsLoading ? (
-                <p>Cargando descargas...</p>
+                <p>{t('dashboard.loadingDownloads')}</p>
               ) : downloads.length === 0 ? (
-                <p className="text-muted-foreground">No hay descargas recientes</p>
+                <p className="text-muted-foreground">{t('dashboard.noRecentDownloads')}</p>
               ) : (
                 <div className="space-y-4">
                   {downloads.slice(0, 5).map((download) => (
@@ -282,14 +284,14 @@ export default function Home() {
                           </Badge>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>Foro: {download.forumName}</span>
-                          {download.size && <span>Tamaño: {download.size}</span>}
+                          <span>{t('dashboard.forum')}: {download.forumName}</span>
+                          {download.size && <span>{t('dashboard.size')}: {download.size}</span>}
                         </div>
                         {download.status === 'downloading' && (
                           <div className="mt-2">
                             <Progress value={download.progress} className="h-2" />
                             <p className="text-xs text-muted-foreground mt-1">
-                              {Math.round(download.progress)}% completado
+                              {Math.round(download.progress)}% {t('dashboard.completed')}
                             </p>
                           </div>
                         )}
@@ -306,9 +308,9 @@ export default function Home() {
         <TabsContent value="forums" className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight">Foros Configurados</h2>
+              <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.configuredForums')}</h2>
               <p className="text-muted-foreground">
-                Gestiona los foros de descarga directa y sesiones de FlareSolverr
+                {t('dashboard.manageForums')}
               </p>
             </div>
             <ForumConfig
@@ -333,9 +335,9 @@ export default function Home() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Globe className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No hay foros configurados</h3>
+                <h3 className="text-lg font-medium mb-2">{t('dashboard.noForumsConfigured')}</h3>
                 <p className="text-muted-foreground text-center mb-4">
-                  Añade tu primer foro de descarga directa para empezar a buscar contenido
+                  {t('dashboard.noForumsDescription')}
                 </p>
                 <ForumConfig
                   onConfigSave={async (values) => {
@@ -414,9 +416,9 @@ export default function Home() {
         {/* Testing Tab */}
         <TabsContent value="testing" className="space-y-6">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Testing y Emulación</h2>
+            <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.testingEmulation')}</h2>
             <p className="text-muted-foreground">
-              Prueba búsquedas, extracción de enlaces y automatización de foros
+              {t('dashboard.testingDescription')}
             </p>
           </div>
 
@@ -532,9 +534,9 @@ export default function Home() {
         {isAdmin && (
           <TabsContent value="config" className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight">Configuración</h2>
+              <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.configuration')}</h2>
               <p className="text-muted-foreground">
-                Configura los servicios y preferencias de la aplicación
+                {t('dashboard.configureServices')}
               </p>
             </div>
 
@@ -543,10 +545,10 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Settings className="h-5 w-5" />
-                    Gestión de usuarios
+                    {t('dashboard.userManagement')}
                   </CardTitle>
                   <CardDescription>
-                    Crear, editar roles y eliminar usuarios
+                    {t('dashboard.createEditDeleteUsers')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -558,16 +560,16 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Download className="h-5 w-5" />
-                    JDownloader
+                    {t('config.jdownloader')}
                   </CardTitle>
                   <CardDescription>
-                    Configura JDownloader para gestionar descargas automáticas
+                    {t('dashboard.jdownloaderConfig')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">JDownloader</h3>
+                      <h3 className="text-lg font-medium">{t('config.jdownloader')}</h3>
                       <JDownloaderConfig
                         config={undefined}
                         onConfigSave={async (values) => {
@@ -588,9 +590,9 @@ export default function Home() {
 
                     <div className="space-y-2">
                       {jdLoading ? (
-                        <p className="text-sm text-muted-foreground">Cargando...</p>
+                        <p className="text-sm text-muted-foreground">{t('dashboard.loading')}</p>
                       ) : jdownloaders.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No hay instancias de JDownloader configuradas.</p>
+                        <p className="text-sm text-muted-foreground">{t('dashboard.noJDownloaders')}</p>
                       ) : (
                         (jdownloaders as any[]).map((jd) => (
                           <div key={jd.id} className="flex items-center justify-between border rounded-md p-3">
@@ -600,7 +602,7 @@ export default function Home() {
                                   {jd.mode === 'local' ? (jd.connectionName || `${jd.localHost}:${jd.localPort}`) : jd.deviceName}
                                 </span>
                                 <Badge variant={jd.mode === 'local' ? 'secondary' : 'outline'}>
-                                  {jd.mode === 'local' ? 'Local' : 'Cloud'}
+                                  {jd.mode === 'local' ? t('dashboard.localMode') : t('dashboard.cloudMode')}
                                 </Badge>
                               </div>
                               <div className="text-xs text-muted-foreground">
@@ -654,14 +656,14 @@ export default function Home() {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Eliminar JDownloader?</AlertDialogTitle>
+                                    <AlertDialogTitle>{t('dashboard.deleteJDownloader')}</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Se eliminará permanentemente <strong>{jd.deviceName}</strong>.
-                                      Esta acción no se puede deshacer.
+                                      {t('dashboard.deleteJDownloaderDesc')} <strong>{jd.deviceName}</strong>.
+                                      {t('dashboard.undoNotPossible')}
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                                     <AlertDialogAction
                                       onClick={async () => {
                                         try {
@@ -672,7 +674,7 @@ export default function Home() {
                                       }}
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                     >
-                                      Eliminar
+                                      {t('common.delete')}
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
@@ -690,16 +692,16 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Cpu className="h-5 w-5" />
-                    Inteligencia Artificial
+                    {t('config.ai')}
                   </CardTitle>
                   <CardDescription>
-                    Configura el proveedor de IA para el mapeo de nombres
+                    {t('dashboard.aiConfig')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">Modelos de IA</h3>
+                      <h3 className="text-lg font-medium">{t('dashboard.aiModels')}</h3>
                       <AIConfig
                         config={undefined}
                         onConfigSave={async (values) => {
@@ -729,7 +731,7 @@ export default function Home() {
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
                                 <Badge variant="secondary">{ai.provider}</Badge>
-                                <span className="font-medium text-sm">{ai.model || 'Modelo por defecto'}</span>
+                                <span className="font-medium text-sm">{ai.model || t('dashboard.defaultModel')}</span>
                               </div>
                               {ai.baseUrl && (
                                 <div className="text-xs text-muted-foreground truncate max-w-xs">
@@ -777,14 +779,14 @@ export default function Home() {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Eliminar modelo de IA?</AlertDialogTitle>
+                                    <AlertDialogTitle>{t('dashboard.deleteAIModel')}</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Se eliminará permanentemente la configuración de <strong>{ai.provider}</strong>.
-                                      Esta acción no se puede deshacer.
+                                      {t('dashboard.deleteAIModelDesc')} <strong>{ai.provider}</strong>.
+                                      {t('dashboard.deleteAIModelUndoNotPossible')}
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                                     <AlertDialogAction
                                       onClick={async () => {
                                         try {
@@ -812,10 +814,10 @@ export default function Home() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Settings className="h-5 w-5" />
-                    Servicios *arr
+                    {t('config.arr')}
                   </CardTitle>
                   <CardDescription>
-                    Gestiona claves API por servicio (Sonarr/Radarr/Lidarr/Readarr)
+                    {t('dashboard.arrServices')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import { useI18n } from '@/hooks/use-i18n';
 import {
   Drawer,
   DrawerClose,
@@ -72,6 +73,7 @@ interface JDDownload {
 }
 
 export function DownloadsManager() {
+  const { t } = useI18n('es');
   const [downloads, setDownloads] = useState<JDDownload[]>([]);
   const [filteredDownloads, setFilteredDownloads] = useState<JDDownload[]>([]);
   const [loading, setLoading] = useState(true);
@@ -419,7 +421,7 @@ export function DownloadsManager() {
                               e.stopPropagation();
                               openDetails(download);
                             }}
-                            title="Ver detalles"
+                            title={t('components.viewDetails')}
                           >
                             <Info className="h-4 w-4" />
                           </Button>
@@ -529,7 +531,7 @@ export function DownloadsManager() {
                             size="sm"
                             onClick={() => handleResume(selected)}
                             disabled={actionLoading === `resume-${selected.uuid}`}
-                            title="Mover a descargas"
+                            title={t('components.moveToDownloads')}
                           >
                             <Play className="h-4 w-4 mr-1" />
                             Mover a descargas

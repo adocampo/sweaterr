@@ -227,8 +227,8 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
                   </FormControl>
                   <FormDescription>
                     {selectedProvider === 'ollama'
-                      ? 'No requerida para Ollama local'
-                      : 'API key del proveedor'
+                      ? t('components.apiKeyNotRequired')
+                      : t('components.apiKeyRequired')
                     }
                   </FormDescription>
                   <FormMessage />
@@ -250,8 +250,8 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
                   </FormControl>
                   <FormDescription>
                     {selectedProvider === 'ollama'
-                      ? 'URL de tu instancia de Ollama'
-                      : 'URL base de la API (opcional)'
+                      ? t('components.ollama')
+                      : t('components.apiBase')
                     }
                   </FormDescription>
                   <FormMessage />
