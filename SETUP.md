@@ -57,7 +57,7 @@ npm install
 ### Aplicar Migraciones
 
 ```bash
-npx prisma migrate dev
+export DATABASE_URL="file:./dev.db" && npx prisma migrate dev
 ```
 
 Esto creará:

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/sweaterr.png" alt="Sweaterr Logo" width="300">
+  <img src="public/logo.png" alt="Sweaterr Logo" width="300">
 </p>
 
 # Sweaterr
@@ -203,9 +203,9 @@ La pestaña **Testing** ofrece herramientas avanzadas para:
 
 - En foros nativos (vBulletin) el sistema detecta el total con patrones como: `Resultados 1 al 25 de 30`, `Results 1 - 25 of 30`, o variantes de "Mostrando resultados ... de Y".
 - Este total se usa para:
-   - Mostrar en UI la indicación "Mostrando X de Y"
-   - Detener **Buscar todos** / **Cargar todos** cuando se alcanza el total
-   - Evitar mezclar resultados de búsquedas distintas, reutilizando el mismo `searchid` para todas las páginas
+  - Mostrar en UI la indicación "Mostrando X de Y"
+  - Detener **Buscar todos** / **Cargar todos** cuando se alcanza el total
+  - Evitar mezclar resultados de búsquedas distintas, reutilizando el mismo `searchid` para todas las páginas
 
 ## Integración con Sonarr/Radarr/Lidarr
 

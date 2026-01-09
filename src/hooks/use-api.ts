@@ -116,7 +116,12 @@ export function useForums() {
         throw new Error(data.error);
       }
 
-      return data.success;
+      // Return both success boolean and message for better UI feedback
+      return {
+        success: data.success,
+        message: data.message || (data.success ? 'Conexión exitosa' : 'Conexión fallida'),
+        sessionStarted: data.sessionStarted || false,
+      };
     } catch (err: any) {
       console.error('Forum connection test failed:', err);
       throw err;
