@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -33,11 +33,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Settings, Loader2, Cpu } from 'lucide-react';
+import { Plus, Settings, Loader2, Cpu, CheckCircle, XCircle } from 'lucide-react';
+import { useI18n } from '@/hooks/use-i18n';
 import { AIConfigForm } from '@/lib/types';
 
-const aiSchema = z.object({
-  provider: z.string().min(1, 'El proveedor es requerido'),
+const createSchema = (t: ReturnType<typeof useI18n>['t']) => z.object({
+  provider: z.string().min(1, 'Provider required'),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
   model: z.string().optional(),
@@ -58,9 +59,11 @@ interface AIConfigProps {
   isEdit?: boolean;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  language?: 'es' | 'en';
 }
 
-export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit, isOpen: externalIsOpen, onOpenChange }: AIConfigProps) {
+export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit, isOpen: externalIsOpen, onOpenChange, language = 'es' }: AIConfigProps) {
+  const { t } = useI18n(language);
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
   const setIsOpen = (open: boolean) => {
@@ -73,6 +76,8 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [selectedProvider, setSelectedProvider] = useState(config?.provider || '');
+
+  const aiSchema = useMemo(() => createSchema(t), [t]);
 
   const form = useForm<AIConfigForm>({
     resolver: zodResolver(aiSchema),
@@ -139,7 +144,7 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
           {isAdd ? (
             <>
               <Plus className="h-4 w-4 mr-2" />
-              Añadir Modelo IA
+              {t('dashboard.aiConfig')}
             </>
           ) : (
             <Settings className="h-4 w-4" />
@@ -148,9 +153,9 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Configurar Inteligencia Artificial</DialogTitle>
+          <DialogTitle>{isEdit ? t('aiConfig.edit') : t('aiConfig.title')}</DialogTitle>
           <DialogDescription>
-            Configura el proveedor de IA para el mapeo de nombres y análisis de contenido
+            {t('aiConfig.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -161,11 +166,11 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
               name="provider"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Proveedor</FormLabel>
+                  <FormLabel>{t('aiConfig.provider')}</FormLabel>
                   <Select onValueChange={handleProviderChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un proveedor" />
+                        <SelectValue placeholder={t('aiConfig.providerPlaceholder')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -176,9 +181,6 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Selecciona el proveedor de IA que quieres usar
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -189,11 +191,11 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
               name="model"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Modelo</FormLabel>
+                  <FormLabel>{t('aiConfig.model')}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un modelo" />
+                        <SelectValue placeholder={t('aiConfig.modelPlaceholder')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -204,9 +206,6 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Modelo de IA a usar para el procesamiento
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -217,11 +216,11 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
               name="apiKey"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>API Key</FormLabel>
+                  <FormLabel>{t('aiConfig.apiKey')}</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="sk-..."
+                      placeholder={t('aiConfig.apiKeyPlaceholder')}
                       {...field}
                     />
                   </FormControl>
@@ -241,10 +240,10 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
               name="baseUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Base URL</FormLabel>
+                  <FormLabel>{t('aiConfig.baseUrl')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="https://api.openai.com"
+                      placeholder={t('aiConfig.baseUrlPlaceholder')}
                       {...field}
                     />
                   </FormControl>
@@ -272,12 +271,12 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
                 {isTesting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Probando...
+                    {t('aiConfig.testing')}
                   </>
                 ) : (
                   <>
                     <Cpu className="h-4 w-4" />
-                    Probar Conexión
+                    {t('aiConfig.test')}
                   </>
                 )}
               </Button>
@@ -287,12 +286,12 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
                   {testResult === 'success' ? (
                     <>
                       <CheckCircle className="h-3 w-3 mr-1" />
-                      Conectado
+                      {t('aiConfig.testSuccess')}
                     </>
                   ) : (
                     <>
                       <XCircle className="h-3 w-3 mr-1" />
-                      Error
+                      {t('aiConfig.testError')}
                     </>
                   )}
                 </Badge>
@@ -301,10 +300,10 @@ export function AIConfig({ config, onConfigSave, onTestConnection, isAdd, isEdit
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
-                Cancelar
+                {t('aiConfig.cancel')}
               </Button>
               <Button type="submit">
-                Guardar Configuración
+                {isEdit ? t('aiConfig.save') : t('common.save')}
               </Button>
             </DialogFooter>
           </form>

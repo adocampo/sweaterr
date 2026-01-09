@@ -10,11 +10,21 @@ interface Translations {
     [key: string]: any;
 }
 
+type TranslationParams = Record<string, string | number | boolean | null | undefined>;
+
 // Import translations
 const translations: Record<Language, Translations> = {
     es: esTranslations,
     en: enTranslations,
 };
+
+function interpolate(value: string, params?: TranslationParams): string {
+    if (!params) return value;
+    return value.replace(/\{(\w+)\}/g, (_, key: string) => {
+        const paramValue = params[key];
+        return paramValue === undefined || paramValue === null ? '' : String(paramValue);
+    });
+}
 
 export function useI18n(language: Language = 'es') {
     // Get the translation object for the current language
@@ -24,7 +34,7 @@ export function useI18n(language: Language = 'es') {
 
     // Helper function to get nested translation by path (e.g., "auth.login")
     const t = useCallback(
-        (path: string): string => {
+        (path: string, params?: TranslationParams): string => {
             const keys = path.split('.');
             let value: any = currentTranslations;
 
@@ -37,7 +47,8 @@ export function useI18n(language: Language = 'es') {
                 }
             }
 
-            return typeof value === 'string' ? value : path;
+            const template = typeof value === 'string' ? value : path;
+            return interpolate(template, params);
         },
         [currentTranslations]
     );
@@ -48,7 +59,7 @@ export function useI18n(language: Language = 'es') {
 /**
  * Server-side helper to get translations
  */
-export function getTranslation(language: Language, path: string): string {
+export function getTranslation(language: Language, path: string, params?: TranslationParams): string {
     const keys = path.split('.');
     let value: any = translations[language] || translations.es;
 
@@ -60,5 +71,6 @@ export function getTranslation(language: Language, path: string): string {
         }
     }
 
-    return typeof value === 'string' ? value : path;
+    const template = typeof value === 'string' ? value : path;
+    return interpolate(template, params);
 }

@@ -132,7 +132,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
     // Validate required fields
     if (!values.name || !values.baseUrl) {
       setTestResult('error');
-        setTestMessage(t('forumForm.missingNameOrUrl'));
+      setTestMessage(t('forumForm.missingNameOrUrl'));
       return;
     }
 
