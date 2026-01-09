@@ -98,6 +98,7 @@
     "deleteForum": "Delete Forum",
     "confirmDelete": "Are you sure you want to delete this forum?",
     "forumName": "Forum Name",
+    "forumNameDescription": "Descriptive name to identify this forum",
     "baseUrl": "Base URL",
     "searchMode": "Search Mode",
     "searchForumLabel": "Forum Label (Advanced Search)",

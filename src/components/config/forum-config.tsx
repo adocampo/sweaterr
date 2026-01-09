@@ -247,7 +247,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                       />
                     </FormControl>
                     <FormDescription>
-                      Nombre descriptivo del foro
+                      {t('forums.forumNameDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
