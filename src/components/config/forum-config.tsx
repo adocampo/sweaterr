@@ -142,9 +142,16 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
 
     try {
       if (onTestConnection) {
-        const success = await onTestConnection(values);
-        setTestResult(success ? 'success' : 'error');
-        setTestMessage(success ? t('forums.connectionSuccessful') : t('forums.connectionFailed'));
+        const result = await onTestConnection(values);
+        
+        // Handle both old format (boolean) and new format (object)
+        if (typeof result === 'boolean') {
+          setTestResult(result ? 'success' : 'error');
+          setTestMessage(result ? t('forums.connectionSuccessful') : t('forums.connectionFailed'));
+        } else if (result && typeof result === 'object') {
+          setTestResult(result.success ? 'success' : 'error');
+          setTestMessage(result.message || (result.success ? t('forums.connectionSuccessful') : t('forums.connectionFailed')));
+        }
       } else {
         setTestResult('error');
         setTestMessage('No hay función de test configurada');

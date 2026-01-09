@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ForumService } from '@/lib/services/forum';
+import { FlareSolverrClient } from '@/lib/services/flaresolverr-client';
+import { sessionManager } from '@/lib/services/flaresolverr-session-manager';
 import { db } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
@@ -62,9 +64,42 @@ export async function POST(request: NextRequest) {
                 });
             }
 
+            // After successful authentication, attempt to create a FlareSolverr session for future requests
+            let sessionStarted = false;
+            let sessionMessage = '';
+            
+            try {
+                const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+                if (flaresolverrUrl && existing?.id) {
+                    const fsClient = new FlareSolverrClient(flaresolverrUrl);
+                    const url = new URL(baseUrl);
+                    const ttlMs = existing.flaresolverrSessionTTL || (30 * 60 * 1000); // Default 30 minutes
+                    
+                    try {
+                        const sessionId = await sessionManager.getSession(
+                            existing.id,
+                            url.host,
+                            ttlMs,
+                            fsClient
+                        );
+                        sessionStarted = true;
+                        sessionMessage = `Sesión FlareSolverr iniciada (ID: ${sessionId.substring(0, 8)}..., TTL: ${Math.round(ttlMs / 60000)}m).`;
+                        console.log(`[ForumCheck] ✓ ${sessionMessage}`);
+                    } catch (sessionErr) {
+                        console.warn('[ForumCheck] Could not create FlareSolverr session, but authentication succeeded:', sessionErr);
+                        sessionMessage = 'Autenticación exitosa, pero no se pudo crear sesión FlareSolverr (las búsquedas funcionarán pero requerirán más tiempo).';
+                    }
+                }
+            } catch (err) {
+                console.warn('[ForumCheck] Error attempting to create FlareSolverr session:', err);
+            }
+
             return NextResponse.json({
                 success: true,
-                message: 'Autenticación exitosa. El foro está configurado correctamente.',
+                message: sessionStarted 
+                    ? `Autenticación exitosa. ${sessionMessage}`
+                    : 'Autenticación exitosa. El foro está configurado correctamente.',
+                sessionStarted,
             });
         }
 
