@@ -56,7 +56,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('overview');
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
-  const { t } = useI18n(currentUser?.language || 'es');
+  const [userLanguage, setUserLanguage] = useState<'es' | 'en'>('es');
+  const { t } = useI18n(userLanguage);
 
   // Testing state
   const [testingResults, setTestingResults] = useState<any[]>([]);
@@ -108,6 +109,9 @@ export default function Home() {
         const data = await res.json();
         if (mounted && data?.success) {
           setCurrentUser(data.user);
+          if (data.user?.language) {
+            setUserLanguage(data.user.language as 'es' | 'en');
+          }
           if (data.user?.theme) {
             setTheme(data.user.theme as 'light' | 'dark' | 'system');
           }
@@ -323,7 +327,7 @@ export default function Home() {
                 }
               }}
               onTestConnection={testForumConnection}
-              language={currentUser?.language as 'es' | 'en'}
+              language={userLanguage}
             />
           </div>
 
@@ -349,7 +353,7 @@ export default function Home() {
                     }
                   }}
                   onTestConnection={testForumConnection}
-                  language={currentUser?.language as 'es' | 'en'}
+                  language={userLanguage}
                 />
               </CardContent>
             </Card>
@@ -408,7 +412,7 @@ export default function Home() {
               forumId={editingForum}
               isOpen={!!editingForum}
               onOpenChange={(open) => !open && setEditingForum(null)}
-              language={currentUser?.language as 'es' | 'en'}
+              language={userLanguage}
             />
           )}
         </TabsContent>
@@ -527,7 +531,7 @@ export default function Home() {
 
         {/* Downloads Tab */}
         <TabsContent value="downloads" className="space-y-6">
-          <DownloadsManager language={currentUser?.language || 'es'} />
+          <DownloadsManager language={userLanguage} />
         </TabsContent>
 
         {/* Configuration Tab */}
@@ -552,7 +556,7 @@ export default function Home() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <UserManagement language={currentUser?.language || 'es'} />
+                  <UserManagement language={userLanguage} />
                 </CardContent>
               </Card>
 
