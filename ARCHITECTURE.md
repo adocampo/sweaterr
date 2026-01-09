@@ -60,6 +60,13 @@
    - UI: Tarjetas con switch toggle, botones icon, AlertDialog
    - **CRÍTICO Next.js 15**: Siempre hacer `await params` en rutas dinámicas `[id]`
 
+6. **Sistema i18n obligatorio** (desde 2026-01-09):
+   - **NUNCA hardcodear texto en componentes**: Todo texto visible debe venir de `t(key)`
+   - **Añadir labels PRIMERO**: Antes de crear cualquier componente con texto, añadir las claves en `es.json` y `en.json`
+   - **Estructura**: Organizar por sección lógica (auth, forums, dashboard, components, etc.)
+   - **Uso**: `const { t } = useI18n('es')` en componentes client-side, luego `t('section.key')`
+   - **Validación**: Verificar que el texto se muestra correctamente en ambos idiomas (español e inglés)
+
 ### Cómo Continuar el Trabajo
 
 1. **Antes de modificar código**:
@@ -363,9 +370,20 @@ const text = t('forums.addForum'); // "Añadir Foro"
 {
   "auth": { "login": "...", "setup": "..." },
   "forums": { "addForum": "...", "editForum": "..." },
+  "dashboard": { "cards": {...}, "tabs": {...} },
+  "components": { "buttons": {...}, "labels": {...} },
   "common": { "save": "...", "cancel": "..." }
 }
 ```
+
+**Cobertura completa**:
+
+- ✅ Todas las páginas principales (setup, login, dashboard)
+- ✅ Todos los componentes de configuración
+- ✅ Mensajes de validación y errores
+- ✅ Labels, placeholders y tooltips
+- ✅ Diálogos y alertas
+- ✅ ~150+ claves de traducción en cada idioma
 
 ### 7. Integración JDownloader2
 
@@ -604,6 +622,28 @@ DEEPSEEK_API_KEY="..."
 ---
 
 ## 📝 CHANGELOG
+
+### 2026-01-09 (Localización i18n Completa)
+
+- ✨ **Sistema i18n completo**: Implementada localización exhaustiva reemplazando todas las cadenas hardcodeadas en español e inglés por labels traducibles desde `es.json` y `en.json`.
+- 📄 **Archivos de traducción expandidos**: Añadidas ~150 nuevas claves de traducción organizadas por sección (setup, login, dashboard, forums, testing, components, validation, errors).
+- 🌐 **Páginas localizadas**:
+  - **Setup** (`src/app/setup/page.tsx`): Validación de usuario/contraseña, mensajes de error, labels de formulario
+  - **Login** (`src/app/login/page.tsx`): Campos de autenticación, botones, mensajes de error
+  - **Dashboard** (`src/app/page.tsx`): Títulos de cards, descripciones, tabs, diálogos, estados vacíos (~100+ reemplazos)
+- 🔧 **Componentes de configuración localizados**:
+  - `forum-session-settings.tsx`: Estado de sesión, recomendaciones, duraciones
+  - `forum-config.tsx`: Placeholders, ejemplos de selectores CSS
+  - `jdownloader-config.tsx`: Nombres de conexión, hosts, puertos
+  - `ai-config.tsx`: Descripciones de API keys por proveedor
+- 📦 **Downloads localizados** (`downloads-manager.tsx`): Atributos title de botones
+- 🛠️ **Proceso de implementación**:
+  - Audit completo de cadenas hardcodeadas en toda la aplicación
+  - Scripts de Python para reemplazos masivos en archivos grandes
+  - Hooks `useI18n('es')` añadidos a componentes client-side
+  - Corrección de errores de importación (placement de imports)
+- 📊 **Estadísticas**: 10 archivos modificados, 365 inserciones(+), 99 eliminaciones(-)
+- 🎯 **Convención establecida**: De ahora en adelante, **todos** los textos nuevos deben añadirse primero a ambos archivos de localización (es.json y en.json) antes de ser usados en componentes
 
 ### 2026-01-09 (Fix: Singleton Pattern para FlareSolverrSessionManager - Sessions Ahora Visibles en UI)
 
@@ -1074,27 +1114,7 @@ DEEPSEEK_API_KEY="..."
 
 ### Features futuras (aún no implementadas)
 
-#### 1. Placeholders e i18n Completos
-
-**Estado**: ⏭️ Pendiente  
-**Estimación**: 4-6 horas
-
-**Problema**: Cambio de idioma funciona parcialmente, faltan placeholders en muchos textos.
-
-**Tareas**:
-
-- [ ] Auditoría completa de textos hardcodeados
-- [ ] Agregar traducciones faltantes a `es.json` y `en.json`
-- [ ] Actualizar componentes para usar `t()`
-- [ ] Validar cambio de idioma en toda la aplicación
-
-**Archivos afectados**:
-
-- `src/locales/es.json`
-- `src/locales/en.json`
-- Múltiples componentes con texto hardcodeado
-
-#### 2. Detección de Idiomas Mejorada
+#### 1. Detección de Idiomas Mejorada
 
 **Estado**: ⏭️ Pendiente  
 **Estimación**: 2-3 horas
@@ -1114,7 +1134,7 @@ DEEPSEEK_API_KEY="..."
 
 - `src/app/api/testing/metadata/route.ts`
 
-#### 3. Tablas Dinámicas Series vs Películas
+#### 2. Tablas Dinámicas Series vs Películas
 
 **Estado**: ⏭️ Pendiente  
 **Estimación**: 1-2 horas
@@ -1134,7 +1154,7 @@ DEEPSEEK_API_KEY="..."
 - `src/components/testing/search-tester.tsx`
 - `src/components/testing/result-viewer.tsx`
 
-#### 4. Documentación de Selectores CSS
+#### 3. Documentación de Selectores CSS
 
 **Estado**: ⏭️ Pendiente  
 **Estimación**: 2-3 horas
@@ -1321,5 +1341,5 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 
 ### FIN DEL DOCUMENTO
 
-**Versión**: 1.3.1 (09/01/2026)  
+**Versión**: 1.4.0 (09/01/2026)  
 **Estado**: En desarrollo activo  
