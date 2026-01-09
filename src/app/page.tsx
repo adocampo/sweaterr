@@ -184,7 +184,7 @@ export default function Home() {
           <TabsTrigger value="forums">{t('dashboard.forums')}</TabsTrigger>
           <TabsTrigger value="testing">{t('dashboard.testing')}</TabsTrigger>
           <TabsTrigger value="downloads">{t('dashboard.downloads')}</TabsTrigger>
-          {isAdmin && <TabsTrigger value="config">Configuración</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="config">{t('dashboard.configuration')}</TabsTrigger>}
         </TabsList>
 
         {/* Overview Tab */}
