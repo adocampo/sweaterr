@@ -143,7 +143,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
     try {
       if (onTestConnection) {
         const result = await onTestConnection(values);
-        
+
         // Handle both old format (boolean) and new format (object)
         if (typeof result === 'boolean') {
           setTestResult(result ? 'success' : 'error');
