@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import esTranslations from '@/locales/es.json';
+import enTranslations from '@/locales/en.json';
 
 type Language = 'es' | 'en';
 
@@ -10,8 +12,8 @@ interface Translations {
 
 // Import translations
 const translations: Record<Language, Translations> = {
-    es: require('@/locales/es.json'),
-    en: require('@/locales/en.json'),
+    es: esTranslations,
+    en: enTranslations,
 };
 
 export function useI18n(language: Language = 'es') {
