@@ -671,6 +671,31 @@ DEEPSEEK_API_KEY="..."
   - `src/locales/es.json` (agregada clave)
 - 🎯 **Validación**: Overview cards ahora muestran texto consistentemente traducido al cambiar entre inglés y español
 
+### 2026-01-09 (Fix: Internacionalización de Tabla de Foros)
+
+- 🐛 **Problema**: Los labels y tooltips en la tabla de Foros (ForumsTable) mostraban strings hardcodeados en español:
+  - "Sin sesión" en lugar de estar traducido
+  - Tooltips: "Editar configuración" y "Eliminar foro"
+  - Diálogo de confirmación: "¿Eliminar foro?" con mensaje sin traducir
+  - Botones: "Cancelar" y "Eliminar"
+- 🔍 **Causa raíz**: 
+  - El componente `ForumsTable` recibe la prop `language` pero los strings no estaban reemplazados por llamadas `t()`
+  - Las claves de traducción no existían en los archivos locales
+- ✅ **Solución implementada**:
+  - Agregadas 5 nuevas claves a `forumsTable` en ambos locales:
+    - `noSession`: "Sin sesión" (es) / "No session" (en)
+    - `editConfiguration`: "Editar configuración" (es) / "Edit configuration" (en)
+    - `deleteForumAction`: "Eliminar foro" (es) / "Delete forum" (en)
+    - `confirmDeleteForum`: "¿Eliminar foro?" (es) / "Delete forum?" (en)
+    - `undoNotPossible`: "Esta acción no se puede deshacer. El foro se eliminará de forma permanente." (es) / "This action cannot be undone. The forum will be permanently deleted." (en)
+  - Reemplazados todos los strings hardcodeados con llamadas `t()` en `src/components/config/forums-table.tsx`
+  - Reutilizadas claves existentes para botones: `t('common.cancel')` y `t('common.delete')`
+- 📝 **Archivos modificados**:
+  - `src/components/config/forums-table.tsx` (5 reemplazos)
+  - `src/locales/en.json` (5 claves nuevas)
+  - `src/locales/es.json` (5 claves nuevas)
+- 🎯 **Validación**: Tabla de Foros ahora muestra texto completamente traducido al cambiar entre idiomas
+
 ### 2026-01-09 (Fix: Singleton Pattern para FlareSolverrSessionManager - Sessions Ahora Visibles en UI)
 
 - 🐛 **Bug crítico**: Las sesiones de FlareSolverr se creaban correctamente (logs lo confirmaban) pero no eran visibles en la UI de ForumsTable, que mostraba "Sin sesión".
