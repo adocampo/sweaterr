@@ -623,6 +623,19 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-10 (Dashboard: estado JDownloader en Overview + sync a BD)
+
+- 📊 **Problema**: El dashboard mostraba stats vacías porque usaba descargas de la BD (sin sincronizar) y la tarjeta “Total Descargas” era poco legible.
+- ✅ **Solución**:
+  - Rehabilitada la sincronización en `/api/downloads/status` para escribir en BD (crea/actualiza descargas por `jDownloaderId`, mapea estados y progreso)
+  - Overview ahora consume descargas reales de JDownloader (sin depender del histórico vacío)
+  - Tarjeta “Total Descargas” rediseñada (boxes coloreados y layout 2x2) para claridad
+  - “Descargas recientes” usa el feed de JDownloader (nombre, host, tamaño, velocidad, progreso, ETA) con orden por prioridad
+- 📝 **Archivos modificados**:
+  - `src/app/page.tsx` (stats del dashboard desde JDownloader, rediseño tarjeta, lista recientes desde JD)
+  - `src/app/api/downloads/status/route.ts` (sincroniza estados/progreso con Prisma, crea faltantes)
+- 🎯 **Resultado**: El Overview refleja el mismo estado que la pestaña “Descargas”; las descargas completadas se persisten en la BD y las cards son legibles.
+
 ### 2026-01-10 (Feature: Downloads Tab i18n + Reduce Polling Frequency)
 
 - 🌐 **Problema**: La pestaña "Descargas" estaba completamente en español sin traducciones, y el polling cada 1 segundo inundaba la consola con logs HTTP.
@@ -1634,6 +1647,29 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 - Decidir si agregar selector de idioma en login/setup
 - Si sí: Implementar flotante o selector discreto (no interrumpe flujo)
 - Si no: Documento la decisión para referencia futura
+
+### 7. Parpadeo/Reseteo en Refresh de Descargas (Polling)
+
+**Severidad**: Media  
+**Estado**: Identificado, requiere rediseño de streaming
+
+**Descripción**: Al refrescar datos (dashboard y pestaña Descargas) el polling limpia la lista y la vuelve a renderizar, provocando “flash” de vacío y reaparición de elementos en cada ciclo de fetch.
+
+**Impacto**: UX pobre; los usuarios ven desaparecer/volver las tarjetas y progresos durante las actualizaciones periódicas.
+
+**Causa raíz**:
+
+- Estrategia de polling reemplaza el array completo tras cada fetch
+- No se mantiene caché previa mientras llega la respuesta
+- No hay canal en tiempo real (WebSocket/SSE) para updates incrementales
+
+**Mitigaciones actuales**: Ninguna; polling sigue causando flashes aunque sea menos frecuente (3s/10s).
+
+**Mejoras pendientes**:
+
+- Implementar streaming (WebSockets o SSE) para push incremental sin limpiar el DOM
+- Conservar el array previo durante el loading y aplicar diffs en memoria
+- Considerar suspense/loading placeholders por item en lugar de lista vacía
 - Re-render completo del árbol de componentes no se propaga correctamente
 - Hook useI18n no se reinicializa correctamente
 - Context o Provider i18n tiene memory leak o estado inconsistente
