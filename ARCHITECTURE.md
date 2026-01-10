@@ -623,6 +623,19 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-10 (Feature: Downloads Tab i18n + Reduce Polling Frequency)
+
+- 🌐 **Problema**: La pestaña "Descargas" estaba completamente en español sin traducciones, y el polling cada 1 segundo inundaba la consola con logs HTTP.
+- ✅ **Solución**:
+  - Internacionalizado completamente `downloads-manager.tsx` con ~40 traducciones (en/es)
+  - Reducido polling de 1s→3s para descargas activas y 5s→10s para inactivas
+  - Añadidas claves de traducción para todos los estados, acciones y mensajes
+- 📝 **Archivos modificados**:
+  - `src/components/downloads/downloads-manager.tsx` (40+ reemplazos hardcoded → t())
+  - `src/locales/en.json` (añadidas 14 claves en downloads.*)
+  - `src/locales/es.json` (añadidas 14 claves en downloads.*)
+- 🎯 **Resultado**: Pestaña Descargas totalmente traducible; consola con 3x menos logs por segundo
+
 ### 2026-01-10 (Feature: JDownloader Logs to File)
 
 - 🔇 **Problema**: La consola estaba inundada con logs de polling de JDownloader (cada segundo en pestaña Descargas) mostrando todas las llamadas HTTP a MyJDownloader API, haciendo imposible detectar otros mensajes importantes.
@@ -1502,7 +1515,41 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 
 **Mejora pendiente**: Cache de respuestas FlareSolverr o configurar FlareSolverr con VPN para evitar bloqueos regionales.
 
-### 4. Cambio de Idioma Causa Pantalla en Blanco
+### 4. Polling HTTP Floods Console Output
+
+**Severidad**: Media  
+**Estado**: Parcialmente mitigado, requiere solución definitiva
+
+**Descripción**: La pestaña "Descargas" hace polling cada 3s (activo) o 10s (inactivo) a `/api/downloads/status`, generando logs HTTP en stdout que inundan la consola en desarrollo.
+
+**Impacto**:
+
+- Consola ilegible durante desarrollo cuando pestaña Descargas está activa
+- Dificulta debugging de otros componentes
+- Los logs se escriben a `jdownloader.log` pero Next.js muestra los requests HTTP
+
+**Causa raíz**:
+
+- Next.js loggea todas las peticiones HTTP por defecto (`GET /api/downloads/status 200 in XXXms`)
+- No hay forma nativa de silenciar logs HTTP específicos sin afectar otros
+- Configuración `logging.fetches` en next.config.ts no afecta logs de API routes
+
+**Mitigaciones actuales**:
+
+- Reducido polling de 1s→3s (activo) y 5s→10s (inactivo) para menos spam
+- Logs internos de JDownloader van a archivo en lugar de consola
+
+**Soluciones posibles (pendientes investigación)**:
+
+- Implementar middleware custom que filtre logs de rutas específicas
+- Usar variable de entorno `NODE_ENV=production` en dev (pierde otros logs útiles)
+- Implementar proxy interno que maneje polling sin logs
+- Usar WebSockets en lugar de polling para estado en tiempo real
+- Configurar logger custom de Next.js 15 (requiere investigar API experimental)
+
+**TODO**: Investigar implementación de WebSockets para reemplazar polling HTTP
+
+### 5. Cambio de Idioma Causa Pantalla en Blanco
 
 **Severidad**: Media  
 **Estado**: Identificado, sin solución investigada aún
