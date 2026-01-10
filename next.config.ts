@@ -18,12 +18,6 @@ const nextConfig: NextConfig = {
       hmrRefreshes: false,
     },
   },
-  // Silence all request logs to avoid console spam
-  experimental: {
-    logging: {
-      level: 'error', // Only show errors, not regular requests
-    },
-  },
 };
 
 export default nextConfig;
