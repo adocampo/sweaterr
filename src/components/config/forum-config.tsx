@@ -132,7 +132,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
     // Validate required fields
     if (!values.name || !values.baseUrl) {
       setTestResult('error');
-      setTestMessage('Nombre y URL base son requeridos');
+      setTestMessage(t('forumForm.missingNameOrUrl'));
       return;
     }
 
@@ -154,11 +154,11 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
         }
       } else {
         setTestResult('error');
-        setTestMessage('No hay función de test configurada');
+        setTestMessage(t('forumForm.testNotConfigured'));
       }
     } catch (error: any) {
       setTestResult('error');
-      setTestMessage(error.message || 'Error desconocido');
+      setTestMessage(error.message || t('forumForm.unknownError'));
     } finally {
       setIsTesting(false);
     }
@@ -189,15 +189,15 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
 
       if (response.ok) {
         setTestResult('success');
-        setTestMessage('Cookies borradas. Ejecuta "Probar conexión" para obtener nuevas cookies.');
+        setTestMessage(t('forumForm.clearCookiesSuccess'));
       } else {
         const data = await response.json();
         setTestResult('error');
-        setTestMessage(data.error || 'Error al borrar las cookies');
+        setTestMessage(data.error || t('forumForm.clearCookiesError'));
       }
     } catch (error: any) {
       setTestResult('error');
-      setTestMessage(error.message || 'Error desconocido');
+      setTestMessage(error.message || t('forumForm.unknownError'));
     } finally {
       setIsTesting(false);
     }
@@ -223,7 +223,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
             {isEdit ? t('forums.editForum') : t('forums.addForum')}
           </DialogTitle>
           <DialogDescription>
-            Configura un foro de descarga directa para buscar contenido
+            {t('forums.configureDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -238,7 +238,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                     <FormLabel>{t('forums.forumName')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="DescargasDD"
+                        placeholder={t('components.forumNameExample')}
                         {...field}
                         onChange={(e) => {
                           field.onChange(e);
@@ -247,7 +247,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                       />
                     </FormControl>
                     <FormDescription>
-                      Nombre descriptivo del foro
+                      {t('forums.forumNameDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -267,7 +267,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                       />
                     </FormControl>
                     <FormDescription>
-                      URL principal del foro
+                      {t('forumForm.baseUrlDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -283,13 +283,13 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                   <FormLabel>{t('forums.searchMode')}</FormLabel>
                   <FormControl>
                     <select className="w-full border rounded-md h-9 px-2" {...field}>
-                      <option value="native">Nativo</option>
-                      <option value="google_site">Google (site:)</option>
-                      <option value="google_cse">Google CSE (cx)</option>
+                      <option value="native">{t('forumForm.searchModeNative')}</option>
+                      <option value="google_site">{t('forumForm.searchModeGoogleSite')}</option>
+                      <option value="google_cse">{t('forumForm.searchModeGoogleCse')}</option>
                     </select>
                   </FormControl>
                   <FormDescription>
-                    Usa Google (site:) si el foro redirige a un buscador externo
+                    {t('forumForm.searchModeDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -302,12 +302,12 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                 name="cseId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Google CSE ID (cx)</FormLabel>
+                    <FormLabel>{t('forumForm.cseId')}</FormLabel>
                     <FormControl>
                       <Input placeholder="44f04a516a5b84434" {...field} />
                     </FormControl>
                     <FormDescription>
-                      Identificador de tu motor CSE si el foro usa Google CSE
+                      {t('forumForm.cseIdDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -322,7 +322,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                   name="searchPath"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Ruta de Búsqueda</FormLabel>
+                      <FormLabel>{t('forumForm.searchPath')}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="/search.php?search_type=1"
@@ -330,7 +330,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                         />
                       </FormControl>
                       <FormDescription>
-                        Path para la búsqueda de contenido (solo para modo nativo). Puedes incluir parámetros, por ejemplo: /search.php?search_type=1
+                        {t('forumForm.searchPathDescription')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -345,12 +345,12 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                       <FormLabel>{t('forums.searchForumLabel')}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Zona Series"
+                          placeholder={t('components.searchForumExample')}
                           {...field}
                         />
                       </FormControl>
                       <FormDescription>
-                        Etiqueta o nombre del foro a preseleccionar en la búsqueda avanzada (ej: "Zona Series", "Series HD", etc.)
+                        {t('forumForm.searchForumLabelDescription')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -364,7 +364,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
               name="flaresolverrSessionTTL"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('forums.sessionDuration')}</FormLabel>
+                  <FormLabel>{t('forumForm.sessionDurationLabel')}</FormLabel>
                   <div className="flex items-center gap-2">
                     <FormControl>
                       <Input
@@ -402,7 +402,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                   onCheckedChange={setUseCredentials}
                 />
                 <label className="text-sm font-medium">
-                  Requiere autenticación
+                  {t('forums.requiresAuth')}
                 </label>
               </div>
 
@@ -413,7 +413,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                     name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Usuario</FormLabel>
+                        <FormLabel>{t('forumForm.username')}</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="tu_usuario"
@@ -430,11 +430,11 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Contraseña</FormLabel>
+                        <FormLabel>{t('forumForm.password')}</FormLabel>
                         <FormControl>
                           <Input
                             type="password"
-                            placeholder="••••••••"
+                            placeholder={t('components.passwordExample')}
                             {...field}
                           />
                         </FormControl>
@@ -449,9 +449,9 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
             <Separator />
 
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">Selectores CSS (Opcional)</h4>
+              <h4 className="text-sm font-medium">{t('forumForm.cssSelectors')}</h4>
               <p className="text-xs text-muted-foreground">
-                Selectores personalizados para parsear el contenido del foro
+                {t('forumForm.cssSelectorsDescription')}
               </p>
 
               <FormField
@@ -459,7 +459,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                 name="thankButtonSelector"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Botón de Gracias</FormLabel>
+                    <FormLabel>{t('forumForm.thankButton')}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder=".thank-button, button[title*='thank']"
@@ -467,7 +467,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                       />
                     </FormControl>
                     <FormDescription>
-                      Selector CSS para el botón de "Gracias"
+                      {t('forumForm.thankButtonDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -479,7 +479,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                 name="linksContainerSelector"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contenedor de Enlaces</FormLabel>
+                    <FormLabel>{t('forumForm.linksContainer')}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder=".post-content, .message-body"
@@ -487,7 +487,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                       />
                     </FormControl>
                     <FormDescription>
-                      Selector CSS para el contenedor de enlaces
+                      {t('forumForm.linksContainerDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -499,7 +499,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                 name="postTitleSelector"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Título del Post</FormLabel>
+                    <FormLabel>{t('forumForm.postTitle')}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder=".post-title, .topic-title, h1"
@@ -507,7 +507,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                       />
                     </FormControl>
                     <FormDescription>
-                      Selector CSS para el título del post
+                      {t('forumForm.postTitleDescription')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -574,10 +574,10 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                 {isTesting && testResult === null ? (
                   <>
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    Borrando...
+                    {t('forumForm.clearingCookies')}
                   </>
                 ) : (
-                  'Borrar Cookies'
+                  t('forumForm.clearCookies')
                 )}
               </Button>
               <div className="flex-1" />

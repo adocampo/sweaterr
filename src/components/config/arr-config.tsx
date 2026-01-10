@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,16 +12,23 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Copy, Settings, KeyRound, Plus, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useI18n } from '@/hooks/use-i18n';
 import { useArrServices } from '@/hooks/use-api';
 
-const schema = z.object({
+const createSchema = (t: ReturnType<typeof useI18n>['t']) => z.object({
     type: z.enum(['sonarr', 'radarr', 'lidarr', 'readarr']),
-    name: z.string().min(1, 'El nombre es requerido'),
+    name: z.string().min(1, 'Name required'),
 });
 
-type ArrForm = z.infer<typeof schema>;
+type ArrForm = z.infer<ReturnType<typeof createSchema>>;
 
-export function ArrConfig() {
+interface ArrConfigProps {
+    language?: 'es' | 'en';
+}
+
+export function ArrConfig({ language = 'es' }: ArrConfigProps) {
+    const { t } = useI18n(language);
+    const schema = useMemo(() => createSchema(t), [t]);
     const { services, loading, createService, deleteService, toggleService, refetch } = useArrServices();
     const [open, setOpen] = useState(false);
     const [editOpen, setEditOpen] = useState<string | null>(null);
@@ -55,27 +62,27 @@ export function ArrConfig() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Servicios *arr</h3>
+                <h3 className="text-lg font-medium">{t('arrConfig.title')}</h3>
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
                         <Button>
-                            <Plus className="h-4 w-4 mr-2" /> Añadir Servicio
+                            <Plus className="h-4 w-4 mr-2" /> {t('arrConfig.add')}
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Nuevo Servicio *arr</DialogTitle>
-                            <DialogDescription>Genera una API key por servicio.</DialogDescription>
+                            <DialogTitle>{t('arrConfig.newTitle')}</DialogTitle>
+                            <DialogDescription>{t('arrConfig.add')}</DialogDescription>
                         </DialogHeader>
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(submit)} className="space-y-4">
                                 <FormField name="type" control={form.control} render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Tipo</FormLabel>
+                                        <FormLabel>{t('arrConfig.type')}</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Selecciona un tipo" />
+                                                    <SelectValue placeholder={t('arrConfig.type')} />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
@@ -91,17 +98,17 @@ export function ArrConfig() {
 
                                 <FormField name="name" control={form.control} render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Nombre</FormLabel>
+                                        <FormLabel>{t('arrConfig.name')}</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Mi Sonarr" {...field} />
+                                            <Input placeholder={t('arrConfig.namePlaceholder')} {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
 
                                 <DialogFooter>
-                                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                                    <Button type="submit">Crear</Button>
+                                    <Button type="button" variant="outline" onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
+                                    <Button type="submit">{t('arrConfig.create')}</Button>
                                 </DialogFooter>
                             </form>
                         </Form>
@@ -111,9 +118,9 @@ export function ArrConfig() {
 
             <div className="space-y-2">
                 {loading ? (
-                    <p>Cargando servicios...</p>
+                    <p>{t('arrConfig.loading')}</p>
                 ) : services.length === 0 ? (
-                    <p className="text-muted-foreground">Aún no hay servicios *arr configurados.</p>
+                    <p className="text-muted-foreground">{t('arrConfig.empty')}</p>
                 ) : (
                     services.map((s) => (
                         <div key={s.id} className="flex items-center justify-between border rounded-md p-3">
@@ -149,7 +156,7 @@ export function ArrConfig() {
                                     </DialogTrigger>
                                     <DialogContent>
                                         <DialogHeader>
-                                            <DialogTitle>Editar Servicio *arr</DialogTitle>
+                                            <DialogTitle>{t('arrConfig.editTitle')}</DialogTitle>
                                         </DialogHeader>
                                         <Form {...editForm}>
                                             <form
@@ -166,7 +173,7 @@ export function ArrConfig() {
                                             >
                                                 <FormField name="type" control={editForm.control} render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>Tipo</FormLabel>
+                                                        <FormLabel>{t('arrConfig.type')}</FormLabel>
                                                         <Select onValueChange={field.onChange} value={field.value}>
                                                             <FormControl>
                                                                 <SelectTrigger>
@@ -186,17 +193,17 @@ export function ArrConfig() {
 
                                                 <FormField name="name" control={editForm.control} render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>Nombre</FormLabel>
+                                                        <FormLabel>{t('arrConfig.name')}</FormLabel>
                                                         <FormControl>
-                                                            <Input placeholder="Mi Sonarr" {...field} />
+                                                            <Input placeholder={t('arrConfig.namePlaceholder')} {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
                                                 )} />
 
                                                 <DialogFooter>
-                                                    <Button type="button" variant="outline" onClick={() => setEditOpen(null)}>Cancelar</Button>
-                                                    <Button type="submit">Guardar</Button>
+                                                    <Button type="button" variant="outline" onClick={() => setEditOpen(null)}>{t('common.cancel')}</Button>
+                                                    <Button type="submit">{t('arrConfig.save')}</Button>
                                                 </DialogFooter>
                                             </form>
                                         </Form>
