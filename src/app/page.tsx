@@ -168,6 +168,13 @@ export default function Home() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* TODO: Show current download speed instead of just "Active" badge
+               - Fetch current speed from /api/downloads/status
+               - Display formatted speed (e.g., "15.2 MB/s")
+               - Update in real-time with same polling interval as downloads tab
+               - Show icon when no active downloads (e.g., "0 KB/s" or just activity icon)
+               - Consider adding total progress bar for all active downloads
+          */}
           <Badge variant="outline" className="flex items-center gap-1">
             <Activity className="h-3 w-3" />
             {t('dashboard.active')}
