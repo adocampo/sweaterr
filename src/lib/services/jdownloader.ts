@@ -174,7 +174,8 @@ export class JDownloaderService {
   private deviceSecret?: any; // Now stored as WordArray
   private serverEncryptionToken?: any;
   private deviceEncryptionToken?: any;
-  private appKey = 'myjd_webextension_firefox'; // Del addon oficial
+  private appKey = process.env.MYJD_APPKEY || 'myjd_webextension_firefox'; // Allow override via env
+  private lastError?: string;
   private baseUrl = 'https://api.jdownloader.org';
 
   constructor(email: string | null | undefined, password: string | null | undefined, deviceName: string | null | undefined) {
@@ -249,6 +250,14 @@ export class JDownloaderService {
       if (!connectResponse.ok) {
         const errorText = await connectResponse.text();
         logger.error('jdownloader', `Connect failed: ${connectResponse.status}`, errorText);
+        // Try to extract concise reason from JSON body
+        try {
+          const body = JSON.parse(errorText);
+          const type = body?.type || 'UNKNOWN_ERROR';
+          this.lastError = `${type} (${connectResponse.status})`;
+        } catch {
+          this.lastError = `HTTP ${connectResponse.status}`;
+        }
         throw new Error(`Connect failed: ${connectResponse.status} - ${errorText}`);
       }
 
@@ -301,6 +310,7 @@ export class JDownloaderService {
       if (!devicesResponse.ok) {
         const errorText = await devicesResponse.text();
         logger.error('jdownloader', `List devices failed: ${devicesResponse.status}`, errorText);
+        this.lastError = `LIST_DEVICES_FAILED (${devicesResponse.status})`;
         throw new Error(`Failed to get devices: ${devicesResponse.status}`);
       }
 
@@ -315,6 +325,7 @@ export class JDownloaderService {
 
       if (!device) {
         logger.error('jdownloader', `Dispositivo "${this.deviceName}" no encontrado. Disponibles: ${devices.map(d => d.name).join(', ')}`);
+        this.lastError = `DEVICE_NOT_FOUND: ${this.deviceName}`;
         throw new Error(`Device "${this.deviceName}" not found`);
       }
 
@@ -324,6 +335,9 @@ export class JDownloaderService {
 
     } catch (error) {
       logger.error('jdownloader', 'Authentication error', error);
+      if (!this.lastError) {
+        this.lastError = error instanceof Error ? error.message : 'Authentication error';
+      }
       return false;
     }
   }
@@ -382,6 +396,11 @@ export class JDownloaderService {
       logger.error('jdownloader', 'Encryption error', error);
       throw error;
     }
+  }
+
+  // Expose last concise error for UI/endpoints
+  public getLastError(): string | undefined {
+    return this.lastError;
   }
 
   // Add links to JDownloader using linkgrabberv2/addLinks

@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
         let isConnected = false;
         let linkAdded = false;
         let linkError: string | null = null;
+        let remote: JDownloaderService | null = null;
 
         // Test connection
         if (payload.mode === 'local') {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
                 }
             }
         } else if (payload.mode === 'cloud') {
-            const remote = new JDownloaderService(payload.email, payload.password, payload.deviceName);
+            remote = new JDownloaderService(payload.email, payload.password, payload.deviceName);
             isConnected = await remote.authenticate();
 
             // If connected and link provided, try to add it
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
             const errorMsg =
                 payload.mode === 'local'
                     ? `No se pudo conectar a JDownloader en ${payload.localHost}:${payload.localPort}`
-                    : 'No se pudo autenticar con MyJDownloader';
+                    : (remote?.getLastError() || 'No se pudo autenticar con MyJDownloader');
 
             return NextResponse.json(
                 { success: false, error: errorMsg },
