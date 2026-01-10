@@ -351,22 +351,22 @@ export default function Home() {
                 <p className="text-xs text-muted-foreground">
                   {t('dashboard.activeDownloads')}
                 </p>
-                <div className="grid grid-cols-4 gap-2 mt-3 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">{t('dashboard.downloading')}</span>
-                    <p className="font-semibold text-green-600">{jdownloaderStats.downloading}</p>
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="p-2 rounded bg-green-50 dark:bg-green-950">
+                    <p className="text-xs text-muted-foreground font-medium">{t('dashboard.downloading')}</p>
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{jdownloaderStats.downloading}</p>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">{t('dashboard.pending')}</span>
-                    <p className="font-semibold text-yellow-600">{jdownloaderStats.pending}</p>
+                  <div className="p-2 rounded bg-yellow-50 dark:bg-yellow-950">
+                    <p className="text-xs text-muted-foreground font-medium">{t('dashboard.pending')}</p>
+                    <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{jdownloaderStats.pending}</p>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">{t('dashboard.completed')}</span>
-                    <p className="font-semibold text-blue-600">{jdownloaderStats.completed}</p>
+                  <div className="p-2 rounded bg-blue-50 dark:bg-blue-950">
+                    <p className="text-xs text-muted-foreground font-medium">{t('dashboard.completed')}</p>
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{jdownloaderStats.completed}</p>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">{t('dashboard.failed')}</span>
-                    <p className="font-semibold text-red-600">{jdownloaderStats.failed}</p>
+                  <div className="p-2 rounded bg-red-50 dark:bg-red-950">
+                    <p className="text-xs text-muted-foreground font-medium">{t('dashboard.failed')}</p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{jdownloaderStats.failed}</p>
                   </div>
                 </div>
               </CardContent>
