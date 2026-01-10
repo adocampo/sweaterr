@@ -614,7 +614,7 @@ DEEPSEEK_API_KEY="..."
 
 - 🐛 Reporte: En modo cloud, la UI mostraba solo "Error" y los logs indicaban `AUTH_FAILED (403)` sin contexto.
 - ✅ Mejora: El servicio `JDownloaderService` ahora registra una razón concisa del fallo (p.ej., `AUTH_FAILED (403)`, `DEVICE_NOT_FOUND`) y el endpoint `/api/config/jdownloader/check` la devuelve para mostrarla en la UI.
-- 🔧 Config: Se permite definir `MYJD_APPKEY` por entorno para probar app keys alternativas (por defecto: `myjd_webextension_firefox`).
+- 🔧 Config: Se permite definir `MYJD_APPKEY` por entorno para probar app keys alternativas (por defecto ahora: `DEMOAPIAPP`).
 - 📝 Archivos modificados:
   - `src/lib/services/jdownloader.ts` (registro `lastError`, `getLastError()`, override de `appKey` por env)
   - `src/app/api/config/jdownloader/check/route.ts` (propagar mensaje breve de error a la respuesta)

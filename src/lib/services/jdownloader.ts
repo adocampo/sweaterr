@@ -174,7 +174,7 @@ export class JDownloaderService {
   private deviceSecret?: any; // Now stored as WordArray
   private serverEncryptionToken?: any;
   private deviceEncryptionToken?: any;
-  private appKey = process.env.MYJD_APPKEY || 'myjd_webextension_firefox'; // Allow override via env
+  private appKey = process.env.MYJD_APPKEY || 'DEMOAPIAPP'; // Allow override via env; default to DEMOAPIAPP
   private lastError?: string;
   private baseUrl = 'https://api.jdownloader.org';
 
