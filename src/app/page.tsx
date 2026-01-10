@@ -21,7 +21,8 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
-  Loader2
+  Loader2,
+  Clock
 } from 'lucide-react';
 import Image from 'next/image';
 import {
@@ -185,6 +186,13 @@ export default function Home() {
       downloadsActive: downloads.filter(d => d.status === 'downloading').length,
       downloadsTotal: downloads.length
     },
+    downloads: {
+      total: downloads.length,
+      pending: downloads.filter(d => d.status === 'pending').length,
+      downloading: downloads.filter(d => d.status === 'downloading').length,
+      completed: downloads.filter(d => d.status === 'completed').length,
+      failed: downloads.filter(d => d.status === 'failed').length
+    },
     ai: {
       provider: aiModels[0]?.provider || t('dashboard.notConfigured'),
       model: aiModels[0]?.model || t('dashboard.notConfigured'),
@@ -292,13 +300,27 @@ export default function Home() {
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.jdownloader.downloadsTotal}</div>
+                <div className="text-2xl font-bold">{stats.downloads.total}</div>
                 <p className="text-xs text-muted-foreground">
                   {t('dashboard.historical')}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs">{t('dashboard.operational')}</span>
+                <div className="grid grid-cols-4 gap-2 mt-3 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">{t('dashboard.downloading')}</span>
+                    <p className="font-semibold text-green-600">{stats.downloads.downloading}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t('dashboard.pending')}</span>
+                    <p className="font-semibold text-yellow-600">{stats.downloads.pending}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t('dashboard.completed')}</span>
+                    <p className="font-semibold text-blue-600">{stats.downloads.completed}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t('dashboard.failed')}</span>
+                    <p className="font-semibold text-red-600">{stats.downloads.failed}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -314,35 +336,58 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               {downloadsLoading ? (
-                <p>{t('dashboard.loadingDownloads')}</p>
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
               ) : downloads.length === 0 ? (
-                <p className="text-muted-foreground">{t('dashboard.noRecentDownloads')}</p>
+                <p className="text-muted-foreground text-center py-8">{t('dashboard.noRecentDownloads')}</p>
               ) : (
-                <div className="space-y-4">
-                  {downloads.slice(0, 5).map((download) => (
-                    <div key={download.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-sm">{download.title}</h4>
-                          <Badge variant={getStatusBadge(download.status)} className="text-xs">
-                            {download.status}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>{t('dashboard.forum')}: {download.forumName}</span>
-                          {download.size && <span>{t('dashboard.size')}: {download.size}</span>}
-                        </div>
-                        {download.status === 'downloading' && (
-                          <div className="mt-2">
-                            <Progress value={download.progress} className="h-2" />
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {Math.round(download.progress)}% {t('dashboard.completed')}
-                            </p>
+                <div className="space-y-3">
+                  {downloads.slice(0, 10).map((download) => {
+                    const statusColor = {
+                      'downloading': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                      'completed': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                      'pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                      'failed': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                    }[download.status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+
+                    return (
+                      <div key={download.id} className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium text-sm truncate flex-1">{download.title}</h4>
+                            <Badge className={`text-xs whitespace-nowrap ${statusColor}`}>
+                              {download.status}
+                            </Badge>
                           </div>
-                        )}
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Globe className="h-3 w-3" />
+                              {download.forumName}
+                            </span>
+                            {download.size && (
+                              <span className="flex items-center gap-1">
+                                <Download className="h-3 w-3" />
+                                {download.size}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(download.createdAt).toLocaleDateString(userLanguage === 'es' ? 'es-ES' : 'en-US')}
+                            </span>
+                          </div>
+                          {download.status === 'downloading' && (
+                            <div className="mt-3">
+                              <div className="flex items-center justify-between mb-1">
+                                <Progress value={download.progress} className="h-2 flex-1" />
+                                <span className="text-xs font-semibold ml-2">{Math.round(download.progress)}%</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
