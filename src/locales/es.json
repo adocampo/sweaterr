@@ -58,6 +58,7 @@
     "historical": "Histórico",
     "operational": "Operativo",
     "recentDownloads": "Descargas Recientes",
+    "jdownloaderDownloads": "Descargas activas en JDownloader",
     "lastDownloads": "Últimas descargas procesadas",
     "loadingDownloads": "Cargando descargas...",
     "noRecentDownloads": "No hay descargas recientes",

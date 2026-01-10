@@ -63,6 +63,14 @@ export default function Home() {
   // Download speed tracking for header
   const [totalSpeed, setTotalSpeed] = useState<number>(0);
   const [activeDownloadsCount, setActiveDownloadsCount] = useState<number>(0);
+  const [jdownloaderStats, setJDownloaderStats] = useState({
+    total: 0,
+    downloading: 0,
+    completed: 0,
+    failed: 0,
+    pending: 0
+  });
+  const [jdownloaderDownloads, setJDownloaderDownloads] = useState<any[]>([]);
 
   // Testing state
   const [testingResults, setTestingResults] = useState<any[]>([]);
@@ -136,20 +144,50 @@ export default function Home() {
     }
   }, [loadingUser, isAdmin, activeTab]);
 
-  // Poll download speed for header badge
+  // Poll download speed and JDownloader stats for header badge
   useEffect(() => {
     const fetchDownloadSpeed = async () => {
       try {
         const response = await fetch('/api/downloads/status');
         const data = await response.json();
         if (data.success && data.data) {
-          const activeDownloads = data.data.filter((d: any) => {
+          const allDownloads = data.data;
+          
+          // Calculate stats for JDownloader downloads
+          const downloading = allDownloads.filter((d: any) => {
             const status = d.status.toLowerCase();
             return status === 'running' || status === 'downloading' || status === 'extracting';
           });
-          const speed = activeDownloads.reduce((sum: number, d: any) => sum + (d.speed || 0), 0);
+          const completed = allDownloads.filter((d: any) => d.status.toLowerCase() === 'completed').length;
+          const failed = allDownloads.filter((d: any) => d.status.toLowerCase() === 'failed').length;
+          const pending = allDownloads.filter((d: any) => d.status.toLowerCase() === 'pending').length;
+          
+          const speed = downloading.reduce((sum: number, d: any) => sum + (d.speed || 0), 0);
+          
           setTotalSpeed(speed);
-          setActiveDownloadsCount(activeDownloads.length);
+          setActiveDownloadsCount(downloading.length);
+          setJDownloaderStats({
+            total: allDownloads.length,
+            downloading: downloading.length,
+            completed,
+            failed,
+            pending
+          });
+          setJDownloaderDownloads(allDownloads.sort((a: any, b: any) => {
+            // Sort by status priority (downloading > pending > completed > failed)
+            // then by date/progress
+            const statusOrder: Record<string, number> = {
+              'running': 0,
+              'downloading': 0,
+              'extracting': 0,
+              'pending': 1,
+              'completed': 2,
+              'failed': 3
+            };
+            const aOrder = statusOrder[a.status.toLowerCase()] ?? 4;
+            const bOrder = statusOrder[b.status.toLowerCase()] ?? 4;
+            return aOrder - bOrder;
+          }));
         }
       } catch (error) {
         console.error('Error fetching download speed:', error);
@@ -168,6 +206,15 @@ export default function Home() {
     if (mbps >= 1) return `${mbps.toFixed(2)} MB/s`;
     const kbps = bytesPerSecond / 1024;
     return `${kbps.toFixed(2)} KB/s`;
+  };
+
+  // Format ETA in human-readable format
+  const formatETA = (seconds: number) => {
+    if (!seconds || seconds < 0) return 'N/A';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
   };
 
   // Calculate statistics
@@ -300,26 +347,26 @@ export default function Home() {
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.downloads.total}</div>
+                <div className="text-2xl font-bold">{jdownloaderStats.total}</div>
                 <p className="text-xs text-muted-foreground">
-                  {t('dashboard.historical')}
+                  {t('dashboard.activeDownloads')}
                 </p>
                 <div className="grid grid-cols-4 gap-2 mt-3 text-xs">
                   <div>
                     <span className="text-muted-foreground">{t('dashboard.downloading')}</span>
-                    <p className="font-semibold text-green-600">{stats.downloads.downloading}</p>
+                    <p className="font-semibold text-green-600">{jdownloaderStats.downloading}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t('dashboard.pending')}</span>
-                    <p className="font-semibold text-yellow-600">{stats.downloads.pending}</p>
+                    <p className="font-semibold text-yellow-600">{jdownloaderStats.pending}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t('dashboard.completed')}</span>
-                    <p className="font-semibold text-blue-600">{stats.downloads.completed}</p>
+                    <p className="font-semibold text-blue-600">{jdownloaderStats.completed}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t('dashboard.failed')}</span>
-                    <p className="font-semibold text-red-600">{stats.downloads.failed}</p>
+                    <p className="font-semibold text-red-600">{jdownloaderStats.failed}</p>
                   </div>
                 </div>
               </CardContent>
@@ -331,57 +378,62 @@ export default function Home() {
             <CardHeader>
               <CardTitle>{t('dashboard.recentDownloads')}</CardTitle>
               <CardDescription>
-                {t('dashboard.lastDownloads')}
+                {t('dashboard.jdownloaderDownloads')}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {downloadsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : downloads.length === 0 ? (
+              {jdownloaderDownloads.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">{t('dashboard.noRecentDownloads')}</p>
               ) : (
                 <div className="space-y-3">
-                  {downloads.slice(0, 10).map((download) => {
+                  {jdownloaderDownloads.slice(0, 10).map((download, index) => {
                     const statusColor = {
+                      'running': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
                       'downloading': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                      'extracting': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
                       'completed': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
                       'pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
                       'failed': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    }[download.status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+                    }[download.status.toLowerCase()] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
 
                     return (
-                      <div key={download.id} className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                      <div key={download.uuid || index} className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium text-sm truncate flex-1">{download.title}</h4>
+                            <h4 className="font-medium text-sm truncate flex-1">{download.name}</h4>
                             <Badge className={`text-xs whitespace-nowrap ${statusColor}`}>
-                              {download.status}
+                              {download.status.toLowerCase() === 'running' ? 'downloading' : download.status.toLowerCase()}
                             </Badge>
                           </div>
                           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Globe className="h-3 w-3" />
-                              {download.forumName}
+                              {download.host}
                             </span>
                             {download.size && (
                               <span className="flex items-center gap-1">
                                 <Download className="h-3 w-3" />
-                                {download.size}
+                                {(download.size / (1024 * 1024 * 1024)).toFixed(2)} GB
                               </span>
                             )}
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {new Date(download.createdAt).toLocaleDateString(userLanguage === 'es' ? 'es-ES' : 'en-US')}
-                            </span>
+                            {download.speed > 0 && (
+                              <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                                <Activity className="h-3 w-3" />
+                                {formatSpeed(download.speed)}
+                              </span>
+                            )}
                           </div>
-                          {download.status === 'downloading' && (
+                          {(download.status.toLowerCase() === 'running' || download.status.toLowerCase() === 'downloading' || download.status.toLowerCase() === 'extracting') && (
                             <div className="mt-3">
                               <div className="flex items-center justify-between mb-1">
-                                <Progress value={download.progress} className="h-2 flex-1" />
-                                <span className="text-xs font-semibold ml-2">{Math.round(download.progress)}%</span>
+                                <Progress value={download.progress || 0} className="h-2 flex-1" />
+                                <span className="text-xs font-semibold ml-2">{Math.round(download.progress || 0)}%</span>
                               </div>
+                              {download.eta > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  ETA: {formatETA(download.eta)}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>
