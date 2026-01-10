@@ -146,34 +146,50 @@ export default function Home() {
 
   // Poll download speed and JDownloader stats for header badge
   useEffect(() => {
+    const normalizeStatus = (status: string) => {
+      const s = (status || '').toLowerCase();
+      if (s === 'finished' || s.includes('complete')) return 'completed';
+      if (s === 'running' || s === 'downloading') return 'downloading';
+      if (s === 'extracting') return 'extracting';
+      if (s.includes('fail') || s.includes('error')) return 'failed';
+      if (s === 'paused' || s === 'stopped') return 'pending';
+      return 'pending';
+    };
+
     const fetchDownloadSpeed = async () => {
       try {
         const response = await fetch('/api/downloads/status');
         const data = await response.json();
         if (data.success && data.data) {
-          const allDownloads = data.data;
-
-          // Calculate stats for JDownloader downloads
-          const downloading = allDownloads.filter((d: any) => {
-            const status = d.status.toLowerCase();
-            return status === 'running' || status === 'downloading' || status === 'extracting';
+          const normalizedDownloads = data.data.map((d: any) => {
+            const normalizedStatus = normalizeStatus(d.status);
+            const progressValue = typeof d.progress === 'number' ? d.progress : 0;
+            const progressNormalized = normalizedStatus === 'completed' && progressValue < 99 ? 100 : progressValue;
+            return { ...d, status: normalizedStatus, progress: progressNormalized };
           });
-          const completed = allDownloads.filter((d: any) => d.status.toLowerCase() === 'completed').length;
-          const failed = allDownloads.filter((d: any) => d.status.toLowerCase() === 'failed').length;
-          const pending = allDownloads.filter((d: any) => d.status.toLowerCase() === 'pending').length;
 
-          const speed = downloading.reduce((sum: number, d: any) => sum + (d.speed || 0), 0);
+          // Active stats from JDownloader (queue)
+          const activeDownloading = normalizedDownloads.filter((d: any) => d.status === 'downloading' || d.status === 'extracting');
+          const activePending = normalizedDownloads.filter((d: any) => d.status === 'pending');
+          const activeCompleted = normalizedDownloads.filter((d: any) => d.status === 'completed').length;
+          const activeFailed = normalizedDownloads.filter((d: any) => d.status === 'failed').length;
+
+          // Historical stats from DB (downloads hook)
+          const dbCompleted = downloads.filter((d) => d.status === 'completed').length;
+          const dbFailed = downloads.filter((d) => d.status === 'failed').length;
+
+          const speed = activeDownloading.reduce((sum: number, d: any) => sum + (d.speed || 0), 0);
 
           setTotalSpeed(speed);
-          setActiveDownloadsCount(downloading.length);
+          setActiveDownloadsCount(activeDownloading.length);
           setJDownloaderStats({
-            total: allDownloads.length,
-            downloading: downloading.length,
-            completed,
-            failed,
-            pending
+            total: normalizedDownloads.length + dbCompleted + dbFailed,
+            downloading: activeDownloading.length,
+            completed: activeCompleted + dbCompleted,
+            failed: activeFailed + dbFailed,
+            pending: activePending.length,
           });
-          setJDownloaderDownloads(allDownloads.sort((a: any, b: any) => {
+          setJDownloaderDownloads(normalizedDownloads.sort((a: any, b: any) => {
             // Sort by status priority (downloading > pending > completed > failed)
             // then by date/progress
             const statusOrder: Record<string, number> = {
@@ -197,7 +213,7 @@ export default function Home() {
     fetchDownloadSpeed();
     const interval = setInterval(fetchDownloadSpeed, activeDownloadsCount > 0 ? 3000 : 10000);
     return () => clearInterval(interval);
-  }, [activeDownloadsCount]);
+  }, [activeDownloadsCount, downloads]);
 
   // Format speed in human-readable format
   const formatSpeed = (bytesPerSecond: number) => {
@@ -313,7 +329,7 @@ export default function Home() {
               <CardContent>
                 <div className="text-2xl font-bold">{stats.jdownloader.downloadsActive}</div>
                 <p className="text-xs text-muted-foreground">
-                  {t('dashboard.activeDownloads')}
+                  {t('dashboard.activeAndHistory')}
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   {getStatusIcon(stats.jdownloader.connected)}
