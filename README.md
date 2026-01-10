@@ -240,6 +240,7 @@ POST /api/arr/notify
 - `NEXTAUTH_URL`: URL pública de la aplicación
 - `LOG_LEVEL`: Nivel de logging (debug, info, warn, error)
 - `FLARESOLVERR_URL`: URL del servicio FlareSolverr (recomendado). Si está presente, se usará para resolver Cloudflare con sesiones persistentes.
+- `MYJD_APPKEY` (opcional): App Key para MyJDownloader. Por defecto se usa `myjd_webextension_firefox`. Útil para pruebas con claves alternativas (ej. `DEMOAPIAPP`).
 
 ### Foros Soportados
 

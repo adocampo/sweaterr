@@ -610,6 +610,16 @@ DEEPSEEK_API_KEY="..."
 - 🛠️ Renamed auxiliary API routes from `/api/test/*` to `/api/check/*` to avoid `.gitignore` conflicts and clarify they are health checks, not automated tests.
 - 📌 Affected paths: `/api/config/forums/check`, `/api/check/jd-packages`, `/api/check/myjd-auth`, `/api/check/myjd-addlinks`.
 
+### 2026-01-10 (MyJDownloader: error reason + appkey override)
+
+- 🐛 Reporte: En modo cloud, la UI mostraba solo "Error" y los logs indicaban `AUTH_FAILED (403)` sin contexto.
+- ✅ Mejora: El servicio `JDownloaderService` ahora registra una razón concisa del fallo (p.ej., `AUTH_FAILED (403)`, `DEVICE_NOT_FOUND`) y el endpoint `/api/config/jdownloader/check` la devuelve para mostrarla en la UI.
+- 🔧 Config: Se permite definir `MYJD_APPKEY` por entorno para probar app keys alternativas (por defecto: `myjd_webextension_firefox`).
+- 📝 Archivos modificados:
+  - `src/lib/services/jdownloader.ts` (registro `lastError`, `getLastError()`, override de `appKey` por env)
+  - `src/app/api/config/jdownloader/check/route.ts` (propagar mensaje breve de error a la respuesta)
+- 🎯 Resultado: La UI muestra mensajes resumidos y útiles (ej. `AUTH_FAILED (403)`), facilitando diagnóstico.
+
 ### 2026-01-09 (Fix: Singleton Pattern para FlareSolverrSessionManager - Sessions Ahora Visibles en UI)
 
 - 🐛 **Bug crítico**: Las sesiones de FlareSolverr se creaban correctamente (logs lo confirmaban) pero no eran visibles en la UI de ForumsTable, que mostraba "Sin sesión".
