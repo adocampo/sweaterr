@@ -174,9 +174,7 @@ export class JDownloaderService {
   private deviceSecret?: any; // Now stored as WordArray
   private serverEncryptionToken?: any;
   private deviceEncryptionToken?: any;
-  private appKey = process.env.MYJD_APPKEY || 'DEMOAPIAPP'; // Allow override via env; default to DEMOAPIAPP
-  private lastError?: string;
-  private requestId: number = 0;
+  private appKey = 'myjd_webextension_firefox'; // Del addon oficial
   private baseUrl = 'https://api.jdownloader.org';
 
   constructor(email: string | null | undefined, password: string | null | undefined, deviceName: string | null | undefined) {
@@ -228,8 +226,7 @@ export class JDownloaderService {
 
       // Step 2: Connect and get session token
       // Orden alfabético: appkey, email, rid
-      const rid = ++this.requestId;
-      const connectQuery = `/my/connect?appkey=${this.appKey}&email=${encodeURIComponent(this.email)}&rid=${rid}`;
+      const connectQuery = `/my/connect?appkey=${this.appKey}&email=${encodeURIComponent(this.email)}&rid=0`;
       const signature = this.hmacSha256(connectQuery, this.loginSecret!);
       const connectUrl = `${this.baseUrl}${connectQuery}&signature=${signature}`;
 
@@ -238,7 +235,7 @@ export class JDownloaderService {
       logger.info('jdownloader', `Full URL: ${connectUrl}`);
       logger.info('jdownloader', 'Conectando a MyJDownloader...');
 
-      let connectResponse = await fetch(connectUrl, {
+      const connectResponse = await fetch(connectUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -249,28 +246,9 @@ export class JDownloaderService {
       logger.info('jdownloader', `Response status: ${connectResponse.status}`);
       logger.info('jdownloader', 'Response headers', Object.fromEntries(connectResponse.headers.entries()));
 
-      if (connectResponse.status === 403) {
-        logger.warn('jdownloader', 'Connect returned 403; retrying with GET...');
-        connectResponse = await fetch(connectUrl, {
-          method: 'GET',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          },
-        });
-        logger.info('jdownloader', `GET retry status: ${connectResponse.status}`);
-      }
-
       if (!connectResponse.ok) {
         const errorText = await connectResponse.text();
         logger.error('jdownloader', `Connect failed: ${connectResponse.status}`, errorText);
-        // Try to extract concise reason from JSON body
-        try {
-          const body = JSON.parse(errorText);
-          const type = body?.type || 'UNKNOWN_ERROR';
-          this.lastError = `${type} (${connectResponse.status})`;
-        } catch {
-          this.lastError = `HTTP ${connectResponse.status}`;
-        }
         throw new Error(`Connect failed: ${connectResponse.status} - ${errorText}`);
       }
 
@@ -308,7 +286,7 @@ export class JDownloaderService {
 
       // Step 3: List devices
       const devicesPath = `/my/listdevices`;
-      const devicesQuery = `${devicesPath}?sessiontoken=${this.sessionToken}&rid=${++this.requestId}`;
+      const devicesQuery = `${devicesPath}?sessiontoken=${this.sessionToken}&rid=0`;
       const devicesSignature = this.hmacSha256(devicesQuery, this.serverEncryptionToken!);
       const devicesUrl = `${this.baseUrl}${devicesQuery}&signature=${devicesSignature}`;
 
@@ -409,11 +387,6 @@ export class JDownloaderService {
       logger.error('jdownloader', 'Encryption error', error);
       throw error;
     }
-  }
-
-  // Expose last concise error for UI/endpoints
-  public getLastError(): string | undefined {
-    return this.lastError;
   }
 
   // Add links to JDownloader using linkgrabberv2/addLinks
