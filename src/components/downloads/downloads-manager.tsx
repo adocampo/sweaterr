@@ -101,6 +101,9 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
     }
   };
 
+  // TODO: Replace HTTP polling with WebSockets to avoid flooding console with logs
+  // Current polling generates HTTP logs every 3-10 seconds which makes console unreadable
+  // See ARCHITECTURE.md > PROBLEMAS CONOCIDOS > Polling HTTP Floods Console Output
   useEffect(() => {
     fetchDownloads();
     if (autoRefresh) {

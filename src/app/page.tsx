@@ -59,6 +59,10 @@ export default function Home() {
   const [userLanguage, setUserLanguage] = useState<'es' | 'en'>('es');
   const { t } = useI18n(userLanguage);
 
+  // Download speed tracking for header
+  const [totalSpeed, setTotalSpeed] = useState<number>(0);
+  const [activeDownloadsCount, setActiveDownloadsCount] = useState<number>(0);
+
   // Testing state
   const [testingResults, setTestingResults] = useState<any[]>([]);
   const [testingPage, setTestingPage] = useState<number>(1);
@@ -131,6 +135,40 @@ export default function Home() {
     }
   }, [loadingUser, isAdmin, activeTab]);
 
+  // Poll download speed for header badge
+  useEffect(() => {
+    const fetchDownloadSpeed = async () => {
+      try {
+        const response = await fetch('/api/downloads/status');
+        const data = await response.json();
+        if (data.success && data.data) {
+          const activeDownloads = data.data.filter((d: any) => {
+            const status = d.status.toLowerCase();
+            return status === 'running' || status === 'downloading' || status === 'extracting';
+          });
+          const speed = activeDownloads.reduce((sum: number, d: any) => sum + (d.speed || 0), 0);
+          setTotalSpeed(speed);
+          setActiveDownloadsCount(activeDownloads.length);
+        }
+      } catch (error) {
+        console.error('Error fetching download speed:', error);
+      }
+    };
+
+    fetchDownloadSpeed();
+    const interval = setInterval(fetchDownloadSpeed, activeDownloadsCount > 0 ? 3000 : 10000);
+    return () => clearInterval(interval);
+  }, [activeDownloadsCount]);
+
+  // Format speed in human-readable format
+  const formatSpeed = (bytesPerSecond: number) => {
+    if (!bytesPerSecond) return '0 KB/s';
+    const mbps = bytesPerSecond / (1024 * 1024);
+    if (mbps >= 1) return `${mbps.toFixed(2)} MB/s`;
+    const kbps = bytesPerSecond / 1024;
+    return `${kbps.toFixed(2)} KB/s`;
+  };
+
   // Calculate statistics
   const stats = {
     forums: {
@@ -168,16 +206,12 @@ export default function Home() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* TODO: Show current download speed instead of just "Active" badge
-               - Fetch current speed from /api/downloads/status
-               - Display formatted speed (e.g., "15.2 MB/s")
-               - Update in real-time with same polling interval as downloads tab
-               - Show icon when no active downloads (e.g., "0 KB/s" or just activity icon)
-               - Consider adding total progress bar for all active downloads
-          */}
-          <Badge variant="outline" className="flex items-center gap-1">
+          <Badge 
+            variant={activeDownloadsCount > 0 ? "default" : "outline"} 
+            className="flex items-center gap-1"
+          >
             <Activity className="h-3 w-3" />
-            {t('dashboard.active')}
+            {activeDownloadsCount > 0 ? formatSpeed(totalSpeed) : t('dashboard.idle')}
           </Badge>
           {!loadingUser && currentUser && (
             <UserMenu user={currentUser} onThemeChange={(t) => setTheme(t)} currentTheme={theme} />
