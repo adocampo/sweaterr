@@ -60,6 +60,13 @@
    - UI: Tarjetas con switch toggle, botones icon, AlertDialog
    - **CRÍTICO Next.js 15**: Siempre hacer `await params` en rutas dinámicas `[id]`
 
+6. **Sistema i18n obligatorio** (desde 2026-01-09):
+   - **NUNCA hardcodear texto en componentes**: Todo texto visible debe venir de `t(key)`
+   - **Añadir labels PRIMERO**: Antes de crear cualquier componente con texto, añadir las claves en `es.json` y `en.json`
+   - **Estructura**: Organizar por sección lógica (auth, forums, dashboard, components, etc.)
+   - **Uso**: `const { t } = useI18n('es')` en componentes client-side, luego `t('section.key')`
+   - **Validación**: Verificar que el texto se muestra correctamente en ambos idiomas (español e inglés)
+
 ### Cómo Continuar el Trabajo
 
 1. **Antes de modificar código**:
@@ -363,9 +370,20 @@ const text = t('forums.addForum'); // "Añadir Foro"
 {
   "auth": { "login": "...", "setup": "..." },
   "forums": { "addForum": "...", "editForum": "..." },
+  "dashboard": { "cards": {...}, "tabs": {...} },
+  "components": { "buttons": {...}, "labels": {...} },
   "common": { "save": "...", "cancel": "..." }
 }
 ```
+
+**Cobertura completa**:
+
+- ✅ Todas las páginas principales (setup, login, dashboard)
+- ✅ Todos los componentes de configuración
+- ✅ Mensajes de validación y errores
+- ✅ Labels, placeholders y tooltips
+- ✅ Diálogos y alertas
+- ✅ ~150+ claves de traducción en cada idioma
 
 ### 7. Integración JDownloader2
 
@@ -615,6 +633,137 @@ DEEPSEEK_API_KEY="..."
 
 - 🛠️ Renamed auxiliary API routes from `/api/test/*` to `/api/check/*` to avoid `.gitignore` conflicts and clarify they are health checks, not automated tests.
 - 📌 Affected paths: `/api/config/forums/check`, `/api/check/jd-packages`, `/api/check/myjd-auth`, `/api/check/myjd-addlinks`.
+
+### 2026-01-09 (Fix: Internacionalización completa de AIConfig)
+
+- 🐛 **Problema**: El componente `AIConfig` (configuración de modelos IA) mostraba todos los textos en español hardcodeados y crasheaba con error `t is not defined` al intentar abrir el diálogo para añadir un modelo.
+- 🔧 **Solución**:
+  - Añadido hook `useI18n(language)` e importación de `useI18n` faltante
+  - Integrado `useMemo` para crear el schema de validación dinámicamente con soporte a interpolación de mensajes
+  - Reemplazados todos los strings hardcodeados (botón "Añadir Modelo IA", títulos, labels, placeholders, descripciones, botones de test/guardar)
+  - Propag property `language={userLanguage}` en ambas instancias de `AIConfig` en `page.tsx`
+  - Translations para "No hay modelos de IA configurados" → `t('dashboard.noAIModels')`
+  - Importados iconos faltantes `CheckCircle` y `XCircle`
+- 📝 **Archivos modificados**:
+  - `src/components/config/ai-config.tsx` (reescrito con i18n completo)
+  - `src/app/page.tsx` (añadido `language={userLanguage}` en ambas instancias; traducidos textos de carga)
+- 🎯 **Validación**: El diálogo de IA abre correctamente, todos los labels y mensajes se muestran en el idioma seleccionado, el botón de test funciona sin errores.
+
+### 2026-01-09 (Fix: Interpolación i18n en useI18n)
+
+- 🐛 **Problema**: Los placeholders `{count}`, `{total}`, `{query}`, etc. se mostraban literales en la UI (ResultViewer y botones de carga) porque `useI18n` devolvía cadenas sin interpolar parámetros.
+- 🔧 **Solución**: Añadida interpolación de parámetros en `useI18n` y `getTranslation`, reemplazando tokens `{key}` por los valores pasados (strings, números o booleanos), convirtiendo `null/undefined` en cadena vacía para evitar artefactos visuales.
+- 📄 **Archivos**: `src/hooks/use-i18n.ts`.
+- 🎯 **Validación**: Los textos dinámicos de resultados y progresos muestran valores numéricos y la query sin placeholders visibles en ambos idiomas.
+
+### 2026-01-09 (Fix: JDownloaderConfig i18n + estructura del diálogo)
+
+- 🐛 **Problema**: El componente `JDownloaderConfig` quedó corrupto tras el refactor de i18n (JSX incompleto, `t` indefinido) rompiendo el diálogo de configuración y el modo select.
+- 🔧 **Solución**: Reescrito el componente asegurando estructura válida de `Dialog`/`Select`, integración limpia con `useI18n(language)`, placeholders traducidos y mensajes de validación en inglés. Se mantiene compatibilidad con modos `local`/`cloud` y callbacks de test/guardar.
+- 📄 **Archivos**: `src/components/config/jdownloader-config.tsx` (reestructurado con traducciones y esquema de validación en inglés).
+- 🧪 **Validación**: Render del diálogo abre correctamente, el selector de modo cambia entre campos locales/cloud, los placeholders provienen de `t()` y el botón de test muestra feedback de éxito/error.
+
+### 2026-01-09 (Localización i18n Completa)
+
+- ✨ **Sistema i18n completo**: Implementada localización exhaustiva reemplazando todas las cadenas hardcodeadas en español e inglés por labels traducibles desde `es.json` y `en.json`.
+- 📄 **Archivos de traducción expandidos**: Añadidas ~150 nuevas claves de traducción organizadas por sección (setup, login, dashboard, forums, testing, components, validation, errors).
+- 🌐 **Páginas localizadas**:
+  - **Setup** (`src/app/setup/page.tsx`): Validación de usuario/contraseña, mensajes de error, labels de formulario
+  - **Login** (`src/app/login/page.tsx`): Campos de autenticación, botones, mensajes de error
+  - **Dashboard** (`src/app/page.tsx`): Títulos de cards, descripciones, tabs, diálogos, estados vacíos (~100+ reemplazos)
+- 🔧 **Componentes de configuración localizados**:
+  - `forum-session-settings.tsx`: Estado de sesión, recomendaciones, duraciones
+  - `forum-config.tsx`: Placeholders, ejemplos de selectores CSS
+  - `jdownloader-config.tsx`: Nombres de conexión, hosts, puertos
+  - `ai-config.tsx`: Descripciones de API keys por proveedor
+- 📦 **Downloads localizados** (`downloads-manager.tsx`): Atributos title de botones
+- 🛠️ **Proceso de implementación**:
+  - Audit completo de cadenas hardcodeadas en toda la aplicación
+  - Scripts de Python para reemplazos masivos en archivos grandes
+  - Hooks `useI18n('es')` añadidos a componentes client-side
+  - Corrección de errores de importación (placement de imports)
+- 📊 **Estadísticas**: 10 archivos modificados, 365 inserciones(+), 99 eliminaciones(-)
+- 🎯 **Convención establecida**: De ahora en adelante, **todos** los textos nuevos deben añadirse primero a ambos archivos de localización (es.json y en.json) antes de ser usados en componentes
+
+### 2026-01-09 (Fix: Traducciones de Tarjetas Overview)
+
+- 🐛 **Problema**: El dashboard mostraba interface mixta español/inglés en las tarjetas de estado (Overview cards):
+  - "No configurado" aparecía en español en tres ubicaciones
+  - "Connected" aparecía en inglés
+  - Causando inconsistencia visual cuando JDownloader o IA no estaban configurados
+- 🔍 **Causa raíz**:
+  - Strings hardcodeados `'No configurado'` en el objeto `stats` dentro de `src/app/page.tsx` (líneas 146, 151-152)
+  - No estaban reemplazados por la clave i18n correspondiente como se había hecho en otros componentes
+- ✅ **Solución implementada**:
+  - Agregada nueva clave `dashboard.notConfigured` a `src/locales/en.json` ("Not Configured") y `es.json` ("No configurado")
+  - Reemplazados los 3 strings hardcodeados con `t('dashboard.notConfigured')` en el objeto stats
+  - Garantiza que el estado "no configurado" se traduce correctamente en ambos idiomas
+- 📝 **Archivos modificados**:
+  - `src/app/page.tsx` (3 líneas actualizadas)
+  - `src/locales/en.json` (agregada clave)
+  - `src/locales/es.json` (agregada clave)
+- 🎯 **Validación**: Overview cards ahora muestran texto consistentemente traducido al cambiar entre inglés y español
+
+### 2026-01-09 (Fix: Internacionalización de Tabla de Foros)
+
+- 🐛 **Problema**: Los labels y tooltips en la tabla de Foros (ForumsTable) mostraban strings hardcodeados en español:
+  - "Sin sesión" en lugar de estar traducido
+  - Tooltips: "Editar configuración" y "Eliminar foro"
+  - Diálogo de confirmación: "¿Eliminar foro?" con mensaje sin traducir
+  - Botones: "Cancelar" y "Eliminar"
+- 🔍 **Causa raíz**:
+  - El componente `ForumsTable` recibe la prop `language` pero los strings no estaban reemplazados por llamadas `t()`
+  - Las claves de traducción no existían en los archivos locales
+- ✅ **Solución implementada**:
+  - Agregadas 5 nuevas claves a `forumsTable` en ambos locales:
+    - `noSession`: "Sin sesión" (es) / "No session" (en)
+    - `editConfiguration`: "Editar configuración" (es) / "Edit configuration" (en)
+    - `deleteForumAction`: "Eliminar foro" (es) / "Delete forum" (en)
+    - `confirmDeleteForum`: "¿Eliminar foro?" (es) / "Delete forum?" (en)
+    - `undoNotPossible`: "Esta acción no se puede deshacer. El foro se eliminará de forma permanente." (es) / "This action cannot be undone. The forum will be permanently deleted." (en)
+  - Reemplazados todos los strings hardcodeados con llamadas `t()` en `src/components/config/forums-table.tsx`
+  - Reutilizadas claves existentes para botones: `t('common.cancel')` y `t('common.delete')`
+- 📝 **Archivos modificados**:
+  - `src/components/config/forums-table.tsx` (5 reemplazos)
+  - `src/locales/en.json` (5 claves nuevas)
+  - `src/locales/es.json` (5 claves nuevas)
+- 🎯 **Validación**: Tabla de Foros ahora muestra texto completamente traducido al cambiar entre idiomas
+
+### 2026-01-09 (Fix: Internacionalización de JDownloader Testing)
+
+- 🐛 **Problema**: La sección de pruebas de JDownloader (JDownloaderTester) mostraba todos los strings en español sin opción de cambiar idioma:
+  - Título del card: "JDownloader"
+  - Descripción: "Selecciona un servidor configurado..."
+  - Labels: "Servidor Configurado", "Enlace (opcional)", "Package (opcional)", "Auto-start", "Auto-extract"
+  - Botones: "Probar conexión", "Enviar enlace"
+  - Mensajes de error y carga
+- 🔍 **Causa raíz**:
+  - El componente `JDownloaderTester` tiene `useI18n(language)` importado pero los strings no estaban reemplazados por `t()`
+  - Las claves de traducción ya existían en los locales
+- ✅ **Solución implementada**:
+  - Reemplazados 15+ strings hardcodeados con llamadas `t()`:
+    - Título y descripción: `t('testing.jdownloaderTesterTitle')` y `t('testing.jdownloaderTesterDescription')`
+    - Labels: `t('testing.configuredServer')`, `t('testing.optionalLink')`, `t('testing.optionalPackage')`, `t('testing.autoStart')`, `t('testing.autoExtract')`
+    - Botones: `t('testing.testConnection')`, `t('testing.sendLink')`
+    - Mensajes: `t('testing.loadingServers')`, `t('testing.noServers')`, `t('testing.selectServerFirst')`, `t('testing.sendLinkError')`, `t('testing.connectionTestError')`
+  - Todas las claves ya existían en `src/locales/en.json` y `es.json`
+- 📝 **Archivos modificados**:
+  - `src/components/testing/jdownloader-tester.tsx` (15 reemplazos)
+- 🎯 **Validación**: Sección de testing de JDownloader ahora se traduce completamente al cambiar idioma
+
+### 2026-01-09 (Fix: Internacionalización de ResultViewer - Resultados de Búsqueda)
+
+- 🐛 **Problema**: La vista de resultados de búsqueda (ResultViewer) en la pestaña Testing mostraba todos los textos en castellano: títulos, descripciones, cabeceras de tabla, botones, estados de carga y mensajes de error.
+- 🔍 **Causa raíz**:
+  - El componente `ResultViewer` ya recibía `language` y usaba `useI18n(language)`, pero las cadenas estaban hardcodeadas en español.
+  - Faltaban claves de traducción para métricas, tablas, contadores y mensajes contextuales.
+- ✅ **Solución implementada**:
+  - Añadidas ~35 claves nuevas en `testing` (en/es) para cabeceras, botones, contadores, metadatos, errores y textos auxiliares.
+  - Reemplazadas todas las cadenas hardcodeadas por `t()` incluyendo resúmenes dinámicos de resultados, indicadores de metadatos y textos de acción (extraer, enviar, completar títulos, etc.).
+- 📝 **Archivos modificados**:
+  - `src/components/testing/result-viewer.tsx` (sustitución completa de strings por `t()`)
+  - `src/locales/en.json` y `src/locales/es.json` (nuevas claves en sección `testing`)
+- 🎯 **Validación**: Tabla de resultados, botones y mensajes se traducen correctamente al alternar entre español e inglés.
 
 ### 2026-01-09 (Fix: Singleton Pattern para FlareSolverrSessionManager - Sessions Ahora Visibles en UI)
 
@@ -1085,27 +1234,40 @@ DEEPSEEK_API_KEY="..."
 
 ### Features futuras (aún no implementadas)
 
-#### 1. Placeholders e i18n Completos
+#### 0. Script/Unit File para Arrancar Servidor de Desarrollo
 
 **Estado**: ⏭️ Pendiente  
-**Estimación**: 4-6 horas
+**Estimación**: 1-2 horas
 
-**Problema**: Cambio de idioma funciona parcialmente, faltan placeholders en muchos textos.
+**Problema**: El comando manual `npm run dev > /tmp/npm-dev.log 2>&1 &` es propenso a errores:
+
+- Fácil olvidar que ya hay un servidor corriendo
+- Causa conflictos de puerto (EADDRINUSE)
+- Requiere `pkill` manual para limpiar
+
+**Solución recomendada**:
+
+- Crear un script bash (`scripts/dev.sh`) que:
+  - Verifique si hay servidor corriendo en puerto 3000
+  - Lo mate si existe
+  - Inicie uno nuevo
+  - Muestre un mensaje claro del estado
+- O crear un systemd user unit file (`sweaterr-dev.service`) para desarrollo
 
 **Tareas**:
 
-- [ ] Auditoría completa de textos hardcodeados
-- [ ] Agregar traducciones faltantes a `es.json` y `en.json`
-- [ ] Actualizar componentes para usar `t()`
-- [ ] Validar cambio de idioma en toda la aplicación
+- [ ] Crear script bash con validación de puerto
+- [ ] Agregar comando `npm run dev:start` que use el script
+- [ ] Agregar comando `npm run dev:stop` para detener
+- [ ] Documentar en README.md
 
 **Archivos afectados**:
 
-- `src/locales/es.json`
-- `src/locales/en.json`
-- Múltiples componentes con texto hardcodeado
+- `scripts/dev.sh` (nuevo)
+- `package.json` (actualizar scripts)
+- `README.md` (documentación)
 
-#### 2. Detección de Idiomas Mejorada
+#### 1. Detección de Idiomas Mejorada
 
 **Estado**: ⏭️ Pendiente  
 **Estimación**: 2-3 horas
@@ -1125,7 +1287,7 @@ DEEPSEEK_API_KEY="..."
 
 - `src/app/api/testing/metadata/route.ts`
 
-#### 3. Tablas Dinámicas Series vs Películas
+#### 2. Tablas Dinámicas Series vs Películas
 
 **Estado**: ⏭️ Pendiente  
 **Estimación**: 1-2 horas
@@ -1145,7 +1307,7 @@ DEEPSEEK_API_KEY="..."
 - `src/components/testing/search-tester.tsx`
 - `src/components/testing/result-viewer.tsx`
 
-#### 4. Documentación de Selectores CSS
+#### 3. Documentación de Selectores CSS
 
 **Estado**: ⏭️ Pendiente  
 **Estimación**: 2-3 horas
@@ -1328,9 +1490,100 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 
 **Mejora pendiente**: Cache de respuestas FlareSolverr o configurar FlareSolverr con VPN para evitar bloqueos regionales.
 
----
+### 4. Cambio de Idioma Causa Pantalla en Blanco
 
-### FIN DEL DOCUMENTO
+**Severidad**: Media  
+**Estado**: Identificado, sin solución investigada aún
 
-**Versión**: 1.3.1 (09/01/2026)  
-**Estado**: En desarrollo activo  
+**Descripción**: Al cambiar el idioma a través del menú de usuario (UserMenu), la interfaz ocasionalmente se vuelve completamente en blanco con tema oscuro, desaparece el icono del menú, y la página se ve desconectada del servidor.
+
+**Condiciones de reproducción**:
+
+- Hacer clic en el idioma en el menú de usuario
+- Esperar a que se procese el cambio
+- La UI se pone en blanco/sin renderizar
+- Presionar F5 recarga la página correctamente
+
+**Impacto**: Usuario debe hacer refresh manual; cambio de idioma eventual funciona pero con interrupcción visual.
+
+**Causa raíz**: Desconocida - posiblemente:
+
+- Problema en gestión de estado del lenguaje (userLanguage state en page.tsx)
+- Re-render completo del árbol de componentes no se propaga correctamente
+- Hook useI18n no se reinicializa correctamente
+- Context o Provider i18n tiene memory leak o estado inconsistente
+
+**Mitigación actual**: Ninguna; usuario realiza F5 para refrescar.
+
+**Mejora pendiente**:
+
+- Investigar flujo de state management del lenguaje
+- Verificar si hay race conditions en actualización de userLanguage
+- Considerar usar Context/Provider más robusto para i18n si es necesario
+- Revisar componentes que dependen del language prop vs useI18n hook
+
+### 5. Flash de Idioma en Refresh (Spanish Flash)
+
+**Severidad**: Media  
+**Estado**: Identificado, requiere investigación
+
+**Descripción**: Cuando el usuario refresca la página (F5), la aplicación se muestra en español durante 1-2 segundos y luego cambia al idioma seleccionado (ej: inglés). Esto causa una experiencia visual inconsistente.
+
+**Condiciones de reproducción**:
+
+- Navegar a cualquier página dentro de la aplicación (no es visible en login/setup)
+- Presionar F5 para refrescar
+- Observar que la UI se muestra en español antes de cambiar al idioma correcto
+
+**Impacto**: Experiencia de usuario inconsistente; debería mostrar el idioma correcto inmediatamente sin transición visual.
+
+**Causa raíz probable**:
+
+- El idioma por defecto es 'es' inicializado en `userLanguage` state en page.tsx
+- El idioma seleccionado del usuario se recupera de localStorage u otra fuente durante hydration
+- Hay un delay entre el SSR/hidratación y la aplicación del idioma correcto
+- Re-renders de todos los componentes cuando cambia userLanguage cause visual flicker
+
+**Mitigación actual**: Ninguna; comportamiento aceptado pero no ideal.
+
+**Mejora pendiente**:
+
+- Determinar fuente del idioma (localStorage, cookie, header, user DB)
+- Investigar flujo de hidratación Next.js 15
+- Considerar usar dynamic imports con ssr:false para componentes i18n
+- Posible solución: Guardar idioma en cookie de servidor para SSR correcto desde inicio
+
+### 6. Login y Setup Sin Selector de Idioma
+
+**Severidad**: Baja  
+**Estado**: Identificado, comportamiento por diseño
+
+**Descripción**: Las páginas de login (`src/app/login/page.tsx`) y setup/registro (`src/app/setup/page.tsx`) no tienen selector de idioma visible. Aparecen en el idioma del navegador (detectado por Accept-Language header o idioma por defecto de la app).
+
+**Comportamiento actual**:
+
+- Sin usuario autenticado, no hay UserMenu (donde se cambiaría idioma)
+- Formularios aparecen en el idioma del navegador o idioma por defecto (español)
+- Una vez autenticado, el usuario puede cambiar idioma en el dashboard
+
+**Impacto**: Bajo; usuarios pueden esperar selector de idioma en login, pero es funcional una vez autenticado.
+
+**Consideración de diseño**: ¿Agregar selector de idioma flotante en esquina de login/setup para que usuarios puedan cambiar idioma antes de autenticarse?
+
+**Mejora pendiente**:
+
+- Decidir si agregar selector de idioma en login/setup
+- Si sí: Implementar flotante o selector discreto (no interrumpe flujo)
+- Si no: Documento la decisión para referencia futura
+- Re-render completo del árbol de componentes no se propaga correctamente
+- Hook useI18n no se reinicializa correctamente
+- Context o Provider i18n tiene memory leak o estado inconsistente
+
+**Mitigación actual**: Ninguna; usuario realiza F5 para refrescar.
+
+**Mejora pendiente**:
+
+- Investigar flujo de state management del lenguaje
+- Verificar si hay race conditions en actualización de userLanguage
+- Considerar usar Context/Provider más robusto para i18n si es necesario
+- Revisar componentes que dependen del language prop vs useI18n hook

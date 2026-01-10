@@ -43,7 +43,7 @@ export default function LoginPage() {
             // Force full page reload to ensure middleware picks up cookie
             window.location.href = '/';
         } catch (err) {
-            setError('An error occurred. Please try again.');
+            setError(t('errors.tryAgain'));
             console.error('[Login] Error:', err);
             setIsLoading(false);
         }
@@ -57,7 +57,7 @@ export default function LoginPage() {
                         <Image src="/logo.png" alt="Sweaterr" width={200} height={50} priority className="h-12 w-auto" />
                     </div>
                     <CardTitle>{t('auth.login')}</CardTitle>
-                    <CardDescription>Ingresa tus credenciales</CardDescription>
+                    <CardDescription>{t('login.enterCredentials')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleLogin} className="space-y-4">
@@ -69,10 +69,10 @@ export default function LoginPage() {
                         )}
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Username o Email</label>
+                            <label className="text-sm font-medium">{t('login.usernameOrEmail')}</label>
                             <Input
                                 type="text"
-                                placeholder="admin o admin@sweaterr.local"
+                                placeholder={t('login.usernameOrEmailPlaceholder')}
                                 value={usernameOrEmail}
                                 onChange={(e) => setUsernameOrEmail(e.target.value)}
                                 disabled={isLoading}
