@@ -104,12 +104,13 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
   useEffect(() => {
     fetchDownloads();
     if (autoRefresh) {
-      // Refresh faster (1s) if there are active downloads, slower (5s) otherwise
+      // Reduce polling frequency: 3s for active downloads, 10s for idle
+      // This prevents console spam while keeping UI responsive
       const hasActive = downloads.some((d) => {
         const status = d.status.toLowerCase();
         return status === 'running' || status === 'downloading' || status === 'extracting';
       });
-      const interval = setInterval(fetchDownloads, hasActive ? 1000 : 5000);
+      const interval = setInterval(fetchDownloads, hasActive ? 3000 : 10000);
       return () => clearInterval(interval);
     }
   }, [autoRefresh, downloads]);
@@ -203,14 +204,14 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
       });
       const data = await response.json();
       if (!data.success) {
-        throw new Error(data.error || 'Acción fallida');
+        throw new Error(data.error || t('downloads.actionFailed'));
       }
       toast({ title: successMessage });
       await fetchDownloads();
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: error?.message || 'No se pudo completar la acción',
+        title: t('common.error'),
+        description: error?.message || t('downloads.actionError'),
         variant: 'destructive',
       });
     } finally {
@@ -219,14 +220,14 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
   };
 
   const handlePause = (download: JDDownload) =>
-    performAction('/api/downloads/pause', { id: download.linkId, source: download.source }, `pause-${download.uuid}`, 'Descarga pausada');
+    performAction('/api/downloads/pause', { id: download.linkId, source: download.source }, `pause-${download.uuid}`, t('downloads.pauseSuccess'));
 
   const handleResume = (download: JDDownload) =>
     performAction(
       '/api/downloads/resume',
       { id: download.linkId, source: download.source, packageId: download.packageId },
       `resume-${download.uuid}`,
-      download.source === 'linkgrabber' ? 'Descarga iniciada' : 'Descarga reanudada'
+      download.source === 'linkgrabber' ? t('downloads.startSuccess') : t('downloads.resumeSuccess')
     );
 
   const handleStop = (download: JDDownload, removeFiles = false) =>
@@ -234,22 +235,22 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
       '/api/downloads/stop',
       { id: download.linkId, source: download.source, removeFiles, packageId: download.packageId },
       `stop-${download.uuid}-${removeFiles ? 'files' : 'queue'}`,
-      removeFiles ? 'Descarga eliminada y archivos borrados' : 'Descarga eliminada de la cola'
+      removeFiles ? t('downloads.stopAndDeleteSuccess') : t('downloads.stopSuccess')
     );
 
   const handleExtract = (download: JDDownload) => {
     const statusLower = download.status.toLowerCase();
     const isRunning = statusLower === 'running' || statusLower === 'downloading' || statusLower === 'extracting';
     if (isRunning) {
-      return performAction('/api/downloads/extract-after', { id: download.linkId, packageId: download.packageId }, `extract-after-${download.uuid}`, 'Se extraerá al finalizar');
+      return performAction('/api/downloads/extract-after', { id: download.linkId, packageId: download.packageId }, `extract-after-${download.uuid}`, t('downloads.extractAfterSuccess'));
     }
-    return performAction('/api/downloads/extract', { id: download.linkId, packageId: download.packageId }, `extract-${download.uuid}`, 'Extracción forzada');
+    return performAction('/api/downloads/extract', { id: download.linkId, packageId: download.packageId }, `extract-${download.uuid}`, t('downloads.extractNowSuccess'));
   };
 
   const handleSetPath = () => {
     if (!selected) return;
     if (!pathInput.trim()) {
-      toast({ title: 'Ruta requerida', description: 'Introduce una ruta de descarga válida', variant: 'destructive' });
+      toast({ title: t('downloads.requiredPath'), description: t('downloads.invalidPath'), variant: 'destructive' });
       return;
     }
     setIsEditingPath(false); // Reset editing flag after setting path
@@ -269,7 +270,7 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
       '/api/downloads/path',
       { id: selected.linkId, path: pathInput, packageId: selected.packageId, source: selected.source },
       `path-${selected.uuid}`,
-      'Ruta de descarga actualizada'
+      t('downloads.updatePathSuccess')
     );
   };
 
@@ -294,37 +295,37 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Download className="h-5 w-5" />
-            Descargas
+            {t('downloads.title')}
           </CardTitle>
-          <CardDescription>Gestiona tus descargas de JDownloader</CardDescription>
+          <CardDescription>{t('downloads.subtitle')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="p-3 bg-muted rounded-lg">
-              <div className="text-xs text-muted-foreground">Total</div>
+              <div className="text-xs text-muted-foreground">{t('downloads.summaryTotal')}</div>
               <div className="text-2xl font-bold">{downloads.length}</div>
             </div>
             <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
-              <div className="text-xs text-muted-foreground">Descargando</div>
+              <div className="text-xs text-muted-foreground">{t('downloads.summaryDownloading')}</div>
               <div className="text-2xl font-bold">{downloads.filter((d) => d.status.toLowerCase() === 'running' || d.status.toLowerCase() === 'downloading').length}</div>
             </div>
             <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
-              <div className="text-xs text-muted-foreground">Completadas</div>
+              <div className="text-xs text-muted-foreground">{t('downloads.summaryCompleted')}</div>
               <div className="text-2xl font-bold">{downloads.filter((d) => d.status.toLowerCase() === 'finished' || d.status.toLowerCase() === 'completed').length}</div>
             </div>
             <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-              <div className="text-xs text-muted-foreground">Fallidas</div>
+              <div className="text-xs text-muted-foreground">{t('downloads.summaryFailed')}</div>
               <div className="text-2xl font-bold">{downloads.filter((d) => d.status.toLowerCase() === 'failed' || d.status.toLowerCase() === 'error').length}</div>
             </div>
             <div className="p-3 bg-amber-50 dark:bg-amber-950 rounded-lg">
-              <div className="text-xs text-muted-foreground">Pendientes</div>
+              <div className="text-xs text-muted-foreground">{t('downloads.summaryPending')}</div>
               <div className="text-2xl font-bold">{downloads.filter((d) => d.status.toLowerCase() === 'pending' || d.status.toLowerCase() === 'queued').length}</div>
             </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-2">
             <Input
-              placeholder="Buscar por nombre o host..."
+              placeholder={t('downloads.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1"
@@ -334,18 +335,18 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="downloading">Descargando</SelectItem>
-                <SelectItem value="completed">Completadas</SelectItem>
-                <SelectItem value="pending">Pendientes</SelectItem>
-                <SelectItem value="failed">Fallidas</SelectItem>
+                <SelectItem value="all">{t('downloads.filterAll')}</SelectItem>
+                <SelectItem value="downloading">{t('downloads.filterDownloading')}</SelectItem>
+                <SelectItem value="completed">{t('downloads.filterCompleted')}</SelectItem>
+                <SelectItem value="pending">{t('downloads.filterPending')}</SelectItem>
+                <SelectItem value="failed">{t('downloads.filterFailed')}</SelectItem>
               </SelectContent>
             </Select>
             <Button
               variant={autoRefresh ? 'default' : 'outline'}
               size="icon"
               onClick={() => setAutoRefresh(!autoRefresh)}
-              title={autoRefresh ? 'Pausar refresco automático' : 'Activar refresco automático'}
+              title={autoRefresh ? t('downloads.autoRefreshOn') : t('downloads.autoRefreshOff')}
             >
               <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
             </Button>
@@ -356,23 +357,23 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
       {/* Downloads List */}
       <Card>
         <CardHeader>
-          <CardTitle>Cola de Descargas</CardTitle>
-          <CardDescription>{filteredDownloads.length} de {downloads.length} descargas mostradas</CardDescription>
+          <CardTitle>{t('downloads.queueTitle')}</CardTitle>
+          <CardDescription>{t('downloads.queueDescription', { shown: filteredDownloads.length, total: downloads.length })}</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">Cargando descargas...</span>
+              <span className="ml-2 text-muted-foreground">{t('downloads.loading')}</span>
             </div>
           ) : filteredDownloads.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Download className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No hay descargas</h3>
+              <h3 className="text-lg font-medium mb-2">{t('downloads.noDownloads')}</h3>
               <p className="text-muted-foreground text-center">
                 {searchQuery || statusFilter !== 'all'
-                  ? 'No se encontraron descargas con los filtros aplicados'
-                  : 'No hay descargas activas en JDownloader'}
+                  ? t('downloads.noDownloadsFiltered')
+                  : t('downloads.noActiveDownloads')}
               </p>
             </div>
           ) : (
@@ -392,17 +393,17 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate mb-1">{download.name}</h4>
                         <div className="flex flex-wrap gap-1 mb-2">
-                          <Badge variant="outline" className="text-xs">Host: {download.host}</Badge>
-                          <Badge variant="outline" className="text-xs">Tamaño: {formatSize(download.size)}</Badge>
+                          <Badge variant="outline" className="text-xs">{t('downloads.host')}: {download.host}</Badge>
+                          <Badge variant="outline" className="text-xs">{t('downloads.size')}: {formatSize(download.size)}</Badge>
                           {download.category && <Badge variant="secondary" className="text-xs">{download.category}</Badge>}
                         </div>
                         {isRunning && (
                           <div className="space-y-2">
                             <Progress value={isExtracting ? 50 : download.progress} className={`h-2 ${isExtracting ? 'progress-striped' : ''}`} />
                             <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>{isExtracting ? 'Extrayendo…' : `${Math.round(download.progress)}%`}</span>
+                              <span>{isExtracting ? t('downloads.extracting') : `${Math.round(download.progress)}%`}</span>
                               {!isExtracting && (
-                                <span>{formatSpeed(download.speed)} • ETA: {formatETA(download.eta)}</span>
+                                <span>{formatSpeed(download.speed)} • {t('downloads.eta')}: {formatETA(download.eta)}</span>
                               )}
                             </div>
                           </div>
@@ -446,7 +447,7 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
       >
         <DrawerContent>
           <DrawerHeader>
-            <DrawerTitle className="truncate">{selected?.name || 'Detalles'}</DrawerTitle>
+            <DrawerTitle className="truncate">{selected?.name || t('downloads.details')}</DrawerTitle>
             <DrawerDescription>{selected?.status}</DrawerDescription>
           </DrawerHeader>
           <div className="p-4 space-y-4 max-h-96 overflow-y-auto">
@@ -454,27 +455,27 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
               <>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Host:</span>
+                    <span className="text-muted-foreground">{t('downloads.host')}:</span>
                     <span className="font-medium">{selected.host}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tamaño:</span>
+                    <span className="text-muted-foreground">{t('downloads.size')}:</span>
                     <span className="font-medium">{formatSize(selected.size)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Progreso:</span>
-                    <span className="font-medium">{selected.status.toLowerCase() === 'extracting' ? 'Extrayendo…' : `${Math.round(selected.progress)}%`}</span>
+                    <span className="text-muted-foreground">{t('downloads.statusPending')}:</span>
+                    <span className="font-medium">{selected.status.toLowerCase() === 'extracting' ? t('downloads.extracting') : `${Math.round(selected.progress)}%`}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Velocidad:</span>
+                    <span className="text-muted-foreground">{t('downloads.summaryDownloading')}:</span>
                     <span className="font-medium">{formatSpeed(selected.speed)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">ETA:</span>
+                    <span className="text-muted-foreground">{t('downloads.eta')}:</span>
                     <span className="font-medium">{formatETA(selected.eta)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Añadido:</span>
+                    <span className="text-muted-foreground">{t('downloads.added')}:</span>
                     <span className="font-medium text-xs">{formatDate(selected.addedAt)}</span>
                   </div>
                 </div>
@@ -483,7 +484,7 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
                   <>
                     <Separator />
                     <div className="space-y-2">
-                      <label className="text-sm text-muted-foreground">URL</label>
+                      <label className="text-sm text-muted-foreground">{t('downloads.url')}</label>
                       <p className="text-sm break-all bg-muted p-2 rounded">{selected.url}</p>
                     </div>
                   </>
@@ -493,10 +494,10 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
                   <>
                     <Separator />
                     <div className="space-y-2">
-                      <label className="text-sm text-muted-foreground">Ruta de descarga</label>
+                      <label className="text-sm text-muted-foreground">{t('downloads.downloadPath')}</label>
                       <div className="flex gap-2">
                         <Input
-                          placeholder="/ruta/de/descarga"
+                          placeholder={t('downloads.pathPlaceholder')}
                           value={pathInput}
                           onChange={(e) => setPathInput(e.target.value)}
                           onFocus={() => setIsEditingPath(true)}
@@ -531,10 +532,10 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
                             size="sm"
                             onClick={() => handleResume(selected)}
                             disabled={actionLoading === `resume-${selected.uuid}`}
-                            title={t('components.moveToDownloads')}
+                            title={t('downloads.moveToDownloadsButton')}
                           >
                             <Play className="h-4 w-4 mr-1" />
-                            Mover a descargas
+                            {t('downloads.moveToDownloadsButton')}
                           </Button>
                         )}
                         {!isLinkGrabber && (
@@ -547,7 +548,7 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
                                 disabled={actionLoading === `pause-${selected.uuid}`}
                               >
                                 <Pause className="h-4 w-4 mr-1" />
-                                Pausar
+                                {t('downloads.pause')}
                               </Button>
                             )}
                             {!isRunning && (isPending || statusLower === 'stopped') && (
@@ -556,10 +557,10 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
                                 size="sm"
                                 onClick={() => handleResume(selected)}
                                 disabled={actionLoading === `resume-${selected.uuid}`}
-                                title={isPending ? 'Iniciar descarga' : 'Reanudar descarga'}
+                                title={isPending ? t('downloads.startButton') : t('downloads.resume')}
                               >
                                 <Play className="h-4 w-4 mr-1" />
-                                {isPending ? 'Iniciar' : 'Reanudar'}
+                                {isPending ? t('downloads.startButton') : t('downloads.resume')}
                               </Button>
                             )}
                           </>
@@ -571,7 +572,7 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
                           disabled={actionLoading === `extract-${selected.uuid}`}
                         >
                           <Hammer className="h-4 w-4 mr-1" />
-                          Extraer
+                          {t('downloads.extract')}
                         </Button>
                         <Button
                           variant="outline"
@@ -580,29 +581,29 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
                           disabled={actionLoading === `stop-${selected.uuid}-queue`}
                         >
                           <StopCircle className="h-4 w-4 mr-1" />
-                          Eliminar
+                          {t('downloads.remove')}
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="destructive" size="sm">
                               <Trash2 className="h-4 w-4 mr-1" />
-                              Borrar files
+                              {t('downloads.deleteFileButton')}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>¿Eliminar archivos?</AlertDialogTitle>
+                              <AlertDialogTitle>{t('downloads.confirmDelete')}</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Se eliminarán de JDownloader y los archivos locales se borrarán.
+                                {t('downloads.confirmDeleteDescription')}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleStop(selected, true)}
                                 disabled={actionLoading === `stop-${selected.uuid}-files`}
                               >
-                                Confirmar
+                                {t('downloads.confirmButton')}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -616,7 +617,7 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
           </div>
           <DrawerFooter>
             <DrawerClose asChild>
-              <Button variant="outline">Cerrar</Button>
+              <Button variant="outline">{t('downloads.closeButton')}</Button>
             </DrawerClose>
           </DrawerFooter>
         </DrawerContent>
