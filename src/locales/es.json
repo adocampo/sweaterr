@@ -48,6 +48,7 @@
     "testing": "Testing",
     "subtitle": "Integración con foros y páginas de descarga directa para la familia *arr",
     "active": "Activo",
+    "idle": "Inactivo",
     "online": "En línea",
     "jdownloaderStatus": "JDownloader",
     "activeDownloads": "Descargas activas",
