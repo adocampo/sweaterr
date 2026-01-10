@@ -176,6 +176,7 @@ export class JDownloaderService {
   private deviceEncryptionToken?: any;
   private appKey = process.env.MYJD_APPKEY || 'DEMOAPIAPP'; // Allow override via env; default to DEMOAPIAPP
   private lastError?: string;
+  private requestId: number = 0;
   private baseUrl = 'https://api.jdownloader.org';
 
   constructor(email: string | null | undefined, password: string | null | undefined, deviceName: string | null | undefined) {
@@ -227,7 +228,8 @@ export class JDownloaderService {
 
       // Step 2: Connect and get session token
       // Orden alfabético: appkey, email, rid
-      const connectQuery = `/my/connect?appkey=${this.appKey}&email=${encodeURIComponent(this.email)}&rid=0`;
+      const rid = ++this.requestId;
+      const connectQuery = `/my/connect?appkey=${this.appKey}&email=${encodeURIComponent(this.email)}&rid=${rid}`;
       const signature = this.hmacSha256(connectQuery, this.loginSecret!);
       const connectUrl = `${this.baseUrl}${connectQuery}&signature=${signature}`;
 
@@ -236,7 +238,7 @@ export class JDownloaderService {
       logger.info('jdownloader', `Full URL: ${connectUrl}`);
       logger.info('jdownloader', 'Conectando a MyJDownloader...');
 
-      const connectResponse = await fetch(connectUrl, {
+      let connectResponse = await fetch(connectUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -246,6 +248,17 @@ export class JDownloaderService {
 
       logger.info('jdownloader', `Response status: ${connectResponse.status}`);
       logger.info('jdownloader', 'Response headers', Object.fromEntries(connectResponse.headers.entries()));
+
+      if (connectResponse.status === 403) {
+        logger.warn('jdownloader', 'Connect returned 403; retrying with GET...');
+        connectResponse = await fetch(connectUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+        logger.info('jdownloader', `GET retry status: ${connectResponse.status}`);
+      }
 
       if (!connectResponse.ok) {
         const errorText = await connectResponse.text();
@@ -295,7 +308,7 @@ export class JDownloaderService {
 
       // Step 3: List devices
       const devicesPath = `/my/listdevices`;
-      const devicesQuery = `${devicesPath}?sessiontoken=${this.sessionToken}&rid=0`;
+      const devicesQuery = `${devicesPath}?sessiontoken=${this.sessionToken}&rid=${++this.requestId}`;
       const devicesSignature = this.hmacSha256(devicesQuery, this.serverEncryptionToken!);
       const devicesUrl = `${this.baseUrl}${devicesQuery}&signature=${devicesSignature}`;
 
