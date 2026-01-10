@@ -631,6 +631,7 @@ DEEPSEEK_API_KEY="..."
   - Overview ahora consume descargas reales de JDownloader (sin depender del histórico vacío)
   - Tarjeta “Total Descargas” rediseñada (boxes coloreados y layout 2x2) para claridad
   - “Descargas recientes” usa el feed de JDownloader (nombre, host, tamaño, velocidad, progreso, ETA) con orden por prioridad
+  - Normalización de estados (`finished`→`completed`) y mezcla de métricas activas (JD) + histórico (BD) en la tarjeta del dashboard
 - 📝 **Archivos modificados**:
   - `src/app/page.tsx` (stats del dashboard desde JDownloader, rediseño tarjeta, lista recientes desde JD)
   - `src/app/api/downloads/status/route.ts` (sincroniza estados/progreso con Prisma, crea faltantes)

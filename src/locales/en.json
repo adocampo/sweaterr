@@ -25,6 +25,7 @@
     "invalidEmail": "Invalid email address",
     "passwordTooShort": "Password must be at least 8 characters long",
     "passwordsDoNotMatch": "Passwords do not match",
+      "activeAndHistory": "Active (JD) + History (DB)",
     "loginFailed": "Login failed",
     "setupFailed": "Setup failed",
     "setupSuccess": "Setup completed!",
@@ -37,7 +38,7 @@
     "system": "System",
     "light": "Light",
     "dark": "Dark",
-    "logout": "Logout"
+      "completed": "Completed",
   },
   "dashboard": {
     "title": "Dashboard",
