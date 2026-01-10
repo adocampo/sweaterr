@@ -44,24 +44,46 @@ export async function GET() {
     // Get downloads from JDownloader
     const jdDownloads = await jdService.getDownloads();
 
-    // Update our database with latest status
-    // TODO: Re-enable after fixing schema
-    /*
+    // Sync JDownloader status with our database
+    // Create or update download records for all JDownloader downloads
     for (const jdDownload of jdDownloads) {
-      await db.download.updateMany({
-        where: {
-          jDownloaderId: jdDownload.uuid,
-        },
-        data: {
-          status: jdDownload.status === 'finished' ? 'completed' :
-            jdDownload.status === 'running' ? 'downloading' :
-              jdDownload.status === 'failed' ? 'failed' : 'pending',
-          progress: (jdDownload.progress / 100) || 0,
-          size: jdDownload.size ? `${(jdDownload.size / (1024 * 1024 * 1024)).toFixed(2)} GB` : undefined,
-        },
+      const mappedStatus = 
+        jdDownload.status === 'finished' ? 'completed' :
+        jdDownload.status === 'running' ? 'downloading' :
+        jdDownload.status === 'failed' ? 'failed' : 'pending';
+      
+      // Try to find existing download by uuid
+      const existingDownload = await db.download.findFirst({
+        where: { jDownloaderId: jdDownload.uuid }
       });
+
+      if (existingDownload) {
+        // Update existing download
+        await db.download.update({
+          where: { id: existingDownload.id },
+          data: {
+            status: mappedStatus,
+            progress: (jdDownload.progress / 100) || 0,
+            size: jdDownload.size ? `${(jdDownload.size / (1024 * 1024 * 1024)).toFixed(2)} GB` : undefined,
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        // Create new download record if it doesn't exist
+        // This can happen if JDownloader has downloads but we don't have them in DB
+        await db.download.create({
+          data: {
+            title: jdDownload.name,
+            sourceUrl: '',
+            forumName: 'JDownloader',
+            jDownloaderId: jdDownload.uuid,
+            status: mappedStatus,
+            progress: (jdDownload.progress / 100) || 0,
+            size: jdDownload.size ? `${(jdDownload.size / (1024 * 1024 * 1024)).toFixed(2)} GB` : undefined,
+          },
+        });
+      }
     }
-    */
 
     return NextResponse.json({
       success: true,
