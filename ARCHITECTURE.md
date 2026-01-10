@@ -623,19 +623,17 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
-### 2026-01-10 (Feature: Verbose Logging Control)
+### 2026-01-10 (Feature: JDownloader Logs to File)
 
-- 🔇 **Problema**: La consola estaba inundada con logs de polling de JDownloader (cada segundo) mostrando todas las llamadas HTTP a MyJDownloader API, haciendo imposible detectar otros mensajes importantes.
+- 🔇 **Problema**: La consola estaba inundada con logs de polling de JDownloader (cada segundo en pestaña Descargas) mostrando todas las llamadas HTTP a MyJDownloader API, haciendo imposible detectar otros mensajes importantes.
 - ✅ **Solución**:
-  - Creado sistema de logging condicional con `verboseLog` en `src/lib/verbose-logger.ts`
-  - Reemplazados console.log verbosos en `src/lib/services/jdownloader.ts` con `verboseLog.log()`
-  - Configurado `experimental.logging.level = 'error'` en `next.config.ts` para silenciar logs de requests de Next.js
-  - Los logs verbose solo aparecen si se establece `VERBOSE_LOGS=true` en `.env.local`
+  - Los logs de JDownloader ahora se escriben exclusivamente a `logs/jdownloader.log` sin mostrar en consola
+  - El logger existente ya tenía `module !== 'jdownloader'` para silenciar estos logs en desarrollo
+  - Reemplazados console.log con `logger.info("jdownloader", message, data)` en todo el servicio
 - 📝 **Archivos modificados**:
-  - `src/lib/verbose-logger.ts` (nuevo)
-  - `src/lib/services/jdownloader.ts` (6 console.log → verboseLog.log)
-  - `next.config.ts` (añadido experimental.logging.level)
-- 🎯 **Resultado**: Consola limpia por defecto; usuarios pueden habilitar logs detallados para debugging estableciendo `VERBOSE_LOGS=true`
+  - `src/lib/services/jdownloader.ts` (7 llamadas console.log → logger.info/warn)
+  - `next.config.ts` (revertido cambio inválido de experimental.logging)
+- 🎯 **Resultado**: Consola limpia; todos los logs de JDownloader van a su archivo dedicado para auditoría
 
 ### 2026-01-10 (Fix: JDownloader Cloud Connection)
 

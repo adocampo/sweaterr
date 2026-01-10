@@ -9,7 +9,6 @@ import { webcrypto } from 'node:crypto';
 // Import CryptoJS - used for MyJD authentication (matches official addon implementation)
 const CryptoJS = require('crypto-js');
 import { logger } from '@/lib/logger';
-import { verboseLog } from '@/lib/verbose-logger';
 
 // Extend CryptoJS WordArray with firstHalf() and secondHalf() methods (from jdapi.js lines 18-28)
 // MUST be defined BEFORE creating any WordArrays
@@ -1007,7 +1006,7 @@ export class JDownloaderService {
       const rid = Date.now();
       const action = `/t_${this.sessionToken}_${this.deviceId}${endpoint}`;
 
-      verboseLog.log(`[MyJD] Command ${endpoint} params:`, { directory: path, packageIds: pkgIds, source });
+      logger.info("jdownloader", `Command ${endpoint}`, { directory: path, packageIds: pkgIds, source });
 
       // Only directory and packageIds as query parameters (per official docs)
       const query = `?directory=${encodeURIComponent(path)}&packageIds=${JSON.stringify(pkgIds)}`;
@@ -1063,7 +1062,7 @@ export class JDownloaderService {
       const rid = Date.now();
       const action = `/t_${this.sessionToken}_${this.deviceId}/extraction/startExtractionNow`;
 
-      verboseLog.log(`[MyJD] Command /extraction/startExtractionNow params:`, { linkIds: ids, packageIds: pkgIds });
+      logger.info("jdownloader", "Command /extraction/startExtractionNow", { linkIds: ids, packageIds: pkgIds });
 
       // linkIds and packageIds go as query parameters
       const query = `?linkIds=${JSON.stringify(ids)}&packageIds=${JSON.stringify(pkgIds)}`;
@@ -1143,19 +1142,19 @@ export class JDownloaderService {
       const encryptedResponse = await responseGet.text();
       const data = this.decryptAES(encryptedResponse, this.deviceEncryptionToken!);
       const archives: Array<{ archiveId: string }> = Array.isArray(data?.data) ? data.data : [];
-      verboseLog.log('[MyJD] Found', archives.length, 'archives for auto-extract');
+      logger.info("jdownloader", `Found ${archives.length} archives for auto-extract`);
 
       if (!archives.length) {
-        verboseLog.log('[MyJD] No archives found yet (download still in progress?) - setting auto-extract will apply when archives appear');
+        logger.info("jdownloader", "No archives found yet - setting auto-extract will apply when archives appear");
         return true;
       }
 
       // Set autoExtract=true for each archive
       for (const a of archives) {
-        verboseLog.log('[MyJD] Setting autoExtract=true for archive', a.archiveId);
+        logger.info("jdownloader", `Setting autoExtract=true for archive ${a.archiveId}`);
         const ok = await this.sendJDCommand('/extraction/setArchiveSettings', [String(a.archiveId), { autoExtract: true }]);
         if (!ok) {
-          verboseLog.warn('[MyJD] Failed to set autoExtract for archive', a.archiveId);
+          logger.warn("jdownloader", `Failed to set autoExtract for archive ${a.archiveId}`);
         }
       }
 
@@ -1195,17 +1194,13 @@ export class JDownloaderClient {
     local: boolean;
     remote: boolean;
   }> {
-    verboseLog.log('[JDClient] Testing connections...');
+    logger.info("jdownloader", "Testing connections...");
 
     const localAvailable = await this.localService.isAvailable();
-    verboseLog.log(
-      `[JDClient] Local API (deprecated): ${localAvailable ? '✅' : '❌'}`
-    );
+    logger.info("jdownloader", `Local API (deprecated): ${localAvailable ? '✅' : '❌'}`);
 
     const remoteAuthenticated = await this.remoteService.authenticate();
-    verboseLog.log(
-      `[JDClient] Remote API (MyJD): ${remoteAuthenticated ? '✅' : '❌'}`
-    );
+    logger.info("jdownloader", `Remote API (MyJD): ${remoteAuthenticated ? '✅' : '❌'}`);
 
     // Set preferred method based on availability
     if (localAvailable) {
@@ -1225,7 +1220,7 @@ export class JDownloaderClient {
     method: 'local' | 'remote' | 'none';
     error?: string;
   }> {
-    verboseLog.log(`[JDClient] Adding ${urls.length} link(s) via ${this.preferredMethod}...`);
+    logger.info("jdownloader", `Adding ${urls.length} link(s) via ${this.preferredMethod}`);
 
     // Try preferred method first
     if (this.preferredMethod === 'local') {
@@ -1233,7 +1228,7 @@ export class JDownloaderClient {
       if (success) {
         return { success: true, method: 'local' };
       }
-      verboseLog.log('[JDClient] Local failed, trying remote...');
+      logger.info("jdownloader", "Local failed, trying remote...");
     }
 
     // Try remote as fallback
