@@ -152,7 +152,7 @@ export default function Home() {
         const data = await response.json();
         if (data.success && data.data) {
           const allDownloads = data.data;
-          
+
           // Calculate stats for JDownloader downloads
           const downloading = allDownloads.filter((d: any) => {
             const status = d.status.toLowerCase();
@@ -161,9 +161,9 @@ export default function Home() {
           const completed = allDownloads.filter((d: any) => d.status.toLowerCase() === 'completed').length;
           const failed = allDownloads.filter((d: any) => d.status.toLowerCase() === 'failed').length;
           const pending = allDownloads.filter((d: any) => d.status.toLowerCase() === 'pending').length;
-          
+
           const speed = downloading.reduce((sum: number, d: any) => sum + (d.speed || 0), 0);
-          
+
           setTotalSpeed(speed);
           setActiveDownloadsCount(downloading.length);
           setJDownloaderStats({
@@ -261,8 +261,8 @@ export default function Home() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge 
-            variant={activeDownloadsCount > 0 ? "default" : "outline"} 
+          <Badge
+            variant={activeDownloadsCount > 0 ? "default" : "outline"}
             className="flex items-center gap-1"
           >
             <Activity className="h-3 w-3" />
