@@ -623,6 +623,20 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-10 (Feature: Verbose Logging Control)
+
+- 🔇 **Problema**: La consola estaba inundada con logs de polling de JDownloader (cada segundo) mostrando todas las llamadas HTTP a MyJDownloader API, haciendo imposible detectar otros mensajes importantes.
+- ✅ **Solución**:
+  - Creado sistema de logging condicional con `verboseLog` en `src/lib/verbose-logger.ts`
+  - Reemplazados console.log verbosos en `src/lib/services/jdownloader.ts` con `verboseLog.log()`
+  - Configurado `experimental.logging.level = 'error'` en `next.config.ts` para silenciar logs de requests de Next.js
+  - Los logs verbose solo aparecen si se establece `VERBOSE_LOGS=true` en `.env.local`
+- 📝 **Archivos modificados**:
+  - `src/lib/verbose-logger.ts` (nuevo)
+  - `src/lib/services/jdownloader.ts` (6 console.log → verboseLog.log)
+  - `next.config.ts` (añadido experimental.logging.level)
+- 🎯 **Resultado**: Consola limpia por defecto; usuarios pueden habilitar logs detallados para debugging estableciendo `VERBOSE_LOGS=true`
+
 ### 2026-01-10 (Fix: JDownloader Cloud Connection)
 
 - 🐛 **Problema**: Fallos de autenticación (403 AUTH_FAILED) al conectar con MyJDownloader en modo cloud.
