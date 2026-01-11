@@ -5,13 +5,14 @@ Estado: 11 de enero de 2026
 ## 🔴 CRÍTICOS (Afectan UX/Functionality)
 
 ### 1. **Implementación Endpoint *arr (Torznab Bridge)** 🔗
+
 - **Severidad**: Crítica (funcionalidad core)
 - **Área**: Backend API (`src/app/api/arr/*`)
 - **Problema**: Sweaterr debe actuar como indexer Torznab para *arr (Sonarr/Radarr/Lidarr)
 - **Funcionalidad**:
   - [ ] Endpoint `GET /api/arr` que devuelve feed RSS/Torznab de búsquedas configuradas
   - [ ] *arr hace peticiones de búsqueda a sweaterr → sweaterr busca en foros + IA → devuelve resultados
-  - [ ] Usuario selecciona resultado en *arr → *arr envía a sweaterr como descarga
+  - [ ] Usuario selecciona resultado en *arr →*arr envía a sweaterr como descarga
   - [ ] Sweaterr envía a JDownloader con tag *arr (serie, película, etc.)
   - [ ] JDownloader descarga → sweaterr notifica a *arr de completado (webhook/callback)
   - [ ] *arr importa automáticamente el contenido descargado
@@ -21,6 +22,7 @@ Estado: 11 de enero de 2026
 - **Prioridad**: 🔥 ANTES QUE TODO (es la razón de ser de sweaterr)
 
 ### 2. **Formulario de Login se Recarga a Sí Mismo**
+
 - **Severidad**: Alta (UX confusa)
 - **Área**: Frontend Auth (`src/app/login/page.tsx`)
 - **Problema**: Primera vez que inicia sesión, el form se recarga; segunda vez entra correctamente
@@ -34,9 +36,10 @@ Estado: 11 de enero de 2026
 - **Estimación**: 1-2 horas
 
 ### 3. **Sistema de Seguridad / Session Persistence**
+
 - **Severidad**: Alta (Seguridad)
 - **Área**: Auth/Middleware (`src/middleware.ts`, `src/app/api/auth/*`)
-- **Problema**: 
+- **Problema**:
   - Usuario mata servidor e inicia de nuevo horas/días después
   - Navegador todavía tiene la página cargada (cached)
   - No ve icono de usuario ni configuración (admin-only)
@@ -52,6 +55,7 @@ Estado: 11 de enero de 2026
 - **Estimación**: 2-3 horas
 
 ### 4. **Parpadeo/Flicker en Dashboard y Descargas** ⚠️
+
 - **Severidad**: Alta
 - **Área**: Frontend (page.tsx, downloads-manager.tsx)
 - **Problema**: El polling reemplaza arrays completos cada 3-10 segundos, causando flash de vacío y re-render total de listas
@@ -64,6 +68,7 @@ Estado: 11 de enero de 2026
 - **Estimación**: 4-6 horas
 
 ### 2. **Passwords en Texto Plano en BD**
+
 - **Severidad**: Media (Seguridad)
 - **Área**: Auth/Config
 - **Problema**: Credenciales (JDownloader, Foros, IA) se almacenan sin encriptar
@@ -74,6 +79,7 @@ Estado: 11 de enero de 2026
 - **Archivos**: `src/app/api/config/*`, Prisma schema
 
 ### 3. **Sin Rate Limiting**
+
 - **Severidad**: Media
 - **Problema**: Riesgo de ban en foros por exceso de requests
 - **Soluciones**:
@@ -84,6 +90,7 @@ Estado: 11 de enero de 2026
 ## 🟡 IMPORTANTES (Features/Polish)
 
 ### 4. **Procesos Chromium Acumulándose - FlareSolverr**
+
 - **Severidad**: Media
 - **Problema**: SessionManager cleanup no destruye sesiones correctamente, dejan procesos huérfanos
 - **Tareas**:
@@ -94,6 +101,7 @@ Estado: 11 de enero de 2026
 - **Estimación**: 3-4 horas
 
 ### 5. **Selectores CSS Sin Verificación**
+
 - **Problema**: No está claro si los selectores CSS configurados en UI se usan realmente en extracción de enlaces
 - **Tareas**:
   - [ ] Verificar que `extract-links/route.ts` recibe y usa los selectores
@@ -103,6 +111,7 @@ Estado: 11 de enero de 2026
 - **Estimación**: 2-3 horas
 
 ### 6. **Sin Timeouts Largos / UI Congelada**
+
 - **Problema**: Test de conexión a foros tarda ~30s, UI se cuelga sin feedback
 - **Tareas**:
   - [ ] Implementar AbortController con timeout (15s)
@@ -111,6 +120,7 @@ Estado: 11 de enero de 2026
 - **Estimación**: 2 horas
 
 ### 7. **Detección de Idiomas Mejorada**
+
 - **Problema**: Regex no detecta abreviaturas (Jap, Esp) ni formatos con slash (Audio1/Audio2)
 - **Tareas**:
   - [ ] Mejorar regex con abreviaturas comunes
@@ -121,6 +131,7 @@ Estado: 11 de enero de 2026
 - **Estimación**: 3 horas
 
 ### 8. **Tablas Dinámicas Series vs Películas**
+
 - **Problema**: Tabla de resultados mezcla series y películas con columnas inapropiadas (Season/Episode para películas)
 - **Tareas**:
   - [ ] Agregar Select en tester para filtrar por tipo
@@ -132,12 +143,14 @@ Estado: 11 de enero de 2026
 ## 🟢 NICE-TO-HAVE (Futuro)
 
 ### 9. **Script de Arranque para Desarrollo**
+
 - [ ] Crear `scripts/dev.sh` con validación de puerto 3000
 - [ ] Comandos: `npm run dev:start`, `npm run dev:stop`
 - [ ] Documenta en README
 - **Estimación**: 1-2 horas
 
 ### 10. **Gestión Avanzada de Subforos**
+
 - [ ] Toggle `searchInChildForums` en configuración foro
 - [ ] Selección múltiple de subforos
 - [ ] Listado automático de subforos disponibles
@@ -145,29 +158,71 @@ Estado: 11 de enero de 2026
 - **Estimación**: 5-6 horas
 
 ### 11. **Multi-Foro Simultáneo en Búsqueda**
+
 - [ ] Buscar en todos los foros configurados en paralelo (Promise.all)
 - [ ] Ranking/scoring de resultados por foro
 - **Estimación**: 3-4 horas
 
 ### 12. **Caché de Búsquedas**
+
 - [ ] Redis/in-memory para resultados recientes (TTL 1 hora)
 - [ ] Evita búsquedas duplicadas en foros lentos
 - **Estimación**: 3 horas
 
 ### 13. **Notificaciones (Discord/Telegram)**
+
 - [ ] Webhook cuando descarga completa
 - [ ] Configurable en settings
 - **Estimación**: 4-5 horas
 
 ### 14. **Dashboard con Estadísticas**
+
 - [ ] Gráficos de descargas por foro, por tipo (serie/película), por mes
 - [ ] Top foros más usados
 - [ ] Métricas de velocidad/éxito de búsqueda
 - **Estimación**: 6-8 horas
 
+### 15. **Soporte Multi-Plataforma de Fuentes (Foros, DDL, Streaming)**
+
+- **Severidad**: Media (Arquitectura escalable)
+- **Área**: Backend/Frontend (`src/app/api/config/forums/*`, `src/components/config/*`, Prisma schema)
+- **Problema**: Actualmente el código está parcialmente hardcodeado para descargasdd.org (vBulletin); no permite añadir otros tipos de foros (phpBB, Invision Community) ni sitios de descarga directa (DDL) o streaming
+- **Funcionalidad**:
+  - [ ] Parametrizar tipo de plataforma en configuración de fuente (`forumType`: vBulletin, phpBB, InvisionCommunity, CustomDDL, Streaming)
+  - [ ] Abstraer lógica de búsqueda/extracción por tipo de plataforma (estrategia pattern)
+  - [ ] UI con selector de tipo de plataforma al añadir fuente
+  - [ ] Permitir configuración de selectores CSS custom para plataformas no estándar
+  - [ ] Validación de campos requeridos según tipo de plataforma
+  - [ ] Documentación de cómo añadir soporte para nuevas plataformas
+- **Impacto**: Permite expandir sweaterr a cualquier fuente de descarga directa sin hardcodear
+- **Archivos**: 
+  - `prisma/schema.prisma` (añadir `forumType` enum)
+  - `src/lib/services/platform-handlers/` (nuevo: vbulletin.ts, phpbb.ts, custom.ts)
+  - `src/components/config/forum-config.tsx` (añadir selector tipo)
+- **Estimación**: 8-12 horas
+- **Dependencias**: Refactor de `cloudflare-handler.ts` para soportar estrategias de plataforma
+
+### 16. **Renombrar "Foros" → "Fuentes/Orígenes"**
+
+- **Severidad**: Baja (Nomenclatura/UX)
+- **Área**: Frontend/Backend/i18n (`src/locales/*.json`, `src/components/*`, `src/app/api/config/*`)
+- **Problema**: La sección "Foros" es restrictiva; sweaterr puede consumir foros, sitios DDL, streaming, etc.
+- **Solución**:
+  - [ ] Renombrar tabla `Forum` → `Source` en Prisma (migration)
+  - [ ] Actualizar API routes: `/api/config/forums` → `/api/config/sources`
+  - [ ] Cambiar i18n: `forums.*` → `sources.*` (en/es)
+  - [ ] Actualizar UI: "Foros" → "Fuentes" o "Orígenes" (español) / "Sources" (inglés)
+  - [ ] Actualizar hooks: `useForums()` → `useSources()`
+  - [ ] Actualizar componentes: `forum-config.tsx` → `source-config.tsx`, etc.
+  - [ ] Documentación: Actualizar README y ARCHITECTURE.md
+- **Archivos**: Múltiples (schema, API routes, hooks, componentes, i18n)
+- **Estimación**: 4-6 horas
+- **Orden**: Hacer DESPUÉS de implementar multi-plataforma (#15) para evitar doble refactor
+
 ## 📋 CAMBIOS RECIENTES (Enero 2026)
 
 ### Merged a Master (2026-01-11)
+
 - ✅ Sincronización de descargas JDownloader ↔ BD
 - ✅ Deduplicación de totales en dashboard (no inflar completados)
 - ✅ Normalización de estados (finished→completed)
@@ -177,6 +232,7 @@ Estado: 11 de enero de 2026
 - ✅ Logs de JDownloader a archivo (`logs/jdownloader.log`)
 
 ### Documentación
+
 - ✅ ARCHITECTURE.md actualizado con changelog
 - ✅ JSON locale (en/es) corregido y ampliado
 - 📝 Este archivo: TODOS.md creado
@@ -197,7 +253,7 @@ Estado: 11 de enero de 2026
 
 - **TODOs Críticos**: 6 (incluye *arr indexer, login reload, session persistence)
 - **TODOs Importantes**: 5
-- **Nice-to-Have**: 6
-- **Total**: 17 items
-- **Horas Estimadas**: ~50-70 horas para completar todo (incluye *arr: 8-10h)
-- **Prioridad**: #1 *arr Torznab -> #2-4 Auth/Session/Login -> #5-7 Flicker/Security/Rate Limiting
+- **Nice-to-Have**: 8 (añadidos: multi-plataforma fuentes, renombrar "Foros")
+- **Total**: 19 items
+- **Horas Estimadas**: ~65-90 horas para completar todo
+- **Prioridad**: #1 *arr Torznab → #2-4 Auth/Session/Login → #5-7 Flicker/Security/Rate Limiting → #15-16 Multi-plataforma + Renombrar
