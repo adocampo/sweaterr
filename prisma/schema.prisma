@@ -45,6 +45,9 @@ model Forum {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
+  // Torznab/Newznab API key for *arr integration (auto-generated per forum)
+  torznabApiKey String  @unique // Format: fdd-xxxxxxxxxxxxxxxxxxxxxxxx
+  
   // Configuration for parsing
   thankButtonSelector    String? // CSS selector for thank button
   linksContainerSelector String? // CSS selector for links container

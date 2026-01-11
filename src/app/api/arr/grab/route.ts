@@ -4,11 +4,12 @@ import { ForumService } from '@/lib/services/forum';
 import { JDownloaderService } from '@/lib/services/jdownloader';
 
 // GET /api/arr/grab - Download link grab endpoint
+// Uses forum's torznabApiKey for validation
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
-        const guid = searchParams.get('guid'); // format: forumId-postUrl
+        const guid = searchParams.get('guid'); // format: base64url(JSON{forumId, category, url})
 
         if (!apiKey || !guid) {
             return new NextResponse(
@@ -21,12 +22,12 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Validate API key
-        const service = await db.arrService.findUnique({
-            where: { apiKey },
+        // Validate API key against forum's torznabApiKey
+        const forumWithApiKey = await db.forum.findFirst({
+            where: { torznabApiKey: apiKey },
         });
 
-        if (!service || !service.enabled) {
+        if (!forumWithApiKey || !forumWithApiKey.enabled) {
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,

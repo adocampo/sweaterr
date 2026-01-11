@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger';
 
 // POST /api/arr/notify - Notification handler for *arr callbacks
 // This endpoint receives webhooks from Sonarr/Radarr when downloads are imported
+// (Optional API key validation, but webhooks typically don't include it)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

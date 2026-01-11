@@ -3,7 +3,8 @@ import * as Caps from './caps/route';
 import * as Search from './search/route';
 import * as Grab from './grab/route';
 
-// Unified Torznab/Newznab-style endpoint: /api/arr?t=caps|search|tvsearch|movie|get
+// Unified Torznab/Newznab-style endpoint: /api/arr?t=caps|search|tvsearch|movie|get&apikey=<forum-torznab-api-key>
+// Each forum has its own Torznab API key (torznabApiKey field)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

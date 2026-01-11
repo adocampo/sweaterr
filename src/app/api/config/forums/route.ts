@@ -48,6 +48,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = forumConfigSchema.parse(body);
 
+    // Generate Torznab API key automatically
+    const torznabApiKey = `fdd-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+
     const forum = await db.forum.create({
       data: {
         name: validatedData.name,
@@ -59,6 +62,7 @@ export async function POST(request: NextRequest) {
         thankButtonSelector: validatedData.thankButtonSelector,
         linksContainerSelector: validatedData.linksContainerSelector,
         postTitleSelector: validatedData.postTitleSelector,
+        torznabApiKey, // Auto-generated per forum
         // Store TTL in milliseconds. Incoming value is minutes.
         // If not provided, default to 30 minutes.
         flaresolverrSessionTTL:
@@ -80,6 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: forum,
+      message: 'Forum created. Torznab API key generated automatically.',
     });
   } catch (error) {
     console.error('Error creating forum:', error);

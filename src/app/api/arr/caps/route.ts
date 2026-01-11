@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
 // GET /api/arr/caps - Newznab/Torznab capabilities endpoint
+// Validates API key against forum's torznabApiKey
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -18,12 +19,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Validate API key
-    const service = await db.arrService.findUnique({
-      where: { apiKey },
+    // Validate API key against forum's torznabApiKey
+    const forum = await db.forum.findFirst({
+      where: { torznabApiKey: apiKey },
     });
 
-    if (!service || !service.enabled) {
+    if (!forum || !forum.enabled) {
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     // Return Newznab/Torznab capabilities
     const capsXml = `<?xml version="1.0" encoding="UTF-8"?>
 <caps>
-  <server version="1.0" title="Sweaterr" strapline="Direct download indexer" email="" url="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" image="" type="nzb" />
+  <server version="1.0" title="Sweaterr - ${forum.name}" strapline="Direct download indexer" email="" url="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" image="" type="nzb" />
   <limits max="100" default="100"/>
   <registration available="no" open="no"/>
   <searching>
