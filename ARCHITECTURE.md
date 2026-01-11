@@ -1764,6 +1764,71 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 
 ## Historial de Cambios Recientes (Enero 2026)
 
+### 11 de Enero 2026 (Parte 2 - Mejoras UX *arr)
+
+#### Botones Separados para URL y API Key
+
+- **Cambio**: Reemplazado botón único "Copy API Key" con dos botones separados: "Copy URL" y "Copy API Key"
+- **Motivación**: *arr requiere configurar URL y API Key en campos SEPARADOS (arquitectura Newznab)
+- **Implementación**:
+  - Agregados dos handlers: `handleCopyUrl()` y `handleCopyApiKey()`
+  - UI muestra dos botones side-by-side en columna Torznab Feed
+  - Primer botón copia: `http://localhost:3000/api/arr`
+  - Segundo botón copia: API key del foro (ej: `fdd-12e6550d0de40268bc3f53a637d5ad91`)
+  - Tooltips simplificados para cada botón (texto correcto en modo oscuro)
+- **Archivos modificados**: `src/components/config/forums-table.tsx`
+
+#### Fix Tooltip Oscuro No Visible
+
+- **Error corregido**: Tooltip con fondo `bg-slate-900` no visible en tema oscuro
+- **Solución**: Cambiado a `bg-popover text-popover-foreground` (clases Tailwind que respetan tema)
+- **Impacto**: Tooltips ahora visibles tanto en tema claro como oscuro
+- **Archivos modificados**: `src/components/config/forums-table.tsx`
+
+#### Logs en Minúsculas con Tags de Servicio *arr
+
+- **Cambio**: Nombres de logs cambiados de `ARR_CAPS` / `ARR_SEARCH` a `arr_caps` / `arr_search` (minúsculas)
+- **Agregado**: Detección automática del servicio *arr desde User-Agent
+- **Implementación**:
+  - Función `detectArrService(userAgent)` detecta Sonarr, Radarr, Lidarr, Readarr, Prowlarr, Whisparr
+  - Logs ahora incluyen tag del servicio: `[INFO] arr_caps [SONARR] Caps request received`
+  - Permite filtrar logs por servicio específico (grep "SONARR")
+- **Motivación**: Logs con caracteres especiales `[arr-caps]` difíciles de trabajar en terminal
+- **Archivos modificados**: 
+  - `src/app/api/arr/caps/route.ts`
+  - `src/app/api/arr/search/route.ts`
+
+#### Checkbox "Buscar en Subforos" en Configuración de Foro
+
+- **Agregado**: Campo `searchInChildForums` (boolean) en modelo Forum
+- **UI**: Checkbox "Buscar en subforos" debajo del campo "Foro donde buscar"
+- **Descripción**: "Incluir resultados de subforos en las búsquedas (childforums=1)"
+- **Cambio de Label**: "Etiqueta de foro" renombrado a "Foro donde buscar"
+- **Preparación Futura**: Este campo permitirá buscar en subforos (parámetro `childforums=1`)
+- **Estado**: Campo visible y persistido en DB, integración con búsquedas pendiente
+- **Archivos modificados**:
+  - `src/lib/types.ts` (interfaces Forum y ForumConfigForm)
+  - `src/components/config/forum-config.tsx` (schema, defaultValues, UI)
+  - `prisma/schema.prisma` (campo `searchInChildForums Boolean @default(false)`)
+
+#### Logging de Búsquedas *arr en search.log
+
+- **Agregado**: Logs detallados de búsquedas *arr en `search.log` además de `arr_search.log`
+- **Motivación**: Usuario reportó que búsquedas desde Sonarr no aparecían en search.log
+- **Implementación**: 
+  - Logs con prefijo `search` y tag `[SONARR]` / `[RADARR]` etc
+  - Log de inicio de búsqueda con query y número de variantes
+  - Log por cada foro con cada variante de búsqueda
+  - Log de resultados encontrados o advertencia si no hay resultados
+  - Log de errores de búsqueda por foro
+- **Ejemplo de log**:
+  ```
+  [INFO] search [SONARR] Starting forum search for query: "Breaking Bad" (variants: 3)
+  [INFO] search [SONARR] Searching in forum "DescargasDD" with variant: "Breaking Bad temporada 5"
+  [INFO] search [SONARR] Found 5 results in forum "DescargasDD"
+  ```
+- **Archivos modificados**: `src/app/api/arr/search/route.ts`
+
 ### 11 de Enero 2026
 
 #### Arquitectura *arr: API Key por Foro
