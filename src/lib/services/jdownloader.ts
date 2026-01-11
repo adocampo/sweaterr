@@ -359,6 +359,12 @@ export class JDownloaderService {
       logger.info('jdownloader', `decryptAES: Decrypted text length: ${decryptedText.length}`);
       logger.info('jdownloader', `decryptAES: Decrypted text (first 50): ${decryptedText.substring(0, 50)}`);
 
+      // Validate decrypted text before parsing
+      if (!decryptedText || decryptedText.trim() === '') {
+        logger.error('jdownloader', 'decryptAES: Decrypted text is empty');
+        throw new Error('Decrypted text is empty - possible authentication or encryption issue');
+      }
+
       const parsed = JSON.parse(decryptedText);
       logger.info('jdownloader', 'decryptAES: JSON parsed successfully');
       return parsed;
