@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
+import { logger } from '@/lib/logger';
 
 // GET /api/arr/search - Newznab/Torznab search endpoint
 // Uses forum's torznabApiKey for validation
@@ -16,8 +17,11 @@ export async function GET(request: NextRequest) {
         const ep = searchParams.get('ep');
         const imdbid = searchParams.get('imdbid');
         const tmdbid = searchParams.get('tmdbid');
+        
+        logger.info('[arr-search]', `Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
         if (!apiKey) {
+            logger.warn('[arr-search]', 'Missing API key in request');
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -32,8 +36,11 @@ export async function GET(request: NextRequest) {
         const forumWithApiKey = await db.forum.findFirst({
             where: { torznabApiKey: apiKey },
         });
+        
+        logger.info('[arr-search]', `Forum lookup result: ${forumWithApiKey ? `Found forum '${forumWithApiKey.name}'` : 'NOT FOUND'}`);
 
         if (!forumWithApiKey || !forumWithApiKey.enabled) {
+            logger.warn('[arr-search]', `Invalid API key or forum disabled. Forum: ${forumWithApiKey ? 'found but disabled' : 'not found'}`);
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -49,6 +56,8 @@ export async function GET(request: NextRequest) {
             where: { enabled: true },
             include: { credentials: true },
         });
+        
+        logger.info('[arr-search]', `Found ${forums.length} enabled forums to search in`);
 
         if (forums.length === 0) {
             return new NextResponse(

@@ -118,8 +118,9 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
     const handleCopyFeed = (forum: Forum) => {
         if (!forum.torznabApiKey) return;
         
-        // Copy only the API key, not the full URL
-        navigator.clipboard.writeText(forum.torznabApiKey);
+        // Copy full Newznab URL
+        const feedUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr?apikey=${forum.torznabApiKey}`;
+        navigator.clipboard.writeText(feedUrl);
         
         setCopiedId(forum.id);
         setTimeout(() => setCopiedId(null), 2000);
@@ -262,15 +263,18 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                                                         ) : (
                                                             <>
                                                                 <Copy className="h-3 w-3 mr-1" />
-                                                                Copy API Key
+                                                                Copy Newznab URL
                                                             </>
                                                         )}
                                                     </Button>
                                                 </TooltipTrigger>
                                                 <TooltipContent className="max-w-xs">
-                                                    <code className="text-xs break-all">
-                                                        {forum.torznabApiKey}
-                                                    </code>
+                                                    <div className="text-xs">
+                                                        <p className="font-semibold mb-1">Newznab Feed URL:</p>
+                                                        <code className="break-all">
+                                                            {`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr?apikey=${forum.torznabApiKey}`}
+                                                        </code>
+                                                    </div>
                                                 </TooltipContent>
                                             </Tooltip>
                                         )}
