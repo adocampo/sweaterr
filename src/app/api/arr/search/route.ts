@@ -4,12 +4,27 @@ import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { logger } from '@/lib/logger';
 
+// Detect *arr service from User-Agent
+function detectArrService(userAgent: string | null): string {
+    if (!userAgent) return 'unknown';
+    const ua = userAgent.toLowerCase();
+    if (ua.includes('sonarr')) return 'sonarr';
+    if (ua.includes('radarr')) return 'radarr';
+    if (ua.includes('lidarr')) return 'lidarr';
+    if (ua.includes('readarr')) return 'readarr';
+    if (ua.includes('prowlarr')) return 'prowlarr';
+    if (ua.includes('whisparr')) return 'whisparr';
+    return 'unknown';
+}
+
 // GET /api/arr/search - Newznab/Torznab search endpoint
 // Uses forum's torznabApiKey for validation
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
+        const userAgent = request.headers.get('user-agent');
+        const service = detectArrService(userAgent);
         const t = searchParams.get('t'); // search type: search, tvsearch, movie
         const q = searchParams.get('q') || ''; // query
         const cats = (searchParams.get('cat') || '').split(',').filter(Boolean);
@@ -18,10 +33,10 @@ export async function GET(request: NextRequest) {
         const imdbid = searchParams.get('imdbid');
         const tmdbid = searchParams.get('tmdbid');
         
-        logger.info('ARR_SEARCH', `Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
+        logger.info('arr_search', `[${service.toUpperCase()}] Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
         if (!apiKey) {
-            logger.warn('ARR_SEARCH', 'Missing API key in request');
+            logger.warn('arr_search', `[${service.toUpperCase()}] Missing API key in request`);
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -37,10 +52,10 @@ export async function GET(request: NextRequest) {
             where: { torznabApiKey: apiKey },
         });
         
-        logger.info('ARR_SEARCH', `Forum lookup result: ${forumWithApiKey ? `Found forum '${forumWithApiKey.name}'` : 'NOT FOUND'}`);
+        logger.info('arr_search', `[${service.toUpperCase()}] Forum lookup result: ${forumWithApiKey ? `Found forum '${forumWithApiKey.name}'` : 'NOT FOUND'}`);
 
         if (!forumWithApiKey || !forumWithApiKey.enabled) {
-            logger.warn('ARR_SEARCH', `Invalid API key or forum disabled. Forum: ${forumWithApiKey ? 'found but disabled' : 'not found'}`);
+            logger.warn('arr_search', `[${service.toUpperCase()}] Invalid API key or forum disabled. Forum: ${forumWithApiKey ? 'found but disabled' : 'not found'}`);
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -57,7 +72,7 @@ export async function GET(request: NextRequest) {
             include: { credentials: true },
         });
         
-        logger.info('ARR_SEARCH', `Found ${forums.length} enabled forums to search in`);
+        logger.info('arr_search', `[${service.toUpperCase()}] Found ${forums.length} enabled forums to search in`);
 
         if (forums.length === 0) {
             return new NextResponse(
@@ -152,13 +167,17 @@ export async function GET(request: NextRequest) {
         if (searchQuery && searchQuery.trim().length > 0) {
             const isTv = (t || '').toLowerCase() === 'tvsearch';
             const variants = isTv ? buildTvVariants(searchQuery, season, ep) : [searchQuery];
+            
+            logger.info('search', `[${service.toUpperCase()}] Starting forum search for query: "${searchQuery}" (variants: ${variants.length})`);
 
             for (const forum of forums) {
                 try {
                     let found = false;
                     for (const vq of variants) {
+                        logger.info('search', `[${service.toUpperCase()}] Searching in forum "${forum.name}" with variant: "${vq}"`);
                         const results = await forumService.search(forum.id, vq);
                         if (results.length > 0) {
+                            logger.info('search', `[${service.toUpperCase()}] Found ${results.length} results in forum "${forum.name}"`);
                             allResults.push(...results.map(r => ({
                                 ...r,
                                 forumId: forum.id,
@@ -169,9 +188,11 @@ export async function GET(request: NextRequest) {
                         }
                     }
                     if (!found) {
+                        logger.warn('search', `[${service.toUpperCase()}] No results found in forum "${forum.name}" for any variant`);
                         // no-op; fallback handled below
                     }
                 } catch (error) {
+                    logger.error('search', `[${service.toUpperCase()}] Search failed for forum ${forum.name}: ${error}`);
                     console.error(`Search failed for forum ${forum.name}:`, error);
                 }
             }

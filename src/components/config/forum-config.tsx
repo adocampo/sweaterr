@@ -37,6 +37,7 @@ const forumSchema = z.object({
   searchPath: z.string().optional(),
   searchMode: z.enum(['native', 'google_site', 'google_cse']).optional(),
   searchForumLabel: z.string().optional(),
+  searchInChildForums: z.boolean().optional(),
   cseId: z.string().optional(),
   thankButtonSelector: z.string().optional(),
   linksContainerSelector: z.string().optional(),
@@ -101,6 +102,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
       searchPath: '/search.php',
       searchMode: 'native',
       searchForumLabel: '',
+      searchInChildForums: false,
       cseId: '',
       thankButtonSelector: '',
       linksContainerSelector: '',
@@ -342,7 +344,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                   name="searchForumLabel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('forums.searchForumLabel')}</FormLabel>
+                      <FormLabel>Foro donde buscar</FormLabel>
                       <FormControl>
                         <Input
                           placeholder={t('components.searchForumExample')}
@@ -353,6 +355,27 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                         {t('forumForm.searchForumLabelDescription')}
                       </FormDescription>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="searchInChildForums"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Buscar en subforos</FormLabel>
+                        <FormDescription>
+                          Incluir resultados de subforos en las búsquedas (childforums=1)
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />

@@ -2,17 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
+// Detect *arr service from User-Agent
+function detectArrService(userAgent: string | null): string {
+  if (!userAgent) return 'unknown';
+  const ua = userAgent.toLowerCase();
+  if (ua.includes('sonarr')) return 'sonarr';
+  if (ua.includes('radarr')) return 'radarr';
+  if (ua.includes('lidarr')) return 'lidarr';
+  if (ua.includes('readarr')) return 'readarr';
+  if (ua.includes('prowlarr')) return 'prowlarr';
+  if (ua.includes('whisparr')) return 'whisparr';
+  return 'unknown';
+}
+
 // GET /api/arr/caps - Newznab/Torznab capabilities endpoint
 // Validates API key against forum's torznabApiKey
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
+    const userAgent = request.headers.get('user-agent');
+    const service = detectArrService(userAgent);
     
-    logger.info('ARR_CAPS', `Caps request received. API Key: ${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
+    logger.info('arr_caps', `[${service.toUpperCase()}] Caps request received. API Key: ${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
     if (!apiKey) {
-      logger.warn('ARR_CAPS', 'Missing API key in request');
+      logger.warn('arr_caps', `[${service.toUpperCase()}] Missing API key in request`);
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -28,10 +43,10 @@ export async function GET(request: NextRequest) {
       where: { torznabApiKey: apiKey },
     });
     
-    logger.info('ARR_CAPS', `Forum lookup result: ${forum ? `Found forum '${forum.name}'` : 'NOT FOUND'}`);
+    logger.info('arr_caps', `[${service.toUpperCase()}] Forum lookup result: ${forum ? `Found forum '${forum.name}'` : 'NOT FOUND'}`);
 
     if (!forum || !forum.enabled) {
-      logger.warn('ARR_CAPS', `Invalid API key or forum disabled. Forum: ${forum ? 'found but disabled' : 'not found'}`);
+      logger.warn('arr_caps', `[${service.toUpperCase()}] Invalid API key or forum disabled. Forum: ${forum ? 'found but disabled' : 'not found'}`);
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -84,13 +99,13 @@ export async function GET(request: NextRequest) {
   </categories>
 </caps>`;
     
-    logger.info('ARR_CAPS', `Returning capabilities for forum '${forum.name}'`);
+    logger.info('arr_caps', `[${service.toUpperCase()}] Returning capabilities for forum '${forum.name}'`);
 
     return new NextResponse(capsXml, {
       headers: { 'Content-Type': 'application/xml' },
     });
   } catch (error) {
-    logger.error('ARR_CAPS', 'Error in caps endpoint', error);
+    logger.error('arr_caps', `Error processing caps request: ${error}`);
     return new NextResponse(
       `<?xml version="1.0" encoding="UTF-8"?>
 <error code="900" description="Internal server error"/>`,

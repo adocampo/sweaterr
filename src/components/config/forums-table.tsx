@@ -115,13 +115,16 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
         }
     };
 
-    const handleCopyFeed = (forum: Forum) => {
+    const handleCopyUrl = () => {
+        const url = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr`;
+        navigator.clipboard.writeText(url);
+        setCopiedId('url');
+        setTimeout(() => setCopiedId(null), 2000);
+    };
+
+    const handleCopyApiKey = (forum: Forum) => {
         if (!forum.torznabApiKey) return;
-        
-        // Copy only the API key (NOT the full URL)
-        // *arr expects URL and API Key SEPARATELY
         navigator.clipboard.writeText(forum.torznabApiKey);
-        
         setCopiedId(forum.id);
         setTimeout(() => setCopiedId(null), 2000);
     };
@@ -247,37 +250,58 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                                     </TableCell>
                                     <TableCell>
                                         {forum.torznabApiKey && (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleCopyFeed(forum)}
-                                                        className="text-xs"
-                                                    >
-                                                        {copiedId === forum.id ? (
-                                                            <>
-                                                                <Check className="h-3 w-3 mr-1" />
-                                                                Copied
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Copy className="h-3 w-3 mr-1" />
-                                                                Copy API Key
-                                                            </>
-                                                        )}
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent className="max-w-xs">
-                                                    <div className="text-xs space-y-1">
-                                                        <p className="font-semibold">Newznab Configuration:</p>
-                                                        <div className="bg-slate-900 p-2 rounded text-left">
-                                                            <p><strong>URL:</strong> {`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr`}</p>
-                                                            <p><strong>API Key:</strong> <code className="break-all">{forum.torznabApiKey}</code></p>
-                                                        </div>
-                                                    </div>
-                                                </TooltipContent>
-                                            </Tooltip>
+                                            <div className="flex gap-2">
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={handleCopyUrl}
+                                                            className="text-xs"
+                                                        >
+                                                            {copiedId === 'url' ? (
+                                                                <>
+                                                                    <Check className="h-3 w-3 mr-1" />
+                                                                    Copied
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Copy className="h-3 w-3 mr-1" />
+                                                                    Copy URL
+                                                                </>
+                                                            )}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="bg-popover text-popover-foreground">
+                                                        <p className="text-xs">Newznab URL</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleCopyApiKey(forum)}
+                                                            className="text-xs"
+                                                        >
+                                                            {copiedId === forum.id ? (
+                                                                <>
+                                                                    <Check className="h-3 w-3 mr-1" />
+                                                                    Copied
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Copy className="h-3 w-3 mr-1" />
+                                                                    Copy API Key
+                                                                </>
+                                                            )}
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="bg-popover text-popover-foreground">
+                                                        <p className="text-xs">API Key: {forum.torznabApiKey?.substring(0, 15)}...</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </div>
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
