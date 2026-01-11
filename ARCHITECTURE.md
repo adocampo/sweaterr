@@ -1760,6 +1760,50 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 - Considerar usar Context/Provider más robusto para i18n si es necesario
 - Revisar componentes que dependen del language prop vs useI18n hook
 
+---
+
+## Historial de Cambios Recientes (Enero 2026)
+
+### 11 de Enero 2026
+
+#### Arquitectura *arr: API Key por Foro
+
+- **Cambio**: Migración de servicios *arr separados a API keys por foro
+- **Motivación**: Simplificar UX y eliminar paso de configuración adicional
+- **Implementación**:
+  - Agregado campo `torznabApiKey` (String @unique) al modelo Forum en Prisma
+  - Creada migración `20260111140658_add_torznab_api_key_to_forums` con auto-generación para foros existentes
+  - Actualizados endpoints `/api/arr/caps`, `/api/arr/search`, `/api/arr/grab` para validar contra Forum.torznabApiKey
+  - Endpoint `/api/config/forums` genera automáticamente API key al crear foro (formato `fdd-XXXX`)
+  - ForumsTable añade columna "Torznab Feed" con botón "Copy API Key"
+  - Eliminada sección ArrConfig del dashboard (simplificación de UI)
+  - Actualizada documentación en ARR_SETUP.md y ARCHITECTURE.md
+
+#### Fix Error JSON.parse en JDownloader
+
+- **Error corregido**: `SyntaxError: Unexpected end of JSON input` en `/api/downloads/status`
+- **Causa**: Método `decryptAES` en JDownloaderService llamaba `JSON.parse(decryptedText)` sin validar que el texto no estuviera vacío
+- **Condición**: Ocurría cuando JDownloader devolvía respuesta vacía o inválida durante polling de estado
+- **Impacto**: Error en consola antes de recargar página (posible relación con problema de login reload)
+- **Solución**: Agregada validación en `src/lib/services/jdownloader.ts` línea 362:
+  ```typescript
+  if (!decryptedText || decryptedText.trim() === '') {
+    logger.error('jdownloader', 'decryptAES: Decrypted text is empty');
+    throw new Error('Decrypted text is empty - possible authentication or encryption issue');
+  }
+  ```
+- **Archivos modificados**: `src/lib/services/jdownloader.ts`
+
+#### UX: Copy API Key en lugar de URL completa
+
+- **Cambio**: Botón "Copy Feed" ahora copia solo la API key en lugar de la URL completa
+- **Motivación**: Reportado por usuario - esperaba copiar solo el token `fdd-XXXX` para configurar manualmente en *arr
+- **Implementación**:
+  - `handleCopyFeed()` en ForumsTable cambiado de copiar `http://localhost:3000/api/arr?apikey=XXX` a solo `forum.torznabApiKey`
+  - Texto del botón cambiado de "Copy Feed" a "Copy API Key"
+  - Tooltip ahora muestra solo la API key en lugar de la URL completa
+- **Archivos modificados**: `src/components/config/forums-table.tsx`
+
 ### 5. Flash de Idioma en Refresh (Spanish Flash)
 
 **Severidad**: Media  
