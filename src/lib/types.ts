@@ -7,6 +7,7 @@ export interface Forum {
   searchPath: string;
   searchMode?: 'native' | 'google_site' | 'google_cse';
   searchForumLabel?: string | null;
+  searchInChildForums?: boolean | null;
   cseId?: string;
   enabled: boolean;
   thankButtonSelector?: string;
@@ -94,6 +95,7 @@ export interface ForumConfigForm {
   searchPath?: string;
   searchMode?: 'native' | 'google_site' | 'google_cse';
   searchForumLabel?: string;
+  searchInChildForums?: boolean;
   cseId?: string;
   thankButtonSelector?: string;
   linksContainerSelector?: string;
