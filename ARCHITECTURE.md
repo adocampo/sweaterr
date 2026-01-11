@@ -623,6 +623,13 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-11 (Fix: Totales de descargas sin doble conteo)
+
+- 🐛 **Problema**: La tarjeta “Total Descargas” en Overview mostraba más descargas que la pestaña Descargas porque se sumaban duplicados de JDownloader y BD.
+- ✅ **Solución**: Se deduplican las métricas usando el `jDownloaderId/uuid` para excluir de BD los items que ya están activos en la cola JD.
+- 📝 **Archivos modificados**: `src/app/page.tsx`.
+- 🎯 **Resultado**: Los totales del dashboard ahora coinciden con la pestaña Descargas (sin inflar completados/fallidos).
+
 ### 2026-01-10 (Dashboard: estado JDownloader en Overview + sync a BD)
 
 - 📊 **Problema**: El dashboard mostraba stats vacías porque usaba descargas de la BD (sin sincronizar) y la tarjeta “Total Descargas” era poco legible.
