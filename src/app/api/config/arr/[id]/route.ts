@@ -5,11 +5,12 @@ import { z } from 'zod';
 // DELETE /api/config/arr/[id] - Delete ARR service
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         await db.arrService.delete({
-            where: { id: params.id },
+            where: { id },
         });
 
         return NextResponse.json({
@@ -28,14 +29,15 @@ export async function DELETE(
 // PATCH /api/config/arr/[id] - Toggle ARR service enabled status
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const body = await request.json();
         const { enabled } = body;
 
         const service = await db.arrService.update({
-            where: { id: params.id },
+            where: { id },
             data: { enabled },
         });
 
@@ -55,9 +57,10 @@ export async function PATCH(
 // PUT /api/config/arr/[id] - Update ARR service (name/type)
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const body = await request.json();
         const schema = z.object({
             type: z.enum(['sonarr', 'radarr', 'lidarr', 'readarr']).optional(),
@@ -66,7 +69,7 @@ export async function PUT(
         const validated = schema.parse(body);
 
         const service = await db.arrService.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 ...(validated.type ? { type: validated.type } : {}),
                 ...(validated.name ? { name: validated.name } : {}),

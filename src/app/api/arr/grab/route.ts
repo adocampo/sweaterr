@@ -37,9 +37,31 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Parse GUID (forumId-postUrl)
-        const [forumId, ...urlParts] = guid.split('-');
-        const postUrl = urlParts.join('-');
+        // Parse GUID (base64url encoded JSON)
+        let forumId: string;
+        let postUrl: string;
+        
+        try {
+            const decoded = Buffer.from(guid, 'base64url').toString('utf-8');
+            const guidData = JSON.parse(decoded);
+            forumId = guidData.forumId;
+            postUrl = guidData.url;
+        } catch (parseError) {
+            // Fallback: try old format (forumId-category-url) for backwards compatibility
+            const parts = guid.split('-');
+            if (parts.length < 3) {
+                return new NextResponse(
+                    `<?xml version="1.0" encoding="UTF-8"?>
+<error code="300" description="Invalid GUID format"/>`,
+                    {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/xml' },
+                    }
+                );
+            }
+            forumId = parts[0];
+            postUrl = parts.slice(2).join('-'); // Skip category at index 1
+        }
 
         if (!forumId || !postUrl) {
             return new NextResponse(
