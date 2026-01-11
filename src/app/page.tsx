@@ -174,9 +174,10 @@ export default function Home() {
           const activeCompleted = normalizedDownloads.filter((d: any) => d.status === 'completed').length;
           const activeFailed = normalizedDownloads.filter((d: any) => d.status === 'failed').length;
 
-          // Historical stats from DB (downloads hook)
-          const dbCompleted = downloads.filter((d) => d.status === 'completed').length;
-          const dbFailed = downloads.filter((d) => d.status === 'failed').length;
+          // Historical stats from DB (dedupe by current JD queue)
+          const activeIds = new Set(normalizedDownloads.map((d: any) => d.uuid || d.jDownloaderId));
+          const dbCompleted = downloads.filter((d) => d.status === 'completed' && (!d.jDownloaderId || !activeIds.has(d.jDownloaderId))).length;
+          const dbFailed = downloads.filter((d) => d.status === 'failed' && (!d.jDownloaderId || !activeIds.has(d.jDownloaderId))).length;
 
           const speed = activeDownloading.reduce((sum: number, d: any) => sum + (d.speed || 0), 0);
 
