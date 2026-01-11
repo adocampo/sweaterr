@@ -87,6 +87,16 @@
    - Revisar logs en terminal donde corre `npm run dev`
    - Ejecutar `npm run build` para verificar TypeScript
 
+### Documentación del Proyecto
+
+**Referencias cruzadas** de documentación:
+- **[TODOS.md](TODOS.md)**: Lista priorizada de pendientes (críticos, importantes, nice-to-have). Actualízase con cada cambio.
+- **[README.md](README.md)**: Guía de usuario final (instalación, configuración, características).
+- **[SETUP.md](SETUP.md)**: Guía de desarrollo local (requisitos, instalación, testing).
+- **[copilot-instructions.md](.github/copilot-instructions.md)**: Guidelines para modificaciones de código y contribuciones.
+
+Cuando agregues features o fixes: **actualiza TODOS.md y ARCHITECTURE.md changelog inmediatamente**.
+
 ### Contexto del Usuario
 
 - **Usuario**: malevolent
