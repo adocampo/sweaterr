@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
         const imdbid = searchParams.get('imdbid');
         const tmdbid = searchParams.get('tmdbid');
         
-        logger.info('[arr-search]', `Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
+        logger.info('ARR_SEARCH', `Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
         if (!apiKey) {
-            logger.warn('[arr-search]', 'Missing API key in request');
+            logger.warn('ARR_SEARCH', 'Missing API key in request');
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -37,10 +37,10 @@ export async function GET(request: NextRequest) {
             where: { torznabApiKey: apiKey },
         });
         
-        logger.info('[arr-search]', `Forum lookup result: ${forumWithApiKey ? `Found forum '${forumWithApiKey.name}'` : 'NOT FOUND'}`);
+        logger.info('ARR_SEARCH', `Forum lookup result: ${forumWithApiKey ? `Found forum '${forumWithApiKey.name}'` : 'NOT FOUND'}`);
 
         if (!forumWithApiKey || !forumWithApiKey.enabled) {
-            logger.warn('[arr-search]', `Invalid API key or forum disabled. Forum: ${forumWithApiKey ? 'found but disabled' : 'not found'}`);
+            logger.warn('ARR_SEARCH', `Invalid API key or forum disabled. Forum: ${forumWithApiKey ? 'found but disabled' : 'not found'}`);
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
             include: { credentials: true },
         });
         
-        logger.info('[arr-search]', `Found ${forums.length} enabled forums to search in`);
+        logger.info('ARR_SEARCH', `Found ${forums.length} enabled forums to search in`);
 
         if (forums.length === 0) {
             return new NextResponse(
