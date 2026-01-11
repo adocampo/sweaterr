@@ -90,6 +90,7 @@
 ### Documentación del Proyecto
 
 **Referencias cruzadas** de documentación:
+
 - **[TODOS.md](TODOS.md)**: Lista priorizada de pendientes (críticos, importantes, nice-to-have). Actualízase con cada cambio.
 - **[README.md](README.md)**: Guía de usuario final (instalación, configuración, características).
 - **[SETUP.md](SETUP.md)**: Guía de desarrollo local (requisitos, instalación, testing).
@@ -427,26 +428,153 @@ const text = t('forums.addForum'); // "Añadir Foro"
 - Toggle enable/disable sin eliminar
 - Filtrado: Solo instancias habilitadas en Testing
 
-### 8. Integración *arr (Radarr/Sonarr)
+### 8. Integración *arr (Radarr/Sonarr/Lidarr/Readarr)
 
-**Estado**: ✅ Implementado
+**Estado**: ✅ Implementado (Enero 2026)
+
+**Descripción**: Sweaterr actúa como indexer Torznab/Newznab para automatizar descargas desde foros hacia *arr. El flujo completo permite que Sonarr/Radarr busquen, seleccionen y descarguen contenido como si fuera un torrent tracker.
+
+#### Arquitectura Torznab
+
+**Endpoint unificado**: `GET /api/arr?t=<function>&apikey=<key>`
+
+**Funciones soportadas**:
+
+1. **caps** - Capacidades del indexer
+   - Endpoint: `/api/arr?t=caps`
+   - Response: XML con categorías, límites, tipos de búsqueda
+   - Categorías: TV (5000), Movies (2000), Audio (3000), Books (7000)
+
+2. **search/tvsearch/movie** - Búsqueda de contenido
+   - Endpoint: `/api/arr?t=search&q=<query>&cat=<categories>`
+   - TV: `/api/arr?t=tvsearch&q=<series>&season=<N>&ep=<N>`
+   - Movie: `/api/arr?t=movie&q=<title>&imdbid=<id>&tmdbid=<id>`
+   - Response: RSS XML con items (formato Newznab)
+   - Variantes de query en castellano: T1, 1x01, Temporada 1, S01E01
+
+3. **get** - Obtener/descargar release específico
+   - Endpoint: `/api/arr?t=get&guid=<base64_json>`
+   - Trigger: Cuando *arr selecciona un resultado
+   - Acción: Extrae enlaces del post, envía a JDownloader, crea Download record
+
+#### Flujo Completo
+
+```
+*arr → /api/arr?t=search → Sweaterr busca en foros
+                         → Devuelve RSS con GUIDs
+*arr selecciona → /api/arr?t=get&guid=X → Sweaterr extrae enlaces
+                                         → Envía a JDownloader
+                                         → Crea Download en BD
+JDownloader descarga → *arr detecta → *arr importa
+*arr envía webhook → /api/arr/notify → Sweaterr actualiza Download status
+```
+
+#### Formato GUID
+
+- **Codificación**: Base64url de JSON `{forumId, category, url}`
+- **Motivo**: Evitar parsing incorrecto de URLs con caracteres especiales
+- **Retrocompatibilidad**: Fallback a formato antiguo `forumId-category-url`
+
+#### API Keys y Servicios
+
+**Configuración**:
+- CRUD completo: `GET/POST /api/config/arr`, `DELETE/PATCH/PUT /api/config/arr/[id]`
+- Un servicio por instancia *arr (Sonarr, Radarr, Lidarr, Readarr)
+- API key generada automáticamente con prefijo `fdd-`
+- Toggle enable/disable sin eliminar configuración
+
+**Base de datos**:
+```prisma
+model ArrService {
+  id        String   @id @default(cuid())
+  type      String   // sonarr, radarr, lidarr, readarr
+  name      String   // Display name
+  apiKey    String   @unique
+  enabled   Boolean  @default(true)
+}
+```
+
+#### Callbacks y Notificaciones
+
+**Endpoint**: `POST /api/arr/notify`
+
+**Webhooks soportados** (configurar en *arr):
+- **Grab**: *arr acepta descarga → Sweaterr cambia status a `downloading`
+- **Download**: *arr importa archivo → Sweaterr cambia status a `completed`
+- **Rename**: Post-procesamiento → Sin cambio de estado
+- **Test**: Validación de conexión
+
+**Tracking**:
+- Tabla `ArrNotification` registra todos los eventos recibidos
+- Relación con `Download` por `grabId` (GUID del indexer)
+
+#### Variantes de Búsqueda para Español
+
+Para mejorar matching en foros hispanohablantes:
+- `Series T1` → `Series Temporada 1`, `Series T01`, `Series S01`
+- `Series 1x05` → `Series S01E05`, `Series temporada 1 episodio 5`
+- Límite: 8 variantes por búsqueda para evitar sobrecarga
+
+#### Placeholders y Fallbacks
+
+**Problema**: *arr puede interpretar resultado vacío como indexer offline
+
+**Solución**: Si todas las búsquedas fallan, devolver placeholders:
+- Título: `[Recent] <ForumName>`
+- GUID: Base64 de URL del foro (no descargable, solo informativo)
+- Snippet: "Placeholder; run interactive search with a query for real results."
+- Evita errores en *arr mientras mantiene indexer "activo"
+
+#### Configuración en Sonarr/Radarr
+
+1. **Añadir indexer**:
+   - Settings → Indexers → Add → Newznab/Torznab
+   - URL: `http://<sweaterr-host>:3000/api/arr`
+   - API Key: Copiar desde Sweaterr UI (Configuración → *arr)
+   - Categories: Dejar por defecto o seleccionar (TV: 5000, Movies: 2000)
+
+2. **Configurar webhook** (opcional, para actualización de estado):
+   - Settings → Connect → Add → Webhook
+   - URL: `http://<sweaterr-host>:3000/api/arr/notify`
+   - Events: On Grab, On Import/Upgrade
+   - Method: POST
+
+3. **Testing**:
+   - Test indexer en *arr → Debe devolver capacidades
+   - Buscar serie/película → Debe listar resultados de foros
+   - Seleccionar resultado → Debe aparecer en JDownloader y Descargas UI
+
+#### UI: Componente ArrConfig
+
+**Ubicación**: Dashboard → Configuración → *arr Services
 
 **Características**:
+- Listado de servicios configurados (type, name, apiKey, enabled)
+- Dialog para añadir nuevo servicio
+- Selector de tipo: Sonarr, Radarr, Lidarr, Readarr
+- Display de API key con botón copy-to-clipboard
+- Toggle enable/disable inline
+- Delete con confirmación
 
-- Indexer Torznab/Newznab compatible
-- Endpoint unificado: `GET /api/arr?t=caps|search|tvsearch|movie|get`
-- Capacidades: búsqueda TV, películas, obtención directa
-- Variantes de query para castellano (T1, 1x01, Temporada 1, etc)
+**i18n**:
+- Claves: `arrConfig.*`
+- Idiomas: es, en
 
-**Categorías soportadas**:
+#### Logs y Debugging
 
-- 5000: TV
-- 2000: Movies
+**Niveles de log**:
+- `[ARR]` - Dispatcher y routing
+- `[arr-caps]` - Capabilities endpoint
+- `[arr-search]` - Búsquedas y variantes
+- `[arr-grab]` - Extracción y envío a JD
+- `[arr-notify]` - Webhooks y actualizaciones
 
-**Fallbacks**:
+**Verificación**:
+- Revisar logs en terminal de `npm run dev`
+- Comprobar estado de descargas en UI
+- Validar registros en tabla `ArrNotification`
 
-- Resultados placeholder cuando búsqueda falla (evita 0 resultados)
-- FlareSolverr automático en caso de 403
+### 8.1. Integración IA (Pendiente)
 
 ### 9. Gestión de Múltiples Instancias
 
