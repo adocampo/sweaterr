@@ -4,7 +4,54 @@ Estado: 11 de enero de 2026
 
 ## 🔴 CRÍTICOS (Afectan UX/Functionality)
 
-### 1. **Parpadeo/Flicker en Dashboard y Descargas** ⚠️
+### 1. **Implementación Endpoint *arr (Torznab Bridge)** 🔗
+- **Severidad**: Crítica (funcionalidad core)
+- **Área**: Backend API (`src/app/api/arr/*`)
+- **Problema**: Sweaterr debe actuar como indexer Torznab para *arr (Sonarr/Radarr/Lidarr)
+- **Funcionalidad**:
+  - [ ] Endpoint `GET /api/arr` que devuelve feed RSS/Torznab de búsquedas configuradas
+  - [ ] *arr hace peticiones de búsqueda a sweaterr → sweaterr busca en foros + IA → devuelve resultados
+  - [ ] Usuario selecciona resultado en *arr → *arr envía a sweaterr como descarga
+  - [ ] Sweaterr envía a JDownloader con tag *arr (serie, película, etc.)
+  - [ ] JDownloader descarga → sweaterr notifica a *arr de completado (webhook/callback)
+  - [ ] *arr importa automáticamente el contenido descargado
+- **Archivos**: `src/app/api/arr/` (nuevo directorio), `src/lib/services/torznab-formatter.ts` (nuevo)
+- **Dependencias**: Ya existe `/api/search` y `/api/downloads/status`, reutilizar lógica
+- **Estimación**: 8-10 horas
+- **Prioridad**: 🔥 ANTES QUE TODO (es la razón de ser de sweaterr)
+
+### 2. **Formulario de Login se Recarga a Sí Mismo**
+- **Severidad**: Alta (UX confusa)
+- **Área**: Frontend Auth (`src/app/login/page.tsx`)
+- **Problema**: Primera vez que inicia sesión, el form se recarga; segunda vez entra correctamente
+- **Impacto**: Usuario se confunde, piensa que falló el login cuando en realidad está cargando
+- **Causa probable**: Redirect post-login causa re-render antes de que navegador procese el cambio
+- **Tareas**:
+  - [ ] Verificar lógica de post-submit en login form
+  - [ ] Validar que el redirect a `/` es inmediato (no hay delay)
+  - [ ] Mostrar spinner/loading state hasta que redirection ocurra
+  - [ ] Tests: login → dashboard sin re-renderizar form
+- **Estimación**: 1-2 horas
+
+### 3. **Sistema de Seguridad / Session Persistence**
+- **Severidad**: Alta (Seguridad)
+- **Área**: Auth/Middleware (`src/middleware.ts`, `src/app/api/auth/*`)
+- **Problema**: 
+  - Usuario mata servidor e inicia de nuevo horas/días después
+  - Navegador todavía tiene la página cargada (cached)
+  - No ve icono de usuario ni configuración (admin-only)
+  - Debe saber que iniciar sesión nuevamente; URL no debería cambiar
+  - Debería redirigirse automáticamente a `/login` si la sesión expiró
+- **Solución**:
+  - [ ] Middleware valida JWT en cada request
+  - [ ] Si token expirado/inválido → redirige a `/login`
+  - [ ] UI detecta sesión inválida y muestra modal/toast "Tu sesión expiró"
+  - [ ] Actualizar el token silenciosamente si es posible (refresh token pattern)
+  - [ ] Botón "Reintentar" en lugar de recargar página manualmente
+- **Archivos**: `src/middleware.ts`, `src/hooks/use-api.ts` (agregar interceptor 401)
+- **Estimación**: 2-3 horas
+
+### 4. **Parpadeo/Flicker en Dashboard y Descargas** ⚠️
 - **Severidad**: Alta
 - **Área**: Frontend (page.tsx, downloads-manager.tsx)
 - **Problema**: El polling reemplaza arrays completos cada 3-10 segundos, causando flash de vacío y re-render total de listas
@@ -148,8 +195,9 @@ Estado: 11 de enero de 2026
 
 ## Métricas
 
-- **TODOs Críticos**: 3
+- **TODOs Críticos**: 6 (incluye *arr indexer, login reload, session persistence)
 - **TODOs Importantes**: 5
 - **Nice-to-Have**: 6
-- **Total**: 14 items
-- **Horas Estimadas**: ~40-50 horas para completar todo
+- **Total**: 17 items
+- **Horas Estimadas**: ~50-70 horas para completar todo (incluye *arr: 8-10h)
+- **Prioridad**: #1 *arr Torznab -> #2-4 Auth/Session/Login -> #5-7 Flicker/Security/Rate Limiting
