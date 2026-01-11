@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
     
-    logger.info('[arr-caps]', `Caps request received. API Key: ${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
+    logger.info('ARR_CAPS', `Caps request received. API Key: ${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
     if (!apiKey) {
-      logger.warn('[arr-caps]', 'Missing API key in request');
+      logger.warn('ARR_CAPS', 'Missing API key in request');
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -28,10 +28,10 @@ export async function GET(request: NextRequest) {
       where: { torznabApiKey: apiKey },
     });
     
-    logger.info('[arr-caps]', `Forum lookup result: ${forum ? `Found forum '${forum.name}'` : 'NOT FOUND'}`);
+    logger.info('ARR_CAPS', `Forum lookup result: ${forum ? `Found forum '${forum.name}'` : 'NOT FOUND'}`);
 
     if (!forum || !forum.enabled) {
-      logger.warn('[arr-caps]', `Invalid API key or forum disabled. Forum: ${forum ? 'found but disabled' : 'not found'}`);
+      logger.warn('ARR_CAPS', `Invalid API key or forum disabled. Forum: ${forum ? 'found but disabled' : 'not found'}`);
       return new NextResponse(
         `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -84,13 +84,13 @@ export async function GET(request: NextRequest) {
   </categories>
 </caps>`;
     
-    logger.info('[arr-caps]', `Returning capabilities for forum '${forum.name}'`);
+    logger.info('ARR_CAPS', `Returning capabilities for forum '${forum.name}'`);
 
     return new NextResponse(capsXml, {
       headers: { 'Content-Type': 'application/xml' },
     });
   } catch (error) {
-    logger.error('[arr-caps]', 'Error in caps endpoint', error);
+    logger.error('ARR_CAPS', 'Error in caps endpoint', error);
     return new NextResponse(
       `<?xml version="1.0" encoding="UTF-8"?>
 <error code="900" description="Internal server error"/>`,

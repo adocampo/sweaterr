@@ -53,6 +53,9 @@ model Forum {
   linksContainerSelector String? // CSS selector for links container
   postTitleSelector      String? // CSS selector for post title
   
+  // Subforum search configuration
+  searchInChildForums    Boolean @default(false) // Search in child forums/subforums (childforums=1)
+  
   // Login configuration
   loginPath              String? // Login form path (e.g., "/login.php")
   usernameField          String? // Username input name
