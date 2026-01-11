@@ -140,16 +140,37 @@ Estado: 11 de enero de 2026
 - **Archivos**: `src/components/testing/search-tester.tsx`, `result-viewer.tsx`
 - **Estimación**: 2-3 horas
 
+### 9. **Soporte PostgreSQL**
+
+- **Severidad**: Media (Escalabilidad)
+- **Área**: Backend/Infraestructura (`prisma/schema.prisma`, `.env`, Docker)
+- **Problema**: Actualmente sweaterr usa SQLite (`file:./dev.db`), que es limitado para producción multi-usuario o despliegues escalables
+- **Funcionalidad**:
+  - [ ] Actualizar Prisma schema para soportar PostgreSQL (dual provider o switch)
+  - [ ] Crear migration script para migrar de SQLite a PostgreSQL
+  - [ ] Configuración vía variable de entorno `DATABASE_URL` (postgres:// o file://)
+  - [ ] Docker Compose con servicio PostgreSQL opcional
+  - [ ] Documentación en README/SETUP.md para ambas opciones
+  - [ ] Tests de compatibilidad (SQLite vs PostgreSQL)
+- **Beneficios**: Mayor rendimiento, concurrent writes, mejor soporte para producciónn
+- **Archivos**:
+  - `prisma/schema.prisma` (datasource db con env switch)
+  - `docker-compose.yml` (añadir servicio postgres)
+  - `.env.example` (añadir ejemplo DATABASE_URL postgres)
+  - Documentación (README.md, SETUP.md)
+- **Estimación**: 4-6 horas
+- **Compatibilidad**: Mantener retrocompatibilidad con SQLite para desarrollo local
+
 ## 🟢 NICE-TO-HAVE (Futuro)
 
-### 9. **Script de Arranque para Desarrollo**
+### 10. **Script de Arranque para Desarrollo**
 
 - [ ] Crear `scripts/dev.sh` con validación de puerto 3000
 - [ ] Comandos: `npm run dev:start`, `npm run dev:stop`
 - [ ] Documenta en README
 - **Estimación**: 1-2 horas
 
-### 10. **Gestión Avanzada de Subforos**
+### 11. **Gestión Avanzada de Subforos**
 
 - [ ] Toggle `searchInChildForums` en configuración foro
 - [ ] Selección múltiple de subforos
@@ -157,32 +178,32 @@ Estado: 11 de enero de 2026
 - [ ] Integración con endpoint Torznab para *arr
 - **Estimación**: 5-6 horas
 
-### 11. **Multi-Foro Simultáneo en Búsqueda**
+### 12. **Multi-Foro Simultáneo en Búsqueda**
 
 - [ ] Buscar en todos los foros configurados en paralelo (Promise.all)
 - [ ] Ranking/scoring de resultados por foro
 - **Estimación**: 3-4 horas
 
-### 12. **Caché de Búsquedas**
+### 13. **Caché de Búsquedas**
 
 - [ ] Redis/in-memory para resultados recientes (TTL 1 hora)
 - [ ] Evita búsquedas duplicadas en foros lentos
 - **Estimación**: 3 horas
 
-### 13. **Notificaciones (Discord/Telegram)**
+### 14. **Notificaciones (Discord/Telegram)**
 
 - [ ] Webhook cuando descarga completa
 - [ ] Configurable en settings
 - **Estimación**: 4-5 horas
 
-### 14. **Dashboard con Estadísticas**
+### 15. **Dashboard con Estadísticas**
 
 - [ ] Gráficos de descargas por foro, por tipo (serie/película), por mes
 - [ ] Top foros más usados
 - [ ] Métricas de velocidad/éxito de búsqueda
 - **Estimación**: 6-8 horas
 
-### 15. **Soporte Multi-Plataforma de Fuentes (Foros, DDL, Streaming)**
+### 16. **Soporte Multi-Plataforma de Fuentes (Foros, DDL, Streaming)**
 
 - **Severidad**: Media (Arquitectura escalable)
 - **Área**: Backend/Frontend (`src/app/api/config/forums/*`, `src/components/config/*`, Prisma schema)
@@ -202,7 +223,7 @@ Estado: 11 de enero de 2026
 - **Estimación**: 8-12 horas
 - **Dependencias**: Refactor de `cloudflare-handler.ts` para soportar estrategias de plataforma
 
-### 16. **Renombrar "Foros" → "Fuentes/Orígenes"**
+### 17. **Renombrar "Foros" → "Fuentes/Orígenes"**
 
 - **Severidad**: Baja (Nomenclatura/UX)
 - **Área**: Frontend/Backend/i18n (`src/locales/*.json`, `src/components/*`, `src/app/api/config/*`)
@@ -217,7 +238,7 @@ Estado: 11 de enero de 2026
   - [ ] Documentación: Actualizar README y ARCHITECTURE.md
 - **Archivos**: Múltiples (schema, API routes, hooks, componentes, i18n)
 - **Estimación**: 4-6 horas
-- **Orden**: Hacer DESPUÉS de implementar multi-plataforma (#15) para evitar doble refactor
+- **Orden**: Hacer DESPUÉS de implementar multi-plataforma (#16) para evitar doble refactor
 
 ## 📋 CAMBIOS RECIENTES (Enero 2026)
 
@@ -252,8 +273,8 @@ Estado: 11 de enero de 2026
 ## Métricas
 
 - **TODOs Críticos**: 6 (incluye *arr indexer, login reload, session persistence)
-- **TODOs Importantes**: 5
-- **Nice-to-Have**: 8 (añadidos: multi-plataforma fuentes, renombrar "Foros")
-- **Total**: 19 items
-- **Horas Estimadas**: ~65-90 horas para completar todo
-- **Prioridad**: #1 *arr Torznab → #2-4 Auth/Session/Login → #5-7 Flicker/Security/Rate Limiting → #15-16 Multi-plataforma + Renombrar
+- **TODOs Importantes**: 6 (añadido: PostgreSQL support)
+- **Nice-to-Have**: 8 (incluye: multi-plataforma fuentes, renombrar "Foros")
+- **Total**: 20 items
+- **Horas Estimadas**: ~70-95 horas para completar todo
+- **Prioridad**: #1 *arr Torznab → #2-4 Auth/Session/Login → #5-7 Flicker/Security/Rate Limiting → #9 PostgreSQL → #16-17 Multi-plataforma + Renombrar
