@@ -475,24 +475,39 @@ JDownloader descarga → *arr detecta → *arr importa
 - **Motivo**: Evitar parsing incorrecto de URLs con caracteres especiales
 - **Retrocompatibilidad**: Fallback a formato antiguo `forumId-category-url`
 
-#### API Keys y Servicios
+#### API Keys por Forum (Arquitectura Simplificada)
 
-**Configuración**:
-- CRUD completo: `GET/POST /api/config/arr`, `DELETE/PATCH/PUT /api/config/arr/[id]`
-- Un servicio por instancia *arr (Sonarr, Radarr, Lidarr, Readarr)
-- API key generada automáticamente con prefijo `fdd-`
-- Toggle enable/disable sin eliminar configuración
+**Cambio Arquitectónico (Enero 2026)**: En lugar de crear servicios *arr separados, cada **Forum automáticamente genera su propia API key Torznab única**.
+
+**Ventajas**:
+- No requiere configuración adicional de servicios
+- Cada forum = indexer independiente (como Jackett)
+- Interfaz simple: botón "Copy Feed" copia URL completa
+- API key se genera automáticamente al crear el forum
 
 **Base de datos**:
 ```prisma
-model ArrService {
-  id        String   @id @default(cuid())
-  type      String   // sonarr, radarr, lidarr, readarr
-  name      String   // Display name
-  apiKey    String   @unique
-  enabled   Boolean  @default(true)
+model Forum {
+  id              String   @id @default(cuid())
+  name            String
+  url             String
+  // ... otros campos ...
+  torznabApiKey   String   @unique  // Generated on creation
+  // ... timestamps ...
 }
 ```
+
+**Generación de API Key**:
+- Formato: `fdd-` + 32 caracteres hexadecimales aleatorios
+- Ejemplo: `fdd-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6`
+- Generada automáticamente en POST `/api/config/forums`
+- Garantizada única (constraint @unique en BD)
+
+**Comportamiento**:
+- Al crear forum: Se genera automáticamente `torznabApiKey`
+- Al listar forums: Se devuelve la API key para mostrar en UI
+- No hay opción de eliminar/regenerar (simplifica UX)
+- Cada forum puede usarse con cualquier *arr (Sonarr, Radarr, etc.)
 
 #### Callbacks y Notificaciones
 
@@ -544,20 +559,25 @@ Para mejorar matching en foros hispanohablantes:
    - Buscar serie/película → Debe listar resultados de foros
    - Seleccionar resultado → Debe aparecer en JDownloader y Descargas UI
 
-#### UI: Componente ArrConfig
+#### UI: Columa "Torznab Feed" en ForumsTable
 
-**Ubicación**: Dashboard → Configuración → *arr Services
+**Ubicación**: Dashboard → Configuración → Foros
 
 **Características**:
-- Listado de servicios configurados (type, name, apiKey, enabled)
-- Dialog para añadir nuevo servicio
-- Selector de tipo: Sonarr, Radarr, Lidarr, Readarr
-- Display de API key con botón copy-to-clipboard
-- Toggle enable/disable inline
-- Delete con confirmación
+- Tabla de foros con columna adicional "Torznab Feed"
+- Botón "Copy Feed" que copia `http://localhost:3000/api/arr?apikey=<torznabApiKey>`
+- Ícono dinámico: Copy → Check (durante 2 segundos) tras copiar
+- Tooltip mostrando URL completa del feed
+- Simple y elegante (estilo Jackett)
+
+**Comportamiento**:
+- Al hacer click en "Copy Feed": URL se copia al portapapeles del usuario
+- Estado visual: Botón muestra "Check" durante 2 segundos para confirmar
+- No hay diálogo adicional, no hay regenerar/eliminar (simplifica UX)
 
 **i18n**:
-- Claves: `arrConfig.*`
+- Botón: "Copy Feed" / "Copiar Feed"
+- Tooltip: muestra URL completa
 - Idiomas: es, en
 
 #### Logs y Debugging
