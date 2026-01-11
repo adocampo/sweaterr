@@ -14,7 +14,7 @@ Estado: 11 de enero de 2026
   - [x] Endpoint `GET /api/arr?t=caps` que devuelve capacidades Torznab
   - [x] Endpoint `GET /api/arr?t=search|tvsearch|movie` para búsquedas
   - [x] *arr hace peticiones → sweaterr busca en foros → devuelve RSS/XML
-  - [x] Usuario selecciona resultado en *arr → *arr envía a sweaterr como descarga
+  - [x] Usuario selecciona resultado en *arr →*arr envía a sweaterr como descarga
   - [x] Endpoint `GET /api/arr?t=get&guid=X` extrae enlaces y envía a JDownloader
   - [x] Sweaterr crea Download record con tag *arr y metadata
   - [x] Endpoint `POST /api/arr/notify` recibe webhooks de *arr
@@ -78,7 +78,7 @@ Estado: 11 de enero de 2026
 - **Problema**: Primera vez que inicia sesión, el form se recarga; segunda vez entra correctamente
 - **Nota adicional**: Podría estar relacionado con el error `SyntaxError: Unexpected end of JSON input` que ocurre justo antes de recargar
 - **Impacto**: Usuario se confunde, piensa que falló el login cuando en realidad está cargando
-- **Causa probable**: 
+- **Causa probable**:
   - Redirect post-login causa re-render antes de que navegador procese el cambio
   - Error en `/api/downloads/status` al desencriptar respuesta vacía de JDownloader
 - **Tareas**:
@@ -305,9 +305,10 @@ Estado: 11 de enero de 2026
 **Severidad**: Media (mejora de UX y funcionalidad)  
 **Área**: Backend/Frontend (`src/app/api/arr/*`, `src/components/config/forums-table.tsx`)
 
-**Descripción**: Jackett expone cada subforo/categoría como un indexer separado en *arr. Sweaterr debe hacer lo mismo para permitir que usuarios configuren qué subforo usar en cada *arr sin tener que crear múltiples foros en Sweaterr.
+**Descripción**: Jackett expone cada subforo/categoría como un indexer separado en *arr. Sweaterr debe hacer lo mismo para permitir que usuarios configuren qué subforo usar en cada*arr sin tener que crear múltiples foros en Sweaterr.
 
 **Beneficios**:
+
 - Un foro en Sweaterr = múltiples indexers en *arr (e.g., "Wolfmax 4k - Series", "Wolfmax 4k - Películas")
 - Usuario configura una sola vez el foro, luego elige el subforo en cada *arr
 - Cada subforo puede tener selectors CSS diferentes (si aplica)
@@ -363,6 +364,7 @@ Estado: 11 de enero de 2026
    - **Archivos**: `docs/ARR_SETUP.md`
 
 **Ejemplo de flujo final**:
+
 ```
 1. Usuario configura foro "Wolfmax 4k" en Sweaterr
 2. Hace click en "Detectar Subforos"

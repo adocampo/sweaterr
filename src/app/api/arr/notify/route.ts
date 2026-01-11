@@ -8,7 +8,7 @@ import { logger } from '@/lib/logger';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     logger.info('arr-notify', `Notification received: ${JSON.stringify(body, null, 2)}`);
 
     // Extract relevant data from *arr webhook payload
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Update download status based on event type
     let newStatus: string = download.status;
-    
+
     switch (eventType) {
       case 'Grab':
         newStatus = 'downloading';
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     });
 
     logger.info('arr-notify', `Updated download ${download.id} to status: ${newStatus}`);
-    
+
     return NextResponse.json({
       success: true,
       message: `Notification processed for ${eventType}`,

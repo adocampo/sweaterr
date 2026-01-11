@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         // Parse GUID (base64url encoded JSON)
         let forumId: string;
         let postUrl: string;
-        
+
         try {
             const decoded = Buffer.from(guid, 'base64url').toString('utf-8');
             const guidData = JSON.parse(decoded);
