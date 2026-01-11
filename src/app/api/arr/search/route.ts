@@ -234,7 +234,13 @@ export async function GET(request: NextRequest) {
                 if (service.type === 'lidarr') category = '3000'; // Audio
             }
 
-            const guid = `${result.forumId}-${category}-${result.url}`;
+            // Encode GUID as base64 to avoid parsing issues with URLs containing special chars
+            const guidData = JSON.stringify({
+                forumId: result.forumId,
+                category,
+                url: result.url,
+            });
+            const guid = Buffer.from(guidData).toString('base64url');
             const pubDate = new Date().toUTCString();
 
             const size = result.size || 1024;
