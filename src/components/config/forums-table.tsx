@@ -118,8 +118,8 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
     const handleCopyFeed = (forum: Forum) => {
         if (!forum.torznabApiKey) return;
         
-        const feedUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr?apikey=${forum.torznabApiKey}`;
-        navigator.clipboard.writeText(feedUrl);
+        // Copy only the API key, not the full URL
+        navigator.clipboard.writeText(forum.torznabApiKey);
         
         setCopiedId(forum.id);
         setTimeout(() => setCopiedId(null), 2000);
@@ -262,14 +262,14 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                                                         ) : (
                                                             <>
                                                                 <Copy className="h-3 w-3 mr-1" />
-                                                                Copy Feed
+                                                                Copy API Key
                                                             </>
                                                         )}
                                                     </Button>
                                                 </TooltipTrigger>
                                                 <TooltipContent className="max-w-xs">
                                                     <code className="text-xs break-all">
-                                                        {`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr?apikey=${forum.torznabApiKey}`}
+                                                        {forum.torznabApiKey}
                                                     </code>
                                                 </TooltipContent>
                                             </Tooltip>

@@ -40,14 +40,50 @@ Estado: 11 de enero de 2026
   - Testing end-to-end con instancia real de Sonarr/Radarr
   - Rate limiting por foro para evitar baneos
 
+### 1.1. **Cambiar Arquitectura *arr: API Key por Foro** ✅
+
+- **Severidad**: Alta (Mejora de UX)
+- **Área**: Backend/Frontend (`src/app/api/arr/*`, `src/components/config/forums-table.tsx`)
+- **Estado**: ✅ **COMPLETADO** (11 de enero 2026)
+- **Problema**: Usuarios tenían que crear servicios *arr separados manualmente
+- **Solución implementada**:
+  - [x] Agregar campo `torznabApiKey` al modelo `Forum` (Prisma)
+  - [x] Generar API key automáticamente al crear forum (formato `fdd-XXXX`)
+  - [x] Migración para añadir API keys a forums existentes
+  - [x] Actualizar todos los endpoints `/api/arr/*` para validar contra `Forum.torznabApiKey`
+  - [x] Eliminar necesidad de tabla/UI de `ArrService`
+  - [x] Añadir columna "Torznab Feed" en tabla de Foros
+  - [x] Botón "Copy API Key" para copiar solo el token (estilo Jackett)
+- **Ventajas**:
+  - No requiere configuración adicional de servicios
+  - Cada forum = indexer independiente
+  - Interfaz simple con botón Copy API Key
+  - Flexible: mismo forum en múltiples *arr
+- **Archivos modificados**:
+  - `prisma/schema.prisma` - Campo `torznabApiKey` en Forum
+  - `src/app/api/arr/caps/route.ts` - Validación por forum
+  - `src/app/api/arr/search/route.ts` - Validación por forum
+  - `src/app/api/arr/grab/route.ts` - Validación por forum
+  - `src/app/api/config/forums/route.ts` - Generación automática de API key
+  - `src/components/config/forums-table.tsx` - Columna "Torznab Feed" con Copy button
+  - `src/app/page.tsx` - Eliminada sección ArrConfig
+  - `docs/ARR_SETUP.md` - Guía actualizada
+  - `ARCHITECTURE.md` - Documentación de nueva arquitectura
+- **Horas invertidas**: ~2 horas
+
 ### 2. **Formulario de Login se Recarga a Sí Mismo**
 
 - **Severidad**: Alta (UX confusa)
 - **Área**: Frontend Auth (`src/app/login/page.tsx`)
 - **Problema**: Primera vez que inicia sesión, el form se recarga; segunda vez entra correctamente
+- **Nota adicional**: Podría estar relacionado con el error `SyntaxError: Unexpected end of JSON input` que ocurre justo antes de recargar
 - **Impacto**: Usuario se confunde, piensa que falló el login cuando en realidad está cargando
-- **Causa probable**: Redirect post-login causa re-render antes de que navegador procese el cambio
+- **Causa probable**: 
+  - Redirect post-login causa re-render antes de que navegador procese el cambio
+  - Error en `/api/downloads/status` al desencriptar respuesta vacía de JDownloader
 - **Tareas**:
+  - [x] Agregar validación en `decryptAES` para evitar JSON.parse de string vacío
+  - [ ] Verificar lógica de post-submit en login form
   - [ ] Verificar lógica de post-submit en login form
   - [ ] Validar que el redirect a `/` es inmediato (no hay delay)
   - [ ] Mostrar spinner/loading state hasta que redirection ocurra
