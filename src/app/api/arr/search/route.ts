@@ -32,11 +32,11 @@ export async function GET(request: NextRequest) {
         const ep = searchParams.get('ep');
         const imdbid = searchParams.get('imdbid');
         const tmdbid = searchParams.get('tmdbid');
-        
-        logger.info('arr_search', `[${service.toUpperCase()}] Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
+
+        logger.info('search', `[${service.toUpperCase()}] Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
         if (!apiKey) {
-            logger.warn('arr_search', `[${service.toUpperCase()}] Missing API key in request`);
+            logger.warn('search', `[${service.toUpperCase()}] Missing API key in request`);
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -51,11 +51,11 @@ export async function GET(request: NextRequest) {
         const forumWithApiKey = await db.forum.findFirst({
             where: { torznabApiKey: apiKey },
         });
-        
-        logger.info('arr_search', `[${service.toUpperCase()}] Forum lookup result: ${forumWithApiKey ? `Found forum '${forumWithApiKey.name}'` : 'NOT FOUND'}`);
+
+        logger.info('search', `[${service.toUpperCase()}] Forum lookup result: ${forumWithApiKey ? `Found forum '${forumWithApiKey.name}'` : 'NOT FOUND'}`);
 
         if (!forumWithApiKey || !forumWithApiKey.enabled) {
-            logger.warn('arr_search', `[${service.toUpperCase()}] Invalid API key or forum disabled. Forum: ${forumWithApiKey ? 'found but disabled' : 'not found'}`);
+            logger.warn('search', `[${service.toUpperCase()}] Invalid API key or forum disabled. Forum: ${forumWithApiKey ? 'found but disabled' : 'not found'}`);
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -71,8 +71,8 @@ export async function GET(request: NextRequest) {
             where: { enabled: true },
             include: { credentials: true },
         });
-        
-        logger.info('arr_search', `[${service.toUpperCase()}] Found ${forums.length} enabled forums to search in`);
+
+        logger.info('search', `[${service.toUpperCase()}] Found ${forums.length} enabled forums to search in`);
 
         if (forums.length === 0) {
             return new NextResponse(
@@ -106,32 +106,38 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Add forums and authenticate only when a real query is present
-        if (q && q.trim().length > 0) {
-            for (const forum of forums) {
-                forumService.addForum({
-                    id: forum.id,
-                    name: forum.name,
-                    baseUrl: forum.baseUrl,
-                    searchPath: forum.searchPath,
-                    thankButtonSelector: forum.thankButtonSelector || undefined,
-                    linksContainerSelector: forum.linksContainerSelector || undefined,
-                    postTitleSelector: forum.postTitleSelector || undefined,
-                    credentials: forum.credentials ? {
-                        username: forum.credentials.username,
-                        password: forum.credentials.password,
-                    } : undefined,
-                });
+        // Always add forums and authenticate - they're needed for search
+        // This allows searches with season/ep even when q is empty
+        for (const forum of forums) {
+            forumService.addForum({
+                id: forum.id,
+                name: forum.name,
+                baseUrl: forum.baseUrl,
+                searchPath: forum.searchPath,
+                thankButtonSelector: forum.thankButtonSelector || undefined,
+                linksContainerSelector: forum.linksContainerSelector || undefined,
+                postTitleSelector: forum.postTitleSelector || undefined,
+                credentials: forum.credentials ? {
+                    username: forum.credentials.username,
+                    password: forum.credentials.password,
+                } : undefined,
+            });
 
-                // Authenticate if needed
-                if (forum.credentials) {
-                    await forumService.authenticate(forum.id);
-                }
+            // Authenticate if needed
+            if (forum.credentials) {
+                await forumService.authenticate(forum.id);
             }
         }
 
         // Build search query and TV variants (without AI)
+        // If q is empty but we have season/ep, Sonarr sent minimal data; return placeholders
         let searchQuery = q;
+        
+        // Only attempt search if we have a query
+        const shouldSearch = searchQuery && searchQuery.trim().length > 0;
+        
+        logger.info('search', `[${service.toUpperCase()}] shouldSearch=${shouldSearch}, q="${q}", season=${season}, ep=${ep}, isTvSearch=${t?.toLowerCase() === 'tvsearch'}`);
+        
         const buildTvVariants = (series: string, season?: string | null, ep?: string | null): string[] => {
             const s = season ? String(season).padStart(2, '0') : '';
             const e = ep ? String(ep).padStart(2, '0') : '';
@@ -161,13 +167,13 @@ export async function GET(request: NextRequest) {
 
         // Search all forums (regular search when q present)
         const allResults: any[] = [];
-        const primaryCategory = cats[0] || (service.type === 'sonarr' ? '5000' : service.type === 'radarr' ? '2000' : '3000');
+        const primaryCategory = cats[0] || '5000'; // Default to TV, actual category determined by service
         const requestedCategories = (cats.length > 0 ? Array.from(new Set(cats)) : [primaryCategory]).slice(0, 10);
 
-        if (searchQuery && searchQuery.trim().length > 0) {
+        if (shouldSearch) {
             const isTv = (t || '').toLowerCase() === 'tvsearch';
             const variants = isTv ? buildTvVariants(searchQuery, season, ep) : [searchQuery];
-            
+
             logger.info('search', `[${service.toUpperCase()}] Starting forum search for query: "${searchQuery}" (variants: ${variants.length})`);
 
             for (const forum of forums) {
@@ -260,9 +266,10 @@ export async function GET(request: NextRequest) {
             // Extract quality hints from title
             let category = result.category || '7000'; // Other by default
             if (!result.category) {
-                if (service.type === 'sonarr') category = '5000'; // TV
-                if (service.type === 'radarr') category = '2000'; // Movies
-                if (service.type === 'lidarr') category = '3000'; // Audio
+                // Determine category based on detected service
+                if (service === 'sonarr') category = '5000'; // TV
+                if (service === 'radarr') category = '2000'; // Movies
+                if (service === 'lidarr') category = '3000'; // Audio
             }
 
             // Encode GUID as base64 to avoid parsing issues with URLs containing special chars

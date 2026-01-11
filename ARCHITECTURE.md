@@ -480,12 +480,14 @@ JDownloader descarga → *arr detecta → *arr importa
 **Cambio Arquitectónico (Enero 2026)**: En lugar de crear servicios *arr separados, cada **Forum automáticamente genera su propia API key Torznab única**.
 
 **Ventajas**:
+
 - No requiere configuración adicional de servicios
 - Cada forum = indexer independiente (como Jackett)
 - Interfaz simple: botón "Copy Feed" copia URL completa
 - API key se genera automáticamente al crear el forum
 
 **Base de datos**:
+
 ```prisma
 model Forum {
   id              String   @id @default(cuid())
@@ -498,12 +500,14 @@ model Forum {
 ```
 
 **Generación de API Key**:
+
 - Formato: `fdd-` + 32 caracteres hexadecimales aleatorios
 - Ejemplo: `fdd-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6`
 - Generada automáticamente en POST `/api/config/forums`
 - Garantizada única (constraint @unique en BD)
 
 **Comportamiento**:
+
 - Al crear forum: Se genera automáticamente `torznabApiKey`
 - Al listar forums: Se devuelve la API key para mostrar en UI
 - No hay opción de eliminar/regenerar (simplifica UX)
@@ -514,18 +518,21 @@ model Forum {
 **Endpoint**: `POST /api/arr/notify`
 
 **Webhooks soportados** (configurar en *arr):
+
 - **Grab**: *arr acepta descarga → Sweaterr cambia status a `downloading`
 - **Download**: *arr importa archivo → Sweaterr cambia status a `completed`
 - **Rename**: Post-procesamiento → Sin cambio de estado
 - **Test**: Validación de conexión
 
 **Tracking**:
+
 - Tabla `ArrNotification` registra todos los eventos recibidos
 - Relación con `Download` por `grabId` (GUID del indexer)
 
 #### Variantes de Búsqueda para Español
 
 Para mejorar matching en foros hispanohablantes:
+
 - `Series T1` → `Series Temporada 1`, `Series T01`, `Series S01`
 - `Series 1x05` → `Series S01E05`, `Series temporada 1 episodio 5`
 - Límite: 8 variantes por búsqueda para evitar sobrecarga
@@ -535,6 +542,7 @@ Para mejorar matching en foros hispanohablantes:
 **Problema**: *arr puede interpretar resultado vacío como indexer offline
 
 **Solución**: Si todas las búsquedas fallan, devolver placeholders:
+
 - Título: `[Recent] <ForumName>`
 - GUID: Base64 de URL del foro (no descargable, solo informativo)
 - Snippet: "Placeholder; run interactive search with a query for real results."
@@ -564,6 +572,7 @@ Para mejorar matching en foros hispanohablantes:
 **Ubicación**: Dashboard → Configuración → Foros
 
 **Características**:
+
 - Tabla de foros con columna adicional "Torznab Feed"
 - Botón "Copy Feed" que copia `http://localhost:3000/api/arr?apikey=<torznabApiKey>`
 - Ícono dinámico: Copy → Check (durante 2 segundos) tras copiar
@@ -571,11 +580,13 @@ Para mejorar matching en foros hispanohablantes:
 - Simple y elegante (estilo Jackett)
 
 **Comportamiento**:
+
 - Al hacer click en "Copy Feed": URL se copia al portapapeles del usuario
 - Estado visual: Botón muestra "Check" durante 2 segundos para confirmar
 - No hay diálogo adicional, no hay regenerar/eliminar (simplifica UX)
 
 **i18n**:
+
 - Botón: "Copy Feed" / "Copiar Feed"
 - Tooltip: muestra URL completa
 - Idiomas: es, en
@@ -583,6 +594,7 @@ Para mejorar matching en foros hispanohablantes:
 #### Logs y Debugging
 
 **Niveles de log**:
+
 - `[ARR]` - Dispatcher y routing
 - `[arr-caps]` - Capabilities endpoint
 - `[arr-search]` - Búsquedas y variantes
@@ -590,6 +602,7 @@ Para mejorar matching en foros hispanohablantes:
 - `[arr-notify]` - Webhooks y actualizaciones
 
 **Verificación**:
+
 - Revisar logs en terminal de `npm run dev`
 - Comprobar estado de descargas en UI
 - Validar registros en tabla `ArrNotification`
@@ -1794,7 +1807,7 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
   - Logs ahora incluyen tag del servicio: `[INFO] arr_caps [SONARR] Caps request received`
   - Permite filtrar logs por servicio específico (grep "SONARR")
 - **Motivación**: Logs con caracteres especiales `[arr-caps]` difíciles de trabajar en terminal
-- **Archivos modificados**: 
+- **Archivos modificados**:
   - `src/app/api/arr/caps/route.ts`
   - `src/app/api/arr/search/route.ts`
 
@@ -1815,18 +1828,20 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 
 - **Agregado**: Logs detallados de búsquedas *arr en `search.log` además de `arr_search.log`
 - **Motivación**: Usuario reportó que búsquedas desde Sonarr no aparecían en search.log
-- **Implementación**: 
+- **Implementación**:
   - Logs con prefijo `search` y tag `[SONARR]` / `[RADARR]` etc
   - Log de inicio de búsqueda con query y número de variantes
   - Log por cada foro con cada variante de búsqueda
   - Log de resultados encontrados o advertencia si no hay resultados
   - Log de errores de búsqueda por foro
 - **Ejemplo de log**:
+
   ```
   [INFO] search [SONARR] Starting forum search for query: "Breaking Bad" (variants: 3)
   [INFO] search [SONARR] Searching in forum "DescargasDD" with variant: "Breaking Bad temporada 5"
   [INFO] search [SONARR] Found 5 results in forum "DescargasDD"
   ```
+
 - **Archivos modificados**: `src/app/api/arr/search/route.ts`
 
 ### 11 de Enero 2026
@@ -1851,12 +1866,14 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 - **Condición**: Ocurría cuando JDownloader devolvía respuesta vacía o inválida durante polling de estado
 - **Impacto**: Error en consola antes de recargar página (posible relación con problema de login reload)
 - **Solución**: Agregada validación en `src/lib/services/jdownloader.ts` línea 362:
+
   ```typescript
   if (!decryptedText || decryptedText.trim() === '') {
     logger.error('jdownloader', 'decryptAES: Decrypted text is empty');
     throw new Error('Decrypted text is empty - possible authentication or encryption issue');
   }
   ```
+
 - **Archivos modificados**: `src/lib/services/jdownloader.ts`
 
 #### UX: Copy API Key en lugar de URL completa

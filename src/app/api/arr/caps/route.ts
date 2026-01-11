@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
     const userAgent = request.headers.get('user-agent');
     const service = detectArrService(userAgent);
-    
+
     logger.info('arr_caps', `[${service.toUpperCase()}] Caps request received. API Key: ${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
     if (!apiKey) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const forum = await db.forum.findFirst({
       where: { torznabApiKey: apiKey },
     });
-    
+
     logger.info('arr_caps', `[${service.toUpperCase()}] Forum lookup result: ${forum ? `Found forum '${forum.name}'` : 'NOT FOUND'}`);
 
     if (!forum || !forum.enabled) {
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     </category>
   </categories>
 </caps>`;
-    
+
     logger.info('arr_caps', `[${service.toUpperCase()}] Returning capabilities for forum '${forum.name}'`);
 
     return new NextResponse(capsXml, {
