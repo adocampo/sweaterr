@@ -300,13 +300,83 @@ Estado: 11 de enero de 2026
 - [ ] Documenta en README
 - **Estimación**: 1-2 horas
 
-### 13. **Gestión Avanzada de Subforos**
+### 13. **Gestión Avanzada de Subforos (Estilo Jackett)**
 
-- [ ] Toggle `searchInChildForums` en configuración foro
-- [ ] Selección múltiple de subforos
-- [ ] Listado automático de subforos disponibles
-- [ ] Integración con endpoint Torznab para *arr
-- **Estimación**: 5-6 horas
+**Severidad**: Media (mejora de UX y funcionalidad)  
+**Área**: Backend/Frontend (`src/app/api/arr/*`, `src/components/config/forums-table.tsx`)
+
+**Descripción**: Jackett expone cada subforo/categoría como un indexer separado en *arr. Sweaterr debe hacer lo mismo para permitir que usuarios configuren qué subforo usar en cada *arr sin tener que crear múltiples foros en Sweaterr.
+
+**Beneficios**:
+- Un foro en Sweaterr = múltiples indexers en *arr (e.g., "Wolfmax 4k - Series", "Wolfmax 4k - Películas")
+- Usuario configura una sola vez el foro, luego elige el subforo en cada *arr
+- Cada subforo puede tener selectors CSS diferentes (si aplica)
+- Más flexible: cambiar subforo sin reconfigurar el foro en Sweaterr
+
+**Tareas a implementar**:
+
+1. **Obtención Automática de Subforos**
+   - [ ] Endpoint `/api/config/forums/[id]/subforos` que detecte subforos disponibles
+   - [ ] Analiza el formulario de búsqueda del foro (busca `<select>`, `<option>` con subforos)
+   - [ ] Extrae IDs/nombres de subforos (ej: `forumid=5` → "Series", `forumid=3` → "Películas")
+   - [ ] Cachea resultado (TTL 24h) para no parsear el formulario cada vez
+   - [ ] Fallback a lista vacía si no puede detectar subforos (foro sin subforos)
+   - **Archivos**: `src/app/api/config/forums/[id]/subforos/route.ts` (nuevo)
+
+2. **Almacenamiento de Subforos en BD**
+   - [ ] Agregar array `subforos?: {id: string, name: string}[]` al modelo Forum en Prisma
+   - [ ] Endpoint POST para refrescar lista de subforos (manual o automático)
+   - [ ] UI para mostrar subforos detectados en tabla de foros
+   - **Archivos**: `prisma/schema.prisma`, migrations
+
+3. **Búsqueda en Múltiples Subforos**
+   - [ ] Endpoint `/api/arr/search` acepta parámetro `subforos: string[]` (IDs de subforos)
+   - [ ] Si no se especifica, busca en todos los subforos del foro
+   - [ ] Busca en paralelo con Promise.all para cada subforo
+   - [ ] Combina resultados (elimina duplicados por URL)
+   - [ ] Agrupa resultados por subforo en respuesta si es necesario
+   - **Archivos**: `src/app/api/arr/search/route.ts` (modificar)
+
+4. **Publicación de Subforos en *arr (Estilo Jackett)**
+   - [ ] Endpoint `/api/arr?t=caps&subforo=X` devuelve categorías específicas del subforo
+   - [ ] API key del foro valida, pero se añade parámetro `subforo` para filtrar
+   - [ ] GUID incluye subforo: Base64(forumId, **subforo**, category, url)
+   - [ ] En *arr, usuario ve múltiples indexers:
+     - "Wolfmax 4k" (busca todos los subforos)
+     - "Wolfmax 4k - Series" (solo subforo Series)
+     - "Wolfmax 4k - Películas" (solo subforo Películas)
+     - etc.
+   - [ ] Cada indexer puede tener diferentes Quality Profiles en *arr
+   - **Archivos**: `src/app/api/arr/caps/route.ts`, `src/app/api/arr/search/route.ts`, `src/app/api/arr/grab/route.ts`
+
+5. **UI para Gestionar Subforos**
+   - [ ] Botón "Detectar Subforos" en ForumsTable
+   - [ ] Dialog que muestra lista de subforos encontrados
+   - [ ] Toggle enable/disable por subforo (en caso de que el usuario no quiera exponer todos)
+   - [ ] Selector en testing para probar búsquedas en subforos específicos
+   - **Archivos**: `src/components/config/forums-table.tsx`, nuevo componente `subforos-dialog.tsx`
+
+6. **Documentación**
+   - [ ] Guía en ARR_SETUP.md: "Configurar múltiples indexers desde un solo foro"
+   - [ ] Ejemplo con Wolfmax 4k (Series + Películas)
+   - [ ] Notas sobre detección automática y refreshing
+   - **Archivos**: `docs/ARR_SETUP.md`
+
+**Ejemplo de flujo final**:
+```
+1. Usuario configura foro "Wolfmax 4k" en Sweaterr
+2. Hace click en "Detectar Subforos"
+3. Sweaterr obtiene: ["Series", "Películas", "Docu", "Anime"]
+4. Se guardan en BD con toggle enabled
+5. En Sonarr: Usuario añade indexer "Wolfmax 4k - Series" (URL con ?subforo=Series)
+6. En Radarr: Usuario añade indexer "Wolfmax 4k - Películas" (URL con ?subforo=Películas)
+7. Sonarr busca en subforo Series, Radarr en subforo Películas
+8. Mismo foro, múltiples usos según *arr
+```
+
+**Estimación**: 8-10 horas  
+**Prioridad**: 🔥 Media-Alta (mejora significativa de UX)  
+**Depende de**: Arquitectura *arr completada ✅
 
 ### 14. **Multi-Foro Simultáneo en Búsqueda**
 
