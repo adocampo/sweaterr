@@ -4,6 +4,7 @@ import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 
 // GET /api/arr/search - Newznab/Torznab search endpoint
+// Uses forum's torznabApiKey for validation
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -27,12 +28,12 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Validate API key
-        const service = await db.arrService.findUnique({
-            where: { apiKey },
+        // Validate API key against forum's torznabApiKey
+        const forumWithApiKey = await db.forum.findFirst({
+            where: { torznabApiKey: apiKey },
         });
 
-        if (!service || !service.enabled) {
+        if (!forumWithApiKey || !forumWithApiKey.enabled) {
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="100" description="Invalid API Key"/>`,
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get enabled forums
+        // Get enabled forums (all of them, since each has its own API key)
         const forums = await db.forum.findMany({
             where: { enabled: true },
             include: { credentials: true },

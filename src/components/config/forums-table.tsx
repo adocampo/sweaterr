@@ -28,7 +28,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Settings, Trash2, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+import { Settings, Trash2, CheckCircle, XCircle, Clock, Loader2, Copy, Check } from 'lucide-react';
 
 interface Forum {
     id: string;
@@ -44,6 +44,7 @@ interface Forum {
         password: string;
     } | null;
     flaresolverrSessionTTL?: number | null;
+    torznabApiKey?: string; // API key for Torznab indexer
 }
 
 interface SessionInfo {
@@ -72,6 +73,7 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
         forums.map((f) => ({ ...f, sessionLoading: true }))
     );
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [copiedId, setCopiedId] = useState<string | null>(null);
     const { t } = useI18n(language);
 
     useEffect(() => {
@@ -113,6 +115,16 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
         }
     };
 
+    const handleCopyFeed = (forum: Forum) => {
+        if (!forum.torznabApiKey) return;
+        
+        const feedUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr?apikey=${forum.torznabApiKey}`;
+        navigator.clipboard.writeText(feedUrl);
+        
+        setCopiedId(forum.id);
+        setTimeout(() => setCopiedId(null), 2000);
+    };
+
     const formatDuration = (seconds: number): string => {
         if (seconds < 0) return t('forumsTable.expired');
         if (seconds < 60) return `${seconds}s`;
@@ -143,13 +155,14 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                             <TableHead>{t('forumsTable.status')}</TableHead>
                             <TableHead>{t('forumsTable.session')}</TableHead>
                             <TableHead>{t('forumsTable.duration')}</TableHead>
+                            <TableHead>Torznab Feed</TableHead>
                             <TableHead className="text-right">{t('forumsTable.actions')}</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {forumsWithSessions.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                                     {t('forumsTable.noForums')}
                                 </TableCell>
                             </TableRow>
@@ -230,6 +243,37 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                                     </TableCell>
                                     <TableCell>
                                         <span className="text-sm">{formatTTL(forum.flaresolverrSessionTTL)}</span>
+                                    </TableCell>
+                                    <TableCell>
+                                        {forum.torznabApiKey && (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleCopyFeed(forum)}
+                                                        className="text-xs"
+                                                    >
+                                                        {copiedId === forum.id ? (
+                                                            <>
+                                                                <Check className="h-3 w-3 mr-1" />
+                                                                Copied
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Copy className="h-3 w-3 mr-1" />
+                                                                Copy Feed
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent className="max-w-xs">
+                                                    <code className="text-xs break-all">
+                                                        {`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr?apikey=${forum.torznabApiKey}`}
+                                                    </code>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">

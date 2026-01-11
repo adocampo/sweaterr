@@ -41,7 +41,6 @@ import { AIConfig } from '@/components/config/ai-config';
 import { ForumConfig } from '@/components/config/forum-config';
 import { ForumsTable } from '@/components/config/forums-table';
 import { ForumSessionSettings } from '@/components/config/forum-session-settings';
-import { ArrConfig } from '@/components/config/arr-config';
 import { SearchTester } from '@/components/testing/search-tester';
 import { ResultViewer } from '@/components/testing/result-viewer';
 import { JDownloaderTester } from '@/components/testing/jdownloader-tester';
@@ -974,20 +973,6 @@ export default function Home() {
                       )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    {t('config.arr')}
-                  </CardTitle>
-                  <CardDescription>
-                    {t('dashboard.arrServices')}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ArrConfig language={userLanguage} />
                 </CardContent>
               </Card>
             </div>
