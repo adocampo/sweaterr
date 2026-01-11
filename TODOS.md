@@ -4,22 +4,41 @@ Estado: 11 de enero de 2026
 
 ## 🔴 CRÍTICOS (Afectan UX/Functionality)
 
-### 1. **Implementación Endpoint *arr (Torznab Bridge)** 🔗
+### 1. **Implementación Endpoint *arr (Torznab Bridge)** 🔗 ✅
 
 - **Severidad**: Crítica (funcionalidad core)
 - **Área**: Backend API (`src/app/api/arr/*`)
+- **Estado**: ✅ **COMPLETADO** (11 de enero 2026)
 - **Problema**: Sweaterr debe actuar como indexer Torznab para *arr (Sonarr/Radarr/Lidarr)
-- **Funcionalidad**:
-  - [ ] Endpoint `GET /api/arr` que devuelve feed RSS/Torznab de búsquedas configuradas
-  - [ ] *arr hace peticiones de búsqueda a sweaterr → sweaterr busca en foros + IA → devuelve resultados
-  - [ ] Usuario selecciona resultado en *arr →*arr envía a sweaterr como descarga
-  - [ ] Sweaterr envía a JDownloader con tag *arr (serie, película, etc.)
-  - [ ] JDownloader descarga → sweaterr notifica a *arr de completado (webhook/callback)
-  - [ ] *arr importa automáticamente el contenido descargado
-- **Archivos**: `src/app/api/arr/` (nuevo directorio), `src/lib/services/torznab-formatter.ts` (nuevo)
-- **Dependencias**: Ya existe `/api/search` y `/api/downloads/status`, reutilizar lógica
-- **Estimación**: 8-10 horas
-- **Prioridad**: 🔥 ANTES QUE TODO (es la razón de ser de sweaterr)
+- **Funcionalidad implementada**:
+  - [x] Endpoint `GET /api/arr?t=caps` que devuelve capacidades Torznab
+  - [x] Endpoint `GET /api/arr?t=search|tvsearch|movie` para búsquedas
+  - [x] *arr hace peticiones → sweaterr busca en foros → devuelve RSS/XML
+  - [x] Usuario selecciona resultado en *arr → *arr envía a sweaterr como descarga
+  - [x] Endpoint `GET /api/arr?t=get&guid=X` extrae enlaces y envía a JDownloader
+  - [x] Sweaterr crea Download record con tag *arr y metadata
+  - [x] Endpoint `POST /api/arr/notify` recibe webhooks de *arr
+  - [x] Webhooks actualizan estado de Download (Grab→downloading, Download→completed)
+  - [x] Sistema de API keys por servicio *arr (Sonarr, Radarr, Lidarr, Readarr)
+  - [x] GUID mejorado: Base64url JSON para evitar parsing de URLs con caracteres especiales
+  - [x] Variantes de búsqueda en español (T1, 1x01, Temporada 1, S01E01)
+  - [x] Placeholders para evitar errores de indexer offline
+- **Archivos creados/modificados**:
+  - `src/app/api/arr/route.ts` - Dispatcher unificado
+  - `src/app/api/arr/caps/route.ts` - Capacidades Torznab
+  - `src/app/api/arr/search/route.ts` - Búsquedas con variantes español
+  - `src/app/api/arr/grab/route.ts` - Extracción de enlaces y envío a JD
+  - `src/app/api/arr/notify/route.ts` - Webhooks y actualización de estado
+  - `src/app/api/config/arr/route.ts` - CRUD de servicios *arr
+  - `src/app/api/config/arr/[id]/route.ts` - Operaciones individuales (con await params Next.js 15)
+  - `src/components/config/arr-config.tsx` - UI de configuración
+- **Documentación**: Sección completa en ARCHITECTURE.md con guía de configuración
+- **Horas estimadas**: 8-10 horas ➡️ **Invertidas**: ~6 horas
+- **Prioridad**: 🔥 COMPLETADO
+- **Próximos pasos opcionales**:
+  - Integración IA para parsing de títulos (enriquecimiento de metadatos)
+  - Testing end-to-end con instancia real de Sonarr/Radarr
+  - Rate limiting por foro para evitar baneos
 
 ### 2. **Formulario de Login se Recarga a Sí Mismo**
 
@@ -67,7 +86,26 @@ Estado: 11 de enero de 2026
 - **Archivos afectados**: `src/app/page.tsx`, `src/components/downloads/downloads-manager.tsx`
 - **Estimación**: 4-6 horas
 
-### 2. **Passwords en Texto Plano en BD**
+### 5. **Reload Completo de UI Cada Pocos Segundos** ⚠️
+
+- **Severidad**: Crítica (UX bloqueada)
+- **Área**: Frontend/App Router (`src/app/page.tsx`, `src/hooks/use-api.ts`, middleware)
+- **Problema**: Tras los cambios de hoy, la UI se recarga COMPLETA cada pocos segundos, sin importar la página; imposible interactuar
+- **Impacto**: Formularios, configuraciones y descargas son inutilizables; polling parece disparar reload total en vez de refresco de datos
+- **Hipótesis**:
+  - Algún `setInterval`/`setTimeout` llamando a `window.location.reload()` o `router.refresh()`
+  - Polling en `useApi` o middleware provocando redirect/refresh por token inválido
+  - `router.replace` en efectos dependientes de datos que cambian continuamente
+- **Tareas**:
+  - [ ] Reproducir en cada vista y capturar origen del reload (logs en navegador)
+  - [ ] Auditar efectos/polling recientes (`useApi`, dashboard, downloads, config)
+  - [ ] Eliminar/aislar llamadas a `location.reload`/`router.refresh`; usar setState/SWR en su lugar
+  - [ ] Validar que auth/middleware no dispara 302/redirect loops
+  - [ ] Test manual: permanecer 60s en Configuración sin ningún reload
+- **Estimación**: 2-3 horas
+- **Prioridad**: Resolver primero (bloquea cualquier uso de la app)
+
+### 6. **Passwords en Texto Plano en BD**
 
 - **Severidad**: Media (Seguridad)
 - **Área**: Auth/Config
@@ -78,7 +116,7 @@ Estado: 11 de enero de 2026
   - [ ] Validar compatibilidad con login actual
 - **Archivos**: `src/app/api/config/*`, Prisma schema
 
-### 3. **Sin Rate Limiting**
+### 7. **Sin Rate Limiting**
 
 - **Severidad**: Media
 - **Problema**: Riesgo de ban en foros por exceso de requests
@@ -140,7 +178,63 @@ Estado: 11 de enero de 2026
 - **Archivos**: `src/components/testing/search-tester.tsx`, `result-viewer.tsx`
 - **Estimación**: 2-3 horas
 
-### 9. **Soporte PostgreSQL**
+### 9. **Configuración de FlareSolverr desde UI**
+
+- **Severidad**: Media (Usabilidad)
+- **Área**: Backend/Frontend (`src/app/api/config/flaresolverr/*`, `src/components/config/*`, Prisma schema)
+- **Problema**: Actualmente FlareSolverr se configura vía variable de entorno `FLARESOLVERR_URL` en `.env.local`; no es configurable dinámicamente desde la UI
+- **Funcionalidad**:
+  - [ ] Crear tabla `FlareSolverrConfig` en Prisma (url, timeout, enabled, createdAt, updatedAt)
+  - [ ] API endpoints: `GET/POST /api/config/flaresolverr` para CRUD
+  - [ ] Componente UI en pestaña Configuración: formulario con URL y timeout (ms)
+  - [ ] Fallback a variable de entorno si no existe config en BD
+  - [ ] Test de conexión desde UI (ping `/health` endpoint de FlareSolverr)
+  - [ ] Validación: URL debe ser http/https, timeout entre 5000-60000ms
+  - [ ] Actualizar `cloudflare-handler.ts` y `flaresolverr-client.ts` para leer de BD primero
+- **Beneficios**: Configuración más accesible sin editar archivos; ajuste de timeout por usuario
+- **Archivos**:
+  - `prisma/schema.prisma` (nueva tabla FlareSolverrConfig)
+  - `src/app/api/config/flaresolverr/route.ts` (nuevo)
+  - `src/components/config/flaresolverr-config.tsx` (nuevo)
+  - `src/lib/services/cloudflare-handler.ts` (leer config de BD)
+  - `src/hooks/use-api.ts` (añadir `useFlareSolverrConfig()`)
+- **Estimación**: 3-4 horas
+
+### 10. **Integración con Inteligencia Artificial**
+
+- **Severidad**: Alta (Feature core para automatización)
+- **Área**: Backend/IA (`src/app/api/ai/*`, `src/lib/services/ai/*`, Prisma schema)
+- **Problema**: Dos casos de uso críticos para automatización:
+  1. **Resolución de nombres de hilos a formato "scene"**: Extraer metadatos estructurados (calidad, episodios, idiomas, codec) desde títulos de foros caóticos
+  2. **Generación de comentarios automáticos**: Muchos foros banean usuarios inactivos; IA debe comentar de forma natural para evitar suspensiones
+- **Funcionalidad Caso 1 - Resolución de Nombres**:
+  - [ ] Endpoint `/api/ai/parse-title` que recibe título de foro y devuelve JSON estructurado
+  - [ ] Extracción: season, episode, quality (720p/1080p/4K), codec (x264/x265/AV1), audio (AAC/DTS/AC3), idiomas
+  - [ ] Fallback a regex si IA falla
+  - [ ] Integración con búsqueda de foros: normalizar resultados antes de enviar a *arr
+  - [ ] Cache de parsing (evitar llamadas duplicadas para mismo título)
+- **Funcionalidad Caso 2 - Comentarios Humanos**:
+  - [ ] Endpoint `/api/ai/generate-comment` con contexto del hilo (título, primeros posts)
+  - [ ] Generar comentarios naturales, variados, coherentes con temática
+  - [ ] Configuración: frecuencia de comentarios (N descargas = 1 comentario), blacklist de frases spam
+  - [ ] UI en Configuración: toggle "Auto-comentar", templates personalizables
+  - [ ] Tracking de comentarios enviados por foro (evitar spam)
+  - [ ] Validación: longitud mínima/máxima, no repetir comentarios
+- **Archivos**:
+  - `src/lib/services/ai/title-parser.ts` (caso 1)
+  - `src/lib/services/ai/comment-generator.ts` (caso 2)
+  - `src/app/api/ai/parse-title/route.ts` (nuevo)
+  - `src/app/api/ai/generate-comment/route.ts` (nuevo)
+  - `prisma/schema.prisma` (tabla AIComments: forumId, postUrl, generatedText, sentAt)
+  - `src/components/config/ai-config.tsx` (UI para configurar ambos casos)
+- **Beneficios**:
+  - Caso 1: *arr puede mapear correctamente releases de foros a metadatos estructurados
+  - Caso 2: Usuario evita baneos por inactividad, mantiene cuentas válidas
+- **Dependencias**: Requiere configuración OpenAI/Anthropic en settings (ya existe AIConfig en schema)
+- **Estimación**: 10-12 horas (6h caso 1, 4h caso 2, 2h UI)
+- **Prioridad**: Alta (relacionado con TODO #1 *arr Torznab; el parsing de nombres es esencial para matching)
+
+### 11. **Soporte PostgreSQL**
 
 - **Severidad**: Media (Escalabilidad)
 - **Área**: Backend/Infraestructura (`prisma/schema.prisma`, `.env`, Docker)
@@ -163,14 +257,14 @@ Estado: 11 de enero de 2026
 
 ## 🟢 NICE-TO-HAVE (Futuro)
 
-### 10. **Script de Arranque para Desarrollo**
+### 12. **Script de Arranque para Desarrollo**
 
 - [ ] Crear `scripts/dev.sh` con validación de puerto 3000
 - [ ] Comandos: `npm run dev:start`, `npm run dev:stop`
 - [ ] Documenta en README
 - **Estimación**: 1-2 horas
 
-### 11. **Gestión Avanzada de Subforos**
+### 13. **Gestión Avanzada de Subforos**
 
 - [ ] Toggle `searchInChildForums` en configuración foro
 - [ ] Selección múltiple de subforos
@@ -178,32 +272,32 @@ Estado: 11 de enero de 2026
 - [ ] Integración con endpoint Torznab para *arr
 - **Estimación**: 5-6 horas
 
-### 12. **Multi-Foro Simultáneo en Búsqueda**
+### 14. **Multi-Foro Simultáneo en Búsqueda**
 
 - [ ] Buscar en todos los foros configurados en paralelo (Promise.all)
 - [ ] Ranking/scoring de resultados por foro
 - **Estimación**: 3-4 horas
 
-### 13. **Caché de Búsquedas**
+### 15. **Caché de Búsquedas**
 
 - [ ] Redis/in-memory para resultados recientes (TTL 1 hora)
 - [ ] Evita búsquedas duplicadas en foros lentos
 - **Estimación**: 3 horas
 
-### 14. **Notificaciones (Discord/Telegram)**
+### 16. **Notificaciones (Discord/Telegram)**
 
 - [ ] Webhook cuando descarga completa
 - [ ] Configurable en settings
 - **Estimación**: 4-5 horas
 
-### 15. **Dashboard con Estadísticas**
+### 17. **Dashboard con Estadísticas**
 
 - [ ] Gráficos de descargas por foro, por tipo (serie/película), por mes
 - [ ] Top foros más usados
 - [ ] Métricas de velocidad/éxito de búsqueda
 - **Estimación**: 6-8 horas
 
-### 16. **Soporte Multi-Plataforma de Fuentes (Foros, DDL, Streaming)**
+### 18. **Soporte Multi-Plataforma de Fuentes (Foros, DDL, Streaming)**
 
 - **Severidad**: Media (Arquitectura escalable)
 - **Área**: Backend/Frontend (`src/app/api/config/forums/*`, `src/components/config/*`, Prisma schema)
@@ -216,14 +310,14 @@ Estado: 11 de enero de 2026
   - [ ] Validación de campos requeridos según tipo de plataforma
   - [ ] Documentación de cómo añadir soporte para nuevas plataformas
 - **Impacto**: Permite expandir sweaterr a cualquier fuente de descarga directa sin hardcodear
-- **Archivos**: 
+- **Archivos**:
   - `prisma/schema.prisma` (añadir `forumType` enum)
   - `src/lib/services/platform-handlers/` (nuevo: vbulletin.ts, phpbb.ts, custom.ts)
   - `src/components/config/forum-config.tsx` (añadir selector tipo)
 - **Estimación**: 8-12 horas
 - **Dependencias**: Refactor de `cloudflare-handler.ts` para soportar estrategias de plataforma
 
-### 17. **Renombrar "Foros" → "Fuentes/Orígenes"**
+### 19. **Renombrar "Foros" → "Fuentes/Orígenes"**
 
 - **Severidad**: Baja (Nomenclatura/UX)
 - **Área**: Frontend/Backend/i18n (`src/locales/*.json`, `src/components/*`, `src/app/api/config/*`)
@@ -238,7 +332,36 @@ Estado: 11 de enero de 2026
   - [ ] Documentación: Actualizar README y ARCHITECTURE.md
 - **Archivos**: Múltiples (schema, API routes, hooks, componentes, i18n)
 - **Estimación**: 4-6 horas
-- **Orden**: Hacer DESPUÉS de implementar multi-plataforma (#16) para evitar doble refactor
+- **Orden**: Hacer DESPUÉS de implementar multi-plataforma (#18) para evitar doble refactor
+
+### 20. **Rediseño de Interfaz: Layout Funcional Profesional**
+
+- **Severidad**: Baja (UX/Estética, pero no bloqueante)
+- **Área**: Frontend (`src/app/layout.tsx`, `src/app/page.tsx`, `src/components/*`)
+- **Problema**: UI actual basada en tarjetas y toasts ocupa mucho espacio y no es óptima para uso intensivo
+- **Contexto**: Sweaterr se usará principalmente como indexer para *arr; la UI debe ser funcional, no solo visual
+- **Propuesta de diseño**:
+  - [ ] **Sidebar fijo izquierdo** con navegación (Dashboard, Sources, Downloads, Configuration, Testing)
+  - [ ] **Pantalla completa** para contenido sin desperdiciar espacio en tarjetas/cards
+  - [ ] **Formularios inline** en lugar de popups/dialogs para configuración
+  - [ ] **Tablas densas** para listas de descargas/fuentes (más filas visibles)
+  - [ ] **Mantener dark mode** y paleta de colores actual (funciona bien)
+  - [ ] **Eliminar toasts excesivos**: solo para errores críticos o confirmaciones importantes
+  - [ ] **Header minimalista**: logo, título, user menu, sin ocupar altura extra
+- **Referencia visual**: Inspiración en UIs tipo Sonarr/Radarr (sidebar + content area)
+- **Beneficios**:
+  - Más información visible sin scroll
+  - Configuración más rápida (sin abrir/cerrar modales)
+  - Aspecto profesional tipo "admin panel"
+  - Mejor para monitores grandes y uso prolongado
+- **Archivos**:
+  - `src/app/layout.tsx` (añadir sidebar permanente)
+  - `src/app/page.tsx` (convertir tabs a routes: `/`, `/sources`, `/downloads`, etc.)
+  - `src/components/ui/*` (adaptar Card → inline forms, Dialog → full-page)
+  - `tailwind.config.ts` (ajustar spacing para densidad)
+- **Estimación**: 12-16 horas (refactor significativo de UI)
+- **Prioridad**: Baja (funciona actualmente; mejoría cosmética/UX)
+- **Orden**: Hacer DESPUÉS de #1 *arr Torznab y #4 Flicker (funcionalidad antes que estética)
 
 ## 📋 CAMBIOS RECIENTES (Enero 2026)
 
@@ -272,9 +395,9 @@ Estado: 11 de enero de 2026
 
 ## Métricas
 
-- **TODOs Críticos**: 6 (incluye *arr indexer, login reload, session persistence)
-- **TODOs Importantes**: 6 (añadido: PostgreSQL support)
-- **Nice-to-Have**: 8 (incluye: multi-plataforma fuentes, renombrar "Foros")
-- **Total**: 20 items
-- **Horas Estimadas**: ~70-95 horas para completar todo
-- **Prioridad**: #1 *arr Torznab → #2-4 Auth/Session/Login → #5-7 Flicker/Security/Rate Limiting → #9 PostgreSQL → #16-17 Multi-plataforma + Renombrar
+- **TODOs Críticos**: 7 (incluye *arr indexer, login reload, session persistence, reload UI)
+- **TODOs Importantes**: 8 (añadidos: IA Integration, FlareSolverr UI config, PostgreSQL)
+- **Nice-to-Have**: 9 (incluye: multi-plataforma fuentes, renombrar "Foros", rediseño UI)
+- **Total**: 24 items
+- **Horas Estimadas**: ~100-134 horas para completar todo
+- **Prioridad**: #1 *arr Torznab → #2-4 Auth/Session/Login → #5 Reload UI → #6-7 Flicker/Security/Rate Limiting → #9-10 FlareSolverr+IA → #11 PostgreSQL → #18-20 Multi-plataforma/Renombrar/Rediseño
