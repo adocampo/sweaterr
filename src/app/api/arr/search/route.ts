@@ -208,10 +208,12 @@ export async function GET(request: NextRequest) {
 
             // If all searches failed or returned nothing, emit placeholders so *arr receives items instead of empty results.
             if (allResults.length === 0) {
-                const placeholderForums = forums.slice(0, Math.max(1, requestedCategories.length, 3));
+                const placeholderForums = forums.slice(0, Math.max(1, 3));
+                const placeholderCount = Math.max(3, requestedCategories.length || 1);
 
-                requestedCategories.forEach((cat, index) => {
-                    const forum = placeholderForums[index % placeholderForums.length];
+                for (let i = 0; i < placeholderCount; i++) {
+                    const cat = requestedCategories.length > 0 ? requestedCategories[i % requestedCategories.length] : primaryCategory;
+                    const forum = placeholderForums[i % placeholderForums.length];
                     allResults.push({
                         title: `[Recent] ${forum.name}`,
                         url: forum.baseUrl,
@@ -221,14 +223,16 @@ export async function GET(request: NextRequest) {
                         category: cat || primaryCategory,
                         size: 1024,
                     });
-                });
+                }
             }
         } else {
             // Recent mode: return lightweight placeholders tagged with the requested categories.
-            const placeholderForums = forums.slice(0, Math.max(1, requestedCategories.length, 3));
+            const placeholderForums = forums.slice(0, Math.max(1, 3));
+            const placeholderCount = Math.max(3, requestedCategories.length || 1);
 
-            requestedCategories.forEach((cat, index) => {
-                const forum = placeholderForums[index % placeholderForums.length];
+            for (let i = 0; i < placeholderCount; i++) {
+                const cat = requestedCategories.length > 0 ? requestedCategories[i % requestedCategories.length] : primaryCategory;
+                const forum = placeholderForums[i % placeholderForums.length];
                 allResults.push({
                     title: `[Recent] ${forum.name}`,
                     url: forum.baseUrl,
@@ -238,7 +242,7 @@ export async function GET(request: NextRequest) {
                     category: cat || primaryCategory,
                     size: 1024,
                 });
-            });
+            }
 
             if (allResults.length === 0) {
                 allResults.push({
