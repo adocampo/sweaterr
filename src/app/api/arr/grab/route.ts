@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
-        const guid = searchParams.get('guid'); // format: base64url(JSON{forumId, category, url})
+        // Newznab clients typically send t=get&id=<guid>; support both 'id' and 'guid'
+        const guid = searchParams.get('id') || searchParams.get('guid'); // format: base64url(JSON{forumId, category, url})
 
         if (!apiKey || !guid) {
             return new NextResponse(
