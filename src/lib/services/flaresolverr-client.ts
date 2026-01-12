@@ -1,10 +1,17 @@
 import axios from 'axios';
 
+export interface FlareSolverrCookie {
+    name: string;
+    value: string;
+    domain?: string;
+    path?: string;
+}
+
 export interface FlareSolverrSolution {
     url: string;
     status: string;
     headers: Record<string, string>;
-    cookies: Array<{ name: string; value: string }>;
+    cookies: Array<FlareSolverrCookie>;
     userAgent?: string;
     response?: string;
 }
@@ -59,7 +66,7 @@ export class FlareSolverrClient {
         postData?: Record<string, any>,
         sessionId?: string,
         headers?: Record<string, string>,
-        cookies?: Array<{ name: string; value: string }>,
+        cookies?: Array<FlareSolverrCookie>,
         options?: { maxTimeout?: number; requestTimeout?: number }
     ): Promise<FlareSolverrSolution> {
         const maxTimeout = options?.maxTimeout ?? 45000;
@@ -75,8 +82,9 @@ export class FlareSolverrClient {
             if (sessionId) {
                 payload.session = sessionId;
             }
-            if (headers && Object.keys(headers).length > 0) {
-                payload.headers = headers;
+            // FlareSolverr v2+ expects userAgent field instead of generic headers
+            if (headers && typeof headers['User-Agent'] === 'string' && headers['User-Agent'].trim()) {
+                payload.userAgent = headers['User-Agent'];
             }
             if (cookies && cookies.length > 0) {
                 payload.cookies = cookies;
@@ -115,7 +123,7 @@ export class FlareSolverrClient {
         throw lastErr || new Error('FlareSolverr request failed');
     }
 
-    static cookiesToHeader(cookies: Array<{ name: string; value: string }>): string {
+    static cookiesToHeader(cookies: Array<FlareSolverrCookie>): string {
         return cookies.map((c) => `${c.name}=${c.value}`).join('; ');
     }
 }
