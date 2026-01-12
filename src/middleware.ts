@@ -29,6 +29,11 @@ export async function middleware(request: NextRequest) {
         '/api/config/forums/check', // Forum connectivity test (allows unauthenticated testing)
     ];
 
+    // In development, allow testing endpoints without auth for local debugging
+    if (process.env.NODE_ENV !== 'production') {
+        publicRoutes.push('/api/testing');
+    }
+
     // Check if the current route is public
     const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 

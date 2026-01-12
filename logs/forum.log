@@ -1,0 +1,587 @@
+[2026-01-09T14:24:45.356Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:24:45.357Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-09T14:24:45.357Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-09T14:25:10.611Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-09T14:25:10.621Z] [INFO] Persistent cookies stored (6)
+[2026-01-09T14:25:13.672Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:25:13.672Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:25:13.672Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:25:13.672Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:25:14.615Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:25:14.616Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:25:14.616Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:25:14.616Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:25:14.790Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:25:14.791Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:25:14.791Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:25:14.791Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:25:14.994Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:25:14.994Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:25:14.994Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:25:14.994Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:34:05.755Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:34:05.757Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:34:05.757Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:34:05.757Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:34:28.077Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:34:28.078Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-09T14:34:28.078Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-09T14:34:53.890Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-09T14:34:53.901Z] [INFO] Persistent cookies stored (6)
+[2026-01-09T14:35:56.034Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:35:56.035Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:35:56.035Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:35:56.035Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:35:56.037Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-09T14:36:40.836Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:36:40.837Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:36:40.837Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:36:40.837Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:36:47.221Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:36:47.222Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:36:47.222Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:36:47.222Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:41:29.885Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:41:29.886Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:41:29.886Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:41:29.886Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:42:55.177Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:42:55.178Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:42:55.178Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:42:55.178Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:51:02.789Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:51:02.790Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:51:02.790Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:51:34.105Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:51:34.105Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:51:34.105Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:51:34.106Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T14:53:34.392Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T14:53:34.393Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T14:53:34.393Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T14:53:34.393Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T16:39:26.493Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T16:39:26.494Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T16:39:26.494Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T16:39:26.494Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T17:51:11.161Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T17:51:11.163Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T17:51:11.163Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T17:51:11.163Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T18:18:44.723Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T18:18:44.724Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T18:18:44.724Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T18:18:44.724Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T18:21:19.495Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T18:21:19.496Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T18:21:19.496Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T18:21:19.496Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T18:21:19.498Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-09T18:23:08.014Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T18:23:08.015Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T18:23:08.015Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T18:23:08.015Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T18:23:08.017Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-09T18:29:07.614Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T18:29:07.615Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T18:29:07.615Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T18:29:07.616Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T18:29:07.618Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-09T18:30:10.986Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T18:30:10.986Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T18:30:10.986Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T18:30:10.987Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T18:30:10.989Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-09T18:46:54.946Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T18:46:54.947Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T18:46:54.947Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T18:46:54.947Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T18:46:54.950Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-09T18:49:07.414Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T18:49:07.416Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T18:49:07.416Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T18:49:07.417Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T18:49:07.422Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?searchid=19351387&page=2
+[2026-01-09T23:34:10.062Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T23:34:10.063Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T23:34:10.063Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T23:34:10.063Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T23:40:20.933Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T23:40:20.933Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T23:40:20.933Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T23:40:20.934Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T23:45:24.229Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T23:45:24.229Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T23:45:24.229Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T23:45:24.230Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T23:45:24.232Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-09T23:47:46.927Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T23:47:46.927Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T23:47:46.927Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T23:47:46.927Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T23:47:46.927Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-09T23:54:13.721Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T23:54:13.722Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T23:54:13.722Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T23:54:13.722Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-09T23:54:45.157Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-09T23:54:45.158Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-09T23:54:45.158Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-09T23:54:45.158Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T00:11:24.047Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T00:11:24.048Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T00:11:24.048Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T00:11:24.048Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T00:11:26.728Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T00:11:26.728Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T00:11:26.728Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T00:11:26.728Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T00:11:39.941Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T00:11:39.941Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T00:11:39.941Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T00:11:39.942Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T00:11:39.943Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-10T10:20:50.379Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T10:20:50.379Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T10:20:50.379Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T10:20:50.380Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T10:20:53.318Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T10:20:53.318Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T10:20:53.318Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T10:20:53.319Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T10:20:54.890Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T10:20:54.890Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T10:20:54.890Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T10:20:54.890Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T10:20:55.606Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T10:20:55.607Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T10:20:55.607Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T10:20:55.607Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T10:21:09.300Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T10:21:09.301Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T10:21:09.301Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T10:21:09.301Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T10:21:09.302Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-10T10:21:40.726Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T10:21:40.726Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T10:21:40.726Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T10:21:40.726Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T10:21:40.728Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-10T16:58:13.360Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T16:58:13.361Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T16:58:13.361Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T16:58:13.361Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T16:58:13.363Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-10T16:58:35.476Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-10T16:58:35.477Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-10T16:58:35.477Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-10T16:58:35.477Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-10T16:58:35.478Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T01:06:03.690Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T01:06:03.691Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T01:06:03.691Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T01:06:03.691Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T09:02:51.250Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T09:02:51.251Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T09:02:51.251Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T09:02:51.251Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T09:02:51.253Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T09:03:57.367Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T09:03:57.368Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T09:03:57.368Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T09:03:57.368Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T09:03:57.370Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T17:34:05.243Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T17:34:05.244Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T17:34:05.244Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T17:34:32.987Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T17:34:33.001Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T17:34:33.003Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T17:34:59.353Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T17:35:23.718Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:07:37.817Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T18:07:37.818Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T18:07:37.818Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T18:08:13.677Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T18:08:13.689Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T18:08:13.691Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:08:38.854Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:09:03.499Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:10:53.282Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T18:10:53.282Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T18:10:53.282Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T18:11:19.249Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T18:11:19.256Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T18:11:19.257Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:11:44.048Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:12:08.546Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:20:52.999Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T18:20:52.999Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T18:20:53.000Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T18:21:19.010Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T18:21:19.024Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T18:21:19.025Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:21:43.564Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:22:08.389Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:27:54.996Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T18:27:54.996Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T18:27:54.996Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T18:28:21.823Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T18:28:21.833Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T18:28:21.834Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:28:46.643Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:29:11.926Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T18:55:21.821Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T18:55:21.822Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T18:55:21.822Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T18:55:48.767Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T18:55:48.785Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T18:55:50.785Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T18:55:50.786Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T18:55:50.786Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T18:56:16.146Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T18:56:16.177Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T19:11:32.993Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T19:11:32.993Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T19:11:32.993Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T19:12:00.051Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T19:12:00.094Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T19:27:12.642Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T19:27:12.642Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T19:27:12.642Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T19:27:39.188Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T19:27:39.309Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T22:17:26.977Z] [ERROR] Error testing forum: PrismaClientKnownRequestError: 
+Invalid `prisma.forum.findFirst()` invocation:
+
+
+The column `main.forums.searchInChildForums` does not exist in the current database.
+[2026-01-11T22:17:29.446Z] [ERROR] Error testing forum: PrismaClientKnownRequestError: 
+Invalid `prisma.forum.findFirst()` invocation:
+
+
+The column `main.forums.searchInChildForums` does not exist in the current database.
+[2026-01-11T22:17:30.306Z] [ERROR] Error testing forum: PrismaClientKnownRequestError: 
+Invalid `prisma.forum.findFirst()` invocation:
+
+
+The column `main.forums.searchInChildForums` does not exist in the current database.
+[2026-01-11T22:17:30.484Z] [ERROR] Error testing forum: PrismaClientKnownRequestError: 
+Invalid `prisma.forum.findFirst()` invocation:
+
+
+The column `main.forums.searchInChildForums` does not exist in the current database.
+[2026-01-11T22:17:30.644Z] [ERROR] Error testing forum: PrismaClientKnownRequestError: 
+Invalid `prisma.forum.findFirst()` invocation:
+
+
+The column `main.forums.searchInChildForums` does not exist in the current database.
+[2026-01-11T22:17:30.826Z] [ERROR] Error testing forum: PrismaClientKnownRequestError: 
+Invalid `prisma.forum.findFirst()` invocation:
+
+
+The column `main.forums.searchInChildForums` does not exist in the current database.
+[2026-01-11T22:18:40.233Z] [ERROR] Error testing forum: PrismaClientKnownRequestError: 
+Invalid `prisma.forum.findFirst()` invocation:
+
+
+The column `main.forums.searchInChildForums` does not exist in the current database.
+[2026-01-11T22:21:00.724Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:21:00.725Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T22:21:00.725Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T22:21:00.725Z] [INFO] Forum check: added config for DescargasDD (https://descargasdd.org)
+[2026-01-11T22:21:00.725Z] [INFO] === TESTING FORUM: DescargasDD ===
+[2026-01-11T22:21:00.725Z] [INFO] URL: https://descargasdd.org
+[2026-01-11T22:21:00.725Z] [INFO] User: malevolent
+[2026-01-11T22:21:00.731Z] [INFO] Mode: Playwright + Cloudflare bypass
+[2026-01-11T22:21:00.731Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T22:21:00.731Z] [INFO] [ForumCheck] FlareSolverr URL: http://192.168.1.100:8191
+[2026-01-11T22:21:00.731Z] [INFO] [ForumCheck] Existing forum ID: cmk6yg8120002p791prcnowq0
+[2026-01-11T22:21:00.731Z] [INFO] [ForumCheck] Attempting to create FlareSolverr session...
+[2026-01-11T22:21:30.746Z] [WARN] [ForumCheck] ⚠️ Could not create FlareSolverr session, but authentication succeeded: Error: FlareSolverr session creation failed: timeout of 30000ms exceeded
+[2026-01-11T22:21:30.746Z] [INFO] [ForumCheck] Returning response: sessionStarted=false
+[2026-01-11T22:21:39.016Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:21:39.017Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T22:21:39.017Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T22:21:39.017Z] [INFO] Forum check: added config for DescargasDD (https://descargasdd.org)
+[2026-01-11T22:21:39.017Z] [INFO] === TESTING FORUM: DescargasDD ===
+[2026-01-11T22:21:39.017Z] [INFO] URL: https://descargasdd.org
+[2026-01-11T22:21:39.017Z] [INFO] User: malevolent
+[2026-01-11T22:21:39.017Z] [INFO] Mode: Playwright + Cloudflare bypass
+[2026-01-11T22:21:39.017Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T22:21:39.017Z] [INFO] [ForumCheck] FlareSolverr URL: http://192.168.1.100:8191
+[2026-01-11T22:21:39.017Z] [INFO] [ForumCheck] Existing forum ID: cmk6yg8120002p791prcnowq0
+[2026-01-11T22:21:39.017Z] [INFO] [ForumCheck] Attempting to create FlareSolverr session...
+[2026-01-11T22:22:09.027Z] [WARN] [ForumCheck] ⚠️ Could not create FlareSolverr session, but authentication succeeded: Error: FlareSolverr session creation failed: timeout of 30000ms exceeded
+[2026-01-11T22:22:09.027Z] [INFO] [ForumCheck] Returning response: sessionStarted=false
+[2026-01-11T22:30:02.937Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:30:02.938Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T22:30:02.938Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T22:30:02.938Z] [INFO] Forum check: added config for DescargasDD (https://descargasdd.org)
+[2026-01-11T22:30:02.938Z] [INFO] === TESTING FORUM: DescargasDD ===
+[2026-01-11T22:30:02.938Z] [INFO] URL: https://descargasdd.org
+[2026-01-11T22:30:02.938Z] [INFO] User: malevolent
+[2026-01-11T22:30:02.938Z] [INFO] Mode: Playwright + Cloudflare bypass
+[2026-01-11T22:30:02.938Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T22:30:02.938Z] [INFO] [ForumCheck] FlareSolverr URL: http://192.168.1.100:8191
+[2026-01-11T22:30:02.938Z] [INFO] [ForumCheck] Existing forum ID: cmk6yg8120002p791prcnowq0
+[2026-01-11T22:30:02.938Z] [INFO] [ForumCheck] Attempting to create FlareSolverr session...
+[2026-01-11T22:30:04.913Z] [INFO] [ForumCheck] ✓ SUCCESS: Sesión FlareSolverr iniciada (ID: 126cfc88..., TTL: 30m).
+[2026-01-11T22:30:04.913Z] [INFO] [ForumCheck] Returning response: sessionStarted=true
+[2026-01-11T22:30:07.117Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:30:07.117Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T22:30:07.117Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T22:30:07.117Z] [INFO] Forum check: added config for DescargasDD (https://descargasdd.org)
+[2026-01-11T22:30:07.117Z] [INFO] === TESTING FORUM: DescargasDD ===
+[2026-01-11T22:30:07.117Z] [INFO] URL: https://descargasdd.org
+[2026-01-11T22:30:07.117Z] [INFO] User: malevolent
+[2026-01-11T22:30:07.117Z] [INFO] Mode: Playwright + Cloudflare bypass
+[2026-01-11T22:30:07.117Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T22:30:07.117Z] [INFO] [ForumCheck] FlareSolverr URL: http://192.168.1.100:8191
+[2026-01-11T22:30:07.117Z] [INFO] [ForumCheck] Existing forum ID: cmk6yg8120002p791prcnowq0
+[2026-01-11T22:30:07.117Z] [INFO] [ForumCheck] Attempting to create FlareSolverr session...
+[2026-01-11T22:30:07.117Z] [INFO] [ForumCheck] ✓ SUCCESS: Sesión FlareSolverr iniciada (ID: 126cfc88..., TTL: 30m).
+[2026-01-11T22:30:07.117Z] [INFO] [ForumCheck] Returning response: sessionStarted=true
+[2026-01-11T22:30:08.828Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:30:08.828Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T22:30:08.828Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T22:30:08.828Z] [INFO] Forum check: added config for DescargasDD (https://descargasdd.org)
+[2026-01-11T22:30:08.829Z] [INFO] === TESTING FORUM: DescargasDD ===
+[2026-01-11T22:30:08.829Z] [INFO] URL: https://descargasdd.org
+[2026-01-11T22:30:08.829Z] [INFO] User: malevolent
+[2026-01-11T22:30:08.829Z] [INFO] Mode: Playwright + Cloudflare bypass
+[2026-01-11T22:30:08.829Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T22:30:08.829Z] [INFO] [ForumCheck] FlareSolverr URL: http://192.168.1.100:8191
+[2026-01-11T22:30:08.829Z] [INFO] [ForumCheck] Existing forum ID: cmk6yg8120002p791prcnowq0
+[2026-01-11T22:30:08.829Z] [INFO] [ForumCheck] Attempting to create FlareSolverr session...
+[2026-01-11T22:30:08.829Z] [INFO] [ForumCheck] ✓ SUCCESS: Sesión FlareSolverr iniciada (ID: 126cfc88..., TTL: 30m).
+[2026-01-11T22:30:08.829Z] [INFO] [ForumCheck] Returning response: sessionStarted=true
+[2026-01-11T22:30:09.146Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:30:09.146Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T22:30:09.146Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T22:30:09.146Z] [INFO] Forum check: added config for DescargasDD (https://descargasdd.org)
+[2026-01-11T22:30:09.146Z] [INFO] === TESTING FORUM: DescargasDD ===
+[2026-01-11T22:30:09.146Z] [INFO] URL: https://descargasdd.org
+[2026-01-11T22:30:09.146Z] [INFO] User: malevolent
+[2026-01-11T22:30:09.146Z] [INFO] Mode: Playwright + Cloudflare bypass
+[2026-01-11T22:30:09.146Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T22:30:09.146Z] [INFO] [ForumCheck] FlareSolverr URL: http://192.168.1.100:8191
+[2026-01-11T22:30:09.146Z] [INFO] [ForumCheck] Existing forum ID: cmk6yg8120002p791prcnowq0
+[2026-01-11T22:30:09.146Z] [INFO] [ForumCheck] Attempting to create FlareSolverr session...
+[2026-01-11T22:30:09.146Z] [INFO] [ForumCheck] ✓ SUCCESS: Sesión FlareSolverr iniciada (ID: 126cfc88..., TTL: 30m).
+[2026-01-11T22:30:09.146Z] [INFO] [ForumCheck] Returning response: sessionStarted=true
+[2026-01-11T22:30:09.490Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:30:09.490Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T22:30:09.490Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T22:30:09.490Z] [INFO] Forum check: added config for DescargasDD (https://descargasdd.org)
+[2026-01-11T22:30:09.490Z] [INFO] === TESTING FORUM: DescargasDD ===
+[2026-01-11T22:30:09.490Z] [INFO] URL: https://descargasdd.org
+[2026-01-11T22:30:09.490Z] [INFO] User: malevolent
+[2026-01-11T22:30:09.490Z] [INFO] Mode: Playwright + Cloudflare bypass
+[2026-01-11T22:30:09.490Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T22:30:09.490Z] [INFO] [ForumCheck] FlareSolverr URL: http://192.168.1.100:8191
+[2026-01-11T22:30:09.490Z] [INFO] [ForumCheck] Existing forum ID: cmk6yg8120002p791prcnowq0
+[2026-01-11T22:30:09.490Z] [INFO] [ForumCheck] Attempting to create FlareSolverr session...
+[2026-01-11T22:30:09.490Z] [INFO] [ForumCheck] ✓ SUCCESS: Sesión FlareSolverr iniciada (ID: 126cfc88..., TTL: 30m).
+[2026-01-11T22:30:09.490Z] [INFO] [ForumCheck] Returning response: sessionStarted=true
+[2026-01-11T22:30:09.657Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:30:09.657Z] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-11T22:30:09.657Z] [INFO] Applied stored user agent for DescargasDD
+[2026-01-11T22:30:09.657Z] [INFO] Forum check: added config for DescargasDD (https://descargasdd.org)
+[2026-01-11T22:30:09.657Z] [INFO] === TESTING FORUM: DescargasDD ===
+[2026-01-11T22:30:09.657Z] [INFO] URL: https://descargasdd.org
+[2026-01-11T22:30:09.657Z] [INFO] User: malevolent
+[2026-01-11T22:30:09.657Z] [INFO] Mode: Playwright + Cloudflare bypass
+[2026-01-11T22:30:09.657Z] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-11T22:30:09.657Z] [INFO] [ForumCheck] FlareSolverr URL: http://192.168.1.100:8191
+[2026-01-11T22:30:09.657Z] [INFO] [ForumCheck] Existing forum ID: cmk6yg8120002p791prcnowq0
+[2026-01-11T22:30:09.657Z] [INFO] [ForumCheck] Attempting to create FlareSolverr session...
+[2026-01-11T22:30:09.657Z] [INFO] [ForumCheck] ✓ SUCCESS: Sesión FlareSolverr iniciada (ID: 126cfc88..., TTL: 30m).
+[2026-01-11T22:30:09.657Z] [INFO] [ForumCheck] Returning response: sessionStarted=true
+[2026-01-11T22:33:08.246Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:33:08.247Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T22:33:08.247Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T22:33:34.137Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T22:33:34.151Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T22:45:33.181Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T22:45:33.182Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T22:45:33.182Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T22:46:05.503Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T22:46:05.519Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:01:14.053Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:01:14.053Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:01:14.053Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:01:44.275Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:01:44.283Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:16:53.594Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:16:53.594Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:16:53.594Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:17:20.937Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:17:20.951Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:25:05.580Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:25:05.580Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:25:05.580Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:25:31.445Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:25:31.514Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:25:40.070Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:25:40.070Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:25:40.070Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:26:06.282Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:26:06.296Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:26:11.443Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:26:11.443Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:26:11.443Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:26:21.356Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:26:21.357Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:26:21.357Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:26:37.035Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:26:37.048Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:26:49.494Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:26:49.513Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:27:16.971Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:27:16.972Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:27:16.972Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:27:43.387Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:27:43.405Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:27:43.411Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:28:08.951Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:28:33.310Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:31:20.013Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:31:20.014Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:31:20.014Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:31:45.595Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:31:45.613Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:31:45.614Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:31:56.754Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:31:56.754Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:31:56.754Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:32:09.921Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:32:15.084Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:32:15.084Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:32:15.085Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:32:22.333Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:32:22.347Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:32:22.347Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:32:32.485Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:32:32.485Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:32:32.485Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:32:35.160Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:32:48.794Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:32:48.867Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:32:48.868Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:32:49.434Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:32:57.659Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:32:57.671Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:33:09.377Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:33:09.378Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:33:09.378Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:33:55.160Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:33:55.161Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:33:55.161Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:34:25.449Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:34:25.461Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:34:25.463Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:34:49.681Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:35:13.977Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:41:37.408Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:41:37.408Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:41:37.408Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:42:03.176Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:42:03.273Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:42:03.275Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:42:26.369Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:42:26.369Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:42:26.369Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:42:27.626Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:42:38.858Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:42:38.858Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:42:38.858Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:42:51.848Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:42:51.861Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:42:52.927Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:43:04.851Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:43:04.863Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:43:17.409Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:43:41.768Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:44:05.712Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:47:10.424Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:47:10.425Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:47:10.425Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:47:36.067Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:47:36.076Z] [INFO] Persistent cookies stored (6)
+[2026-01-11T23:47:36.078Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:48:09.393Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:48:10.800Z] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-11T23:48:10.801Z] [INFO] Attempting authentication for DescargasDD...
+[2026-01-11T23:48:10.801Z] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-11T23:48:33.708Z] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-11T23:48:36.025Z] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-11T23:48:36.037Z] [INFO] Persistent cookies stored (6)
+[2026-01-12T00:59:41.299+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T00:59:41.300+01:00 Europe/Madrid] [INFO] Attempting authentication for DescargasDD...
+[2026-01-12T00:59:41.300+01:00 Europe/Madrid] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-12T01:00:07.166+01:00 Europe/Madrid] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-12T01:00:07.176+01:00 Europe/Madrid] [INFO] Persistent cookies stored (6)
+[2026-01-12T01:00:07.178+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:00:33.696+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:01:00.654+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:07:12.348+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T01:07:12.349+01:00 Europe/Madrid] [INFO] Attempting authentication for DescargasDD...
+[2026-01-12T01:07:12.350+01:00 Europe/Madrid] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-12T01:07:42.192+01:00 Europe/Madrid] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-12T01:07:42.204+01:00 Europe/Madrid] [INFO] Persistent cookies stored (6)
+[2026-01-12T01:08:44.023+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T01:08:44.023+01:00 Europe/Madrid] [INFO] Attempting authentication for DescargasDD...
+[2026-01-12T01:08:44.024+01:00 Europe/Madrid] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-12T01:09:15.019+01:00 Europe/Madrid] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-12T01:09:15.029+01:00 Europe/Madrid] [INFO] Persistent cookies stored (6)
+[2026-01-12T01:09:15.031+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:09:28.785+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:09:39.345+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:10:33.589+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T01:10:33.590+01:00 Europe/Madrid] [INFO] Attempting authentication for DescargasDD...
+[2026-01-12T01:10:33.590+01:00 Europe/Madrid] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-12T01:11:04.692+01:00 Europe/Madrid] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-12T01:11:04.724+01:00 Europe/Madrid] [INFO] Persistent cookies stored (6)
+[2026-01-12T01:11:04.726+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:11:16.462+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:11:26.947+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:11:42.859+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T01:11:42.860+01:00 Europe/Madrid] [INFO] Attempting authentication for DescargasDD...
+[2026-01-12T01:11:42.860+01:00 Europe/Madrid] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-12T01:12:12.032+01:00 Europe/Madrid] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-12T01:12:12.042+01:00 Europe/Madrid] [INFO] Persistent cookies stored (6)
+[2026-01-12T01:12:12.043+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:12:22.337+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:12:32.774+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:15:56.602+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T01:15:56.603+01:00 Europe/Madrid] [INFO] Attempting authentication for DescargasDD...
+[2026-01-12T01:15:56.603+01:00 Europe/Madrid] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-12T01:16:27.515+01:00 Europe/Madrid] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-12T01:16:27.531+01:00 Europe/Madrid] [INFO] Persistent cookies stored (6)
+[2026-01-12T01:16:27.534+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:16:41.473+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:16:52.791+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:18:58.974+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T01:18:58.975+01:00 Europe/Madrid] [INFO] Attempting authentication for DescargasDD...
+[2026-01-12T01:18:58.975+01:00 Europe/Madrid] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-12T01:19:00.263+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T01:19:00.264+01:00 Europe/Madrid] [INFO] Attempting authentication for DescargasDD...
+[2026-01-12T01:19:00.264+01:00 Europe/Madrid] [INFO] [DescargasDD] Trying Playwright/headless browser approach for Cloudflare...
+[2026-01-12T01:19:29.622+01:00 Europe/Madrid] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-12T01:19:29.632+01:00 Europe/Madrid] [INFO] Persistent cookies stored (6)
+[2026-01-12T01:19:29.634+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:19:40.409+01:00 Europe/Madrid] [INFO] ✓ Successfully authenticated with DescargasDD
+[2026-01-12T01:19:40.418+01:00 Europe/Madrid] [INFO] Persistent cookies stored (6)
+[2026-01-12T01:19:41.723+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T01:19:51.907+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T07:56:12.298+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T07:56:12.298+01:00 Europe/Madrid] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-12T07:56:12.299+01:00 Europe/Madrid] [INFO] Applied stored user agent for DescargasDD
+[2026-01-12T07:56:12.299+01:00 Europe/Madrid] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-12T07:56:12.301+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1
+[2026-01-12T07:56:28.858+01:00 Europe/Madrid] [INFO] addForum: Configuring forum cmk6yg8120002p791prcnowq0 (DescargasDD)
+[2026-01-12T07:56:28.859+01:00 Europe/Madrid] [INFO] Applied persistent cookies to DescargasDD (6)
+[2026-01-12T07:56:28.859+01:00 Europe/Madrid] [INFO] Applied stored user agent for DescargasDD
+[2026-01-12T07:56:28.860+01:00 Europe/Madrid] [INFO] Using persistent cookies for DescargasDD; skipping login.
+[2026-01-12T07:56:28.862+01:00 Europe/Madrid] [INFO] DescargasDD: GET https://descargasdd.org/search.php?search_type=1

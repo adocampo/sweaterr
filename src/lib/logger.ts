@@ -18,11 +18,36 @@ if (typeof window === 'undefined') {
 export type LogModule = 'forum' | 'search' | 'extract' | 'auth' | 'jdownloader' | 'cloudflare' | 'api' | 'testing' | 'db' | 'metadata';
 
 class Logger {
-  private logToFile(module: LogModule, level: 'info' | 'warn' | 'error', message: string, data?: any) {
+  private formatLocalTimestamp() {
+    const date = new Date();
+
+    const pad = (value: number) => value.toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const seconds = pad(date.getSeconds());
+    const milliseconds = date.getMilliseconds().toString().padStart(3, '0');
+
+    const offsetMinutes = -date.getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? '+' : '-';
+    const absOffset = Math.abs(offsetMinutes);
+    const offsetHours = pad(Math.floor(absOffset / 60));
+    const offsetMins = pad(absOffset % 60);
+    const offset = `${sign}${offsetHours}:${offsetMins}`;
+
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const zoneSuffix = timeZone ? ` ${timeZone}` : '';
+
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}${offset}${zoneSuffix}`;
+  }
+
+  private logToFile(module: LogModule, level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: any) {
     // Only log to file on server side
     if (typeof window !== 'undefined') return;
 
-    const timestamp = new Date().toISOString();
+    const timestamp = this.formatLocalTimestamp();
     const logFile = path.join(logsDir, `${module}.log`);
 
     let logLine = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
@@ -43,6 +68,14 @@ class Logger {
     // Only show essential info in console (skip noisy modules)
     if (process.env.NODE_ENV === 'development' && module !== 'db' && module !== 'search' && module !== 'jdownloader') {
       console.log(`[${module}] ${message}`);
+    }
+  }
+
+  debug(module: LogModule, message: string, data?: any) {
+    // Debug goes to file to keep console clean and avoid breaking callers
+    this.logToFile(module, 'debug', message, data);
+    if (process.env.NODE_ENV === 'development' && module !== 'db' && module !== 'jdownloader') {
+      console.debug(`[${module}] ${message}`);
     }
   }
 

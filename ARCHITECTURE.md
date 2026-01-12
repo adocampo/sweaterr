@@ -794,6 +794,14 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-12 (Fix: Logs en zona horaria local)
+
+- 🕒 **Problema**: Los archivos de log (`logs/*.log`) se generaban en UTC y confundían al comparar con la hora local de Madrid.
+- ✅ **Solución**: El timestamp ahora se formatea con la zona horaria del sistema (`/etc/localtime`), incluyendo offset y nombre de zona, eliminando la conversión a UTC. Además se añadió soporte a `logger.debug()` para evitar errores en rutas que lo llamen y registrar trazas de depuración sin romper el endpoint. El fallback de FlareSolverr para búsquedas nativas ahora inyecta las cookies recién autenticadas (persistidas y en memoria) y limita el timeout (15s/20s) para evitar peticiones de 40s que hacen timeout en \*arr.
+- 🛠️ **Dev-only Testing público**: Para facilitar pruebas locales, las rutas `/api/testing/*` quedan públicas solo en desarrollo (se mantienen protegidas en producción). Esto permite ejecutar búsquedas de prueba vía cURL sin sesión activa.
+- 📝 **Archivos modificados**: `src/lib/logger.ts`, `src/lib/services/forum.ts`, `src/lib/services/flaresolverr-client.ts`, `src/middleware.ts`.
+- 🎯 **Resultado**: Los logs reflejan la hora local del servidor, se evita el crash por `logger.debug` inexistente, el fallback de búsqueda usa cookies válidas tras autenticación en vez de hacer peticiones sin sesión y las búsquedas \*arr devuelven respuesta antes de que \*arr agote el timeout.
+
 ### 2026-01-11 (Fix: Totales de descargas sin doble conteo)
 
 - 🐛 **Problema**: La tarjeta “Total Descargas” en Overview mostraba más descargas que la pestaña Descargas porque se sumaban duplicados de JDownloader y BD.
@@ -1836,7 +1844,7 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
   - Log de errores de búsqueda por foro
 - **Ejemplo de log**:
 
-  ```
+  ```text
   [INFO] search [SONARR] Starting forum search for query: "Breaking Bad" (variants: 3)
   [INFO] search [SONARR] Searching in forum "DescargasDD" with variant: "Breaking Bad temporada 5"
   [INFO] search [SONARR] Found 5 results in forum "DescargasDD"

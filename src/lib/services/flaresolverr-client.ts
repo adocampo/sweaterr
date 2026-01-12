@@ -59,14 +59,18 @@ export class FlareSolverrClient {
         postData?: Record<string, any>,
         sessionId?: string,
         headers?: Record<string, string>,
-        cookies?: Array<{ name: string; value: string }>
+        cookies?: Array<{ name: string; value: string }>,
+        options?: { maxTimeout?: number; requestTimeout?: number }
     ): Promise<FlareSolverrSolution> {
+        const maxTimeout = options?.maxTimeout ?? 45000;
+        const requestTimeout = options?.requestTimeout ?? 60000;
+
         const buildPayload = () => {
             const payload: any = {
                 cmd: method === 'GET' ? 'request.get' : 'request.post',
                 url,
                 // Give the solver more time; Turnstile often needs >20s
-                maxTimeout: 45000,
+                maxTimeout,
             };
             if (sessionId) {
                 payload.session = sessionId;
@@ -86,7 +90,7 @@ export class FlareSolverrClient {
         let lastErr: any = null;
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
-                const { data } = await axios.post(`${this.endpoint}/v1`, buildPayload(), { timeout: 60000 });
+                const { data } = await axios.post(`${this.endpoint}/v1`, buildPayload(), { timeout: requestTimeout });
                 if (!data || data.status !== 'ok' || !data.solution) {
                     throw new Error(`FlareSolverr error: ${data?.message || 'unknown error'}`);
                 }
