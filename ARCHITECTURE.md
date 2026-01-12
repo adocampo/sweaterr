@@ -802,6 +802,17 @@ DEEPSEEK_API_KEY="..."
 - 📝 **Archivos modificados**: `src/lib/logger.ts`, `src/lib/services/forum.ts`, `src/lib/services/flaresolverr-client.ts`, `src/middleware.ts`.
 - 🎯 **Resultado**: Los logs reflejan la hora local del servidor, se evita el crash por `logger.debug` inexistente, el fallback de búsqueda usa cookies válidas tras autenticación en vez de hacer peticiones sin sesión y las búsquedas \*arr devuelven respuesta antes de que \*arr agote el timeout.
 
+### 2026-01-12 (Fix: Native search robustness)
+
+- 🐛 **Problema**: La búsqueda nativa vBulletin no extraía `searchid` de forma fiable y la respuesta de FlareSolverr aparecía como invitado (`SECURITYTOKEN = "guest"`), devolviendo 0 resultados.
+- ✅ **Solución**:
+  - Inyección de cookies a FlareSolverr con `domain` y `path` para asegurar sesión reconocida.
+  - Mapeo de `User-Agent` a la propiedad `userAgent` del payload (v2+), evitando headers ignorados.
+  - Extractor de URL de resultados (con `searchid`) más robusto: soporta meta-refresh, JavaScript `location.*` y anchors.
+  - Fallback adicional: intento GET con querystring cuando el POST no devuelve `searchid`.
+- 📝 **Archivos modificados**: `src/lib/services/forum.ts`, `src/lib/services/flaresolverr-client.ts`.
+- 🎯 **Resultado**: Mayor probabilidad de obtener `searchid` o resultados directos en modo nativo, reduciendo casos de 0 resultados por sesión no aplicada.
+
 ### 2026-01-11 (Fix: Totales de descargas sin doble conteo)
 
 - 🐛 **Problema**: La tarjeta “Total Descargas” en Overview mostraba más descargas que la pestaña Descargas porque se sumaban duplicados de JDownloader y BD.

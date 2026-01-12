@@ -511,10 +511,19 @@ export class ForumService {
 
       const extractSearchResultsUrl = (input: string) => {
         if (!input) return '';
-        // Match URLs like: search.php?searchid=123 or search.php?do=process&searchid=123&page=2
-        const match = input.match(/search\.php\?[^\s"'>]*searchid=\d+[^\s"'>]*/i);
-        if (!match) return '';
-        return match[0];
+        // Try several patterns to capture search results URL
+        const patterns = [
+          /search\.php\?[^\s"'>]*searchid=\d+[^\s"'>]*/i, // direct link with searchid
+          /url=([^"'>]*search\.php[^"'>]*searchid=\d+[^"'>]*)/i, // meta refresh content="...url=search.php?searchid=..."
+          /location\.(?:href|replace)\s*=\s*['"]([^'"\s]*search\.php[^'"\s]*searchid=\d+[^'"\s]*)['"]/i, // JS redirect
+          /href=['"]([^'"\s]*search\.php[^'"\s]*searchid=\d+[^'"\s]*)['"]/i, // anchor fallback
+        ];
+        for (const re of patterns) {
+          const m = input.match(re);
+          if (m && m[1]) return m[1];
+          if (m && m[0]) return m[0];
+        }
+        return '';
       };
 
       const extractSearchIdValue = (input: string) => {
@@ -1150,8 +1159,11 @@ export class ForumService {
         }
 
         const firstPageUrl = joinUrl(config.baseUrl, config.searchPath);
+        // Ensure cookies carry domain/path for FlareSolverr
+        const cookieDomain = new URL(config.baseUrl).host;
+        const fsCookies = cookiesForFs.map(c => ({ name: c.name, value: c.value, domain: cookieDomain, path: '/' }));
         // Pass cookies as array to FlareSolverr (NOT as Cookie header - that doesn't work)
-        const firstPage = await fsClient.request(firstPageUrl, 'GET', undefined, undefined, headers, cookiesForFs, fsOptions);
+        const firstPage = await fsClient.request(firstPageUrl, 'GET', undefined, undefined, headers, fsCookies, fsOptions);
         const $formDoc = cheerio.load(firstPage.response || '');
 
         const form = pickSearchForm($formDoc);
@@ -1183,7 +1195,7 @@ export class ForumService {
 
         const postHeaders = { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' };
 
-        const processed = await fsClient.request(action, 'POST', postData, undefined, postHeaders, cookiesForFs, fsOptions);
+        const processed = await fsClient.request(action, 'POST', postData, undefined, postHeaders, fsCookies, fsOptions);
 
         const html = processed.response || '';
         const finalUrl = processed.url || action;
@@ -1210,6 +1222,29 @@ export class ForumService {
             postDataPreview: redactPostDataForLog(postData),
           });
           logger.info('search', `[${config.name}] Native search debug HTML snippet (POST/FlareSolverr)`, safeSnippet(html));
+          // Fallback attempt: try GET with querystring (some vBulletin installs accept GET for search processing)
+          try {
+            const qs = new URLSearchParams(postData).toString();
+            const getUrl = `${action}${action.includes('?') ? '&' : '?'}${qs}`;
+            const processedGet = await fsClient.request(getUrl, 'GET', undefined, undefined, postHeaders, fsCookies, fsOptions);
+            const htmlGet = processedGet.response || '';
+            const finalGetUrl = processedGet.url || getUrl;
+            const resolved = resolveResultsUrl(finalGetUrl, htmlGet);
+            if (resolved.resultUrl) {
+              const pageParam = options?.page && options.page > 1 ? `&page=${options.page}` : '';
+              const resultsPage = await fsClient.request(`${resolved.resultUrl}${pageParam}`, 'GET', undefined, undefined, headers, fsCookies, fsOptions);
+              const pageResults = parseResults(resultsPage.response || '');
+              const totalResults = extractTotalResults(resultsPage.response || '');
+              return { results: pageResults, searchId: resolved.searchIdFromBody || undefined, totalResults };
+            }
+            const fallbackDirect = parseResults(htmlGet);
+            if (fallbackDirect.length > 0) {
+              const totalResults = extractTotalResults(htmlGet);
+              return { results: fallbackDirect, searchId: resolved.searchIdFromBody || undefined, totalResults };
+            }
+          } catch (getErr) {
+            logger.warn('search', `[${config.name}] FlareSolverr GET fallback failed`, { error: getErr instanceof Error ? getErr.message : String(getErr) });
+          }
           return { results: [] };
         }
 
