@@ -108,6 +108,18 @@ export async function GET(request: NextRequest) {
 
         // Prepare forums for search; authenticate only when performing a real search
         // Avoid heavy auth when q is empty to keep placeholder responses fast for *arr
+
+        // Build search query and TV variants (without AI)
+        // If q is empty but we have season/ep, Sonarr sent minimal data; return placeholders
+        let searchQuery = q;
+        
+        // Only attempt search if we have a query
+        const shouldSearch = searchQuery && searchQuery.trim().length > 0;
+        
+        logger.info('search', `[${service.toUpperCase()}] shouldSearch=${shouldSearch}, q="${q}", season=${season}, ep=${ep}, isTvSearch=${t?.toLowerCase() === 'tvsearch'}`);
+
+        // Prepare forums for search; authenticate only when performing a real search
+        // Avoid heavy auth when q is empty to keep placeholder responses fast for *arr
         for (const forum of forums) {
             forumService.addForum({
                 id: forum.id,
@@ -128,15 +140,6 @@ export async function GET(request: NextRequest) {
                 await forumService.authenticate(forum.id);
             }
         }
-
-        // Build search query and TV variants (without AI)
-        // If q is empty but we have season/ep, Sonarr sent minimal data; return placeholders
-        let searchQuery = q;
-        
-        // Only attempt search if we have a query
-        const shouldSearch = searchQuery && searchQuery.trim().length > 0;
-        
-        logger.info('search', `[${service.toUpperCase()}] shouldSearch=${shouldSearch}, q="${q}", season=${season}, ep=${ep}, isTvSearch=${t?.toLowerCase() === 'tvsearch'}`);
         
         const buildTvVariants = (series: string, season?: string | null, ep?: string | null): string[] => {
             const s = season ? String(season).padStart(2, '0') : '';
