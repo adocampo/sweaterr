@@ -159,7 +159,7 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                             <TableHead>{t('forumsTable.status')}</TableHead>
                             <TableHead>{t('forumsTable.session')}</TableHead>
                             <TableHead>{t('forumsTable.duration')}</TableHead>
-                            <TableHead>Torznab Feed</TableHead>
+                            <TableHead>Newznab Feed</TableHead>
                             <TableHead className="text-right">{t('forumsTable.actions')}</TableHead>
                         </TableRow>
                     </TableHeader>
