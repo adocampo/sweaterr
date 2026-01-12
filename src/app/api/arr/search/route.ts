@@ -282,7 +282,8 @@ export async function GET(request: NextRequest) {
             const pubDate = new Date().toUTCString();
 
             const size = result.size || 1024;
-            const enclosureUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr/grab?guid=${encodeURIComponent(guid)}&apikey=${apiKey}`;
+            // Use standard Newznab download pattern: /api/arr?t=get&id=<guid>&apikey=<apiKey>
+            const enclosureUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr?t=get&id=${encodeURIComponent(guid)}&apikey=${apiKey}`;
             const escapedLink = escapeXml(enclosureUrl);
 
             return `    <item>
