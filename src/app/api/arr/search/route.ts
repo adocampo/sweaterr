@@ -325,10 +325,16 @@ ${items}
             },
         });
 
+        logger.info('search', `[${service.toUpperCase()}] Returning XML response with ${rankedResults.length} items (${rssXml.length} bytes)`);
+        logger.info('search', `[${service.toUpperCase()}] XML preview: ${rssXml.substring(0, 500)}...`);
+
         return new NextResponse(rssXml, {
             headers: { 'Content-Type': 'application/xml' },
         });
     } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : '';
+        logger.error('search', `Error in search endpoint: ${errorMessage}`, errorStack);
         console.error('Error in search endpoint:', error);
         return new NextResponse(
             `<?xml version="1.0" encoding="UTF-8"?>

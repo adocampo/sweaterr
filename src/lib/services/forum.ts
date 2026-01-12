@@ -72,6 +72,20 @@ export class ForumService {
     return { cookies: [], userAgent: undefined };
   }
 
+  private parseCookieHeader(header?: string | string[]): Array<{ name: string; value: string }> {
+    if (!header) return [];
+    const raw = Array.isArray(header) ? header.join('; ') : header;
+    return raw
+      .split(';')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .map(part => {
+        const [name, ...rest] = part.split('=');
+        return { name, value: rest.join('=') };
+      })
+      .filter(c => c.name && c.value);
+  }
+
   // Add forum configuration
   addForum(config: ForumConfig): void {
     logger.info('forum', `addForum: Configuring forum ${config.id} (${config.name})`);
@@ -174,6 +188,9 @@ export class ForumService {
               cookiesUpdatedAt: new Date(),
             }
           });
+          // Keep in-memory config aligned so fallback paths see fresh cookies/UA
+          config.persistentCookies = cookiesJson;
+          this.configs.set(forumId, { ...config });
           logger.info('forum', `Persistent cookies stored (${(result.cookieArray || []).length})`);
         } catch (err) {
           logger.error('forum', `Failed to store persistent cookies: ${err}`);
@@ -1070,11 +1087,16 @@ export class ForumService {
 
         // Prefer persisted cookies from config (most reliable), then axios defaults
         const { cookies: storedCookies, userAgent: storedUserAgent } = this.parseStoredCookies(config.persistentCookies);
-        const userAgentHeader = storedUserAgent || getAxiosDefaultHeader('User-Agent');
+        let cookiesForFs = storedCookies;
+        if (cookiesForFs.length === 0 && client?.defaults?.headers?.Cookie) {
+          cookiesForFs = this.parseCookieHeader(client.defaults.headers.Cookie as any);
+        }
+
+        const userAgentHeader = storedUserAgent || getAxiosDefaultHeader('User-Agent') || (client?.defaults?.headers?.['User-Agent'] as string | undefined);
 
         logger.info('search', `[${config.name}] FlareSolverr fallback cookie/UA injection`, {
-          storedCookiesCount: storedCookies.length,
-          storedCookieNames: storedCookies.map(c => c.name),
+          storedCookiesCount: cookiesForFs.length,
+          storedCookieNames: cookiesForFs.map(c => c.name),
           hasUserAgent: !!userAgentHeader,
         });
 
@@ -1083,7 +1105,9 @@ export class ForumService {
         };
         if (typeof userAgentHeader === 'string' && userAgentHeader.trim()) headers['User-Agent'] = userAgentHeader;
 
-        logger.info('search', `[${config.name}] FlareSolverr fallback: passing ${storedCookies.length} cookies directly to FlareSolverr API`);
+        logger.info('search', `[${config.name}] FlareSolverr fallback: passing ${cookiesForFs.length} cookies directly to FlareSolverr API`);
+
+        const fsOptions = { maxTimeout: 15000, requestTimeout: 20000 };
 
         // If searchId is provided (pagination), skip form submission and go directly to results pages
         if (options?.searchId) {
@@ -1098,7 +1122,7 @@ export class ForumService {
             let firstHtml = '';
             for (let p = 1; p <= maxPages; p++) {
               const pageUrl = `${baseSearchUrl}&page=${p}`;
-              const resultsPage = await fsClient.request(pageUrl, 'GET', undefined, undefined, headers, storedCookies);
+              const resultsPage = await fsClient.request(pageUrl, 'GET', undefined, undefined, headers, cookiesForFs, fsOptions);
               const html = resultsPage.response || '';
               if (!firstHtml) firstHtml = html;
               const pageResults = parseResults(html);
@@ -1118,7 +1142,7 @@ export class ForumService {
             return { results: aggregated, searchId: options.searchId, totalResults };
           } else {
             const searchUrl = `${baseSearchUrl}&page=${pageNum}`;
-            const resultsPage = await fsClient.request(searchUrl, 'GET', undefined, undefined, headers, storedCookies);
+            const resultsPage = await fsClient.request(searchUrl, 'GET', undefined, undefined, headers, cookiesForFs, fsOptions);
             const pageResults = parseResults(resultsPage.response || '');
             const totalResults = extractTotalResults(resultsPage.response || '');
             return { results: pageResults, searchId: options.searchId, totalResults };
@@ -1127,7 +1151,7 @@ export class ForumService {
 
         const firstPageUrl = joinUrl(config.baseUrl, config.searchPath);
         // Pass cookies as array to FlareSolverr (NOT as Cookie header - that doesn't work)
-        const firstPage = await fsClient.request(firstPageUrl, 'GET', undefined, undefined, headers, storedCookies);
+        const firstPage = await fsClient.request(firstPageUrl, 'GET', undefined, undefined, headers, cookiesForFs, fsOptions);
         const $formDoc = cheerio.load(firstPage.response || '');
 
         const form = pickSearchForm($formDoc);
@@ -1159,7 +1183,7 @@ export class ForumService {
 
         const postHeaders = { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' };
 
-        const processed = await fsClient.request(action, 'POST', postData, undefined, postHeaders, storedCookies);
+        const processed = await fsClient.request(action, 'POST', postData, undefined, postHeaders, cookiesForFs, fsOptions);
 
         const html = processed.response || '';
         const finalUrl = processed.url || action;
@@ -1200,7 +1224,7 @@ export class ForumService {
             const pageParam = p > 1 ? `&page=${p}` : '';
             const pageUrl = `${resultUrl}${pageParam}`;
             logger.info('search', `[${config.name}] FlareSolverr fetchAll page ${p}: ${pageUrl}`);
-            const resultsPage = await fsClient.request(pageUrl, 'GET', undefined, undefined, headers, storedCookies);
+            const resultsPage = await fsClient.request(pageUrl, 'GET', undefined, undefined, headers, cookiesForFs, fsOptions);
             const pageResults = parseResults(resultsPage.response || '');
             logger.info('search', `[${config.name}] FlareSolverr fetchAll page ${p}: found ${pageResults.length} results`);
             let added = 0;
@@ -1220,7 +1244,7 @@ export class ForumService {
         }
 
         const pageParam = options?.page && options.page > 1 ? `&page=${options.page}` : '';
-        const resultsPage = await fsClient.request(`${resultUrl}${pageParam}`, 'GET', undefined, undefined, headers, storedCookies);
+        const resultsPage = await fsClient.request(`${resultUrl}${pageParam}`, 'GET', undefined, undefined, headers, cookiesForFs, fsOptions);
         const pageResults = parseResults(resultsPage.response || '');
         const totalResults = extractTotalResults(resultsPage.response || '');
         return { results: pageResults, searchId: searchIdFromBody || undefined, totalResults };

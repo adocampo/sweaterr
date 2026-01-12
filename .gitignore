@@ -15,7 +15,7 @@ node_modules
 
 # logs
 #logs/
-*.log
+#*.log
 
 # next.js
 /.next/
