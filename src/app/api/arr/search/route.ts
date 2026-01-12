@@ -17,8 +17,8 @@ function detectArrService(userAgent: string | null): string {
     return 'unknown';
 }
 
-// GET /api/arr/search - Newznab/Torznab search endpoint
-// Uses forum's torznabApiKey for validation
+// GET /api/arr/search - Newznab search endpoint
+// Uses forum's API key (torznabApiKey field) for validation
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -293,9 +293,6 @@ export async function GET(request: NextRequest) {
             <category>${category}</category>
             <description><![CDATA[${result.forum ?? result.forumName ?? 'Sweaterr'} - ${result.url}]]></description>
             <enclosure url="${escapedLink}" length="${size}" type="application/x-nzb"/>
-            <torznab:attr name="category" value="${category}"/>
-            <torznab:attr name="size" value="${size}"/>
-            <torznab:attr name="guid" value="${guid}"/>
             <newznab:attr name="category" value="${category}"/>
             <newznab:attr name="size" value="${size}"/>
             <newznab:attr name="guid" value="${guid}"/>
@@ -303,7 +300,7 @@ export async function GET(request: NextRequest) {
         }).join('\n');
 
         const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
   <channel>
     <title>Sweaterr</title>
     <description>Direct download indexer</description>
@@ -311,6 +308,7 @@ export async function GET(request: NextRequest) {
     <language>es-es</language>
     <webMaster>admin@forumdownloader.local</webMaster>
         <atom:link rel="self" href="${escapeXml(selfLink)}" type="application/rss+xml" />
+        <newznab:response offset="0" total="${rankedResults.length}" />
 ${items}
   </channel>
 </rss>`;
@@ -329,7 +327,7 @@ ${items}
         logger.info('search', `[${service.toUpperCase()}] XML preview: ${rssXml.substring(0, 500)}...`);
 
         return new NextResponse(rssXml, {
-            headers: { 'Content-Type': 'application/xml' },
+            headers: { 'Content-Type': 'application/rss+xml' },
         });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

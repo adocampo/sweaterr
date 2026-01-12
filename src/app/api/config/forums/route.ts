@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: forum,
-      message: 'Forum created. Torznab API key generated automatically.',
+      message: 'Forum created. Newznab API key generated automatically.'
     });
   } catch (error) {
     console.error('Error creating forum:', error);

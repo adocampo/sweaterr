@@ -3,8 +3,8 @@ import { db } from '@/lib/db';
 import { ForumService } from '@/lib/services/forum';
 import { JDownloaderService } from '@/lib/services/jdownloader';
 
-// GET /api/arr/grab - Download link grab endpoint
-// Uses forum's torznabApiKey for validation
+// GET /api/arr/grab - Download link grab endpoint (Newznab-compatible)
+// Uses forum's API key (torznabApiKey field) for validation
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Validate API key against forum's torznabApiKey
+        // Validate API key against forum's stored API key (torznabApiKey)
         const forumWithApiKey = await db.forum.findFirst({
             where: { torznabApiKey: apiKey },
         });
