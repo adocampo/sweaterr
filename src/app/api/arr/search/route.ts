@@ -106,8 +106,8 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Always add forums and authenticate - they're needed for search
-        // This allows searches with season/ep even when q is empty
+        // Prepare forums for search; authenticate only when performing a real search
+        // Avoid heavy auth when q is empty to keep placeholder responses fast for *arr
         for (const forum of forums) {
             forumService.addForum({
                 id: forum.id,
@@ -123,8 +123,8 @@ export async function GET(request: NextRequest) {
                 } : undefined,
             });
 
-            // Authenticate if needed
-            if (forum.credentials) {
+            // Authenticate only when we will actually search
+            if (shouldSearch && forum.credentials) {
                 await forumService.authenticate(forum.id);
             }
         }

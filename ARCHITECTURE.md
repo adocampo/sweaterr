@@ -548,6 +548,10 @@ Para mejorar matching en foros hispanohablantes:
 - Snippet: "Placeholder; run interactive search with a query for real results."
 - Evita errores en *arr mientras mantiene indexer "activo"
 
+**Optimizaciones recientes (2026-01-12)**:
+
+- Autenticación de foros condicionada a búsqueda real: cuando `q` está vacío (p.ej. `tvsearch` mínimo enviado por *arr), el endpoint retorna placeholders sin ejecutar autenticación en los foros. Esto reduce la latencia drásticamente y evita timeouts en Sonarr al abrir la ventana de resultados.
+
 #### Configuración en Sonarr/Radarr
 
 1. **Añadir indexer**:
