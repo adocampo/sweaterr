@@ -4,7 +4,7 @@
 
 ## 📅 FECHAS RELEVANTES
 
-**Última actualización**: 09 de enero de 2026  
+**Última actualización**: 13 de enero de 2026  
 **Inicio del proyecto**: Diciembre 2025  
 **Estado del proyecto**: En desarrollo activo  
 **Versión actual**: 1.3.1
@@ -201,10 +201,11 @@ Infraestructura:
 - CRUD completo: Crear, Leer, Actualizar, Eliminar
 - Múltiples foros configurables simultáneamente
 - Credenciales opcionales (usuario/password)
-- Modos de búsqueda: native, google_site, google_cse
+- Modos de búsqueda: native, google_cse
+- `google_site` existe como modo legacy/experimental, pero está **deshabilitado por defecto**. Para permitirlo, define `ENABLE_GOOGLE_SITE_SEARCH=true` (si no, se hace fallback a `native`).
 - En modo nativo, se recomienda configurar `searchPath` como `/search.php?search_type=1` para usar la búsqueda avanzada y limitar resultados al área relevante (ej. Zona Series + subforos).
 - **Selección de área en búsqueda avanzada** (Nuevo 2026-01-08): Campo `searchForumLabel` (opcional) permite preseleccionar el foro/área en búsquedas nativas (ej: "Zona Series", "Series HD"). El sistema analiza automáticamente el formulario de búsqueda y aplica la selección configurada.
-- **Búsqueda literal con comillas** (Nuevo 2026-01-08): Checkbox "Búsqueda literal" en la UI de testing permite envolver la query en comillas dobles para búsquedas exactas. Útil cuando el foro devuelve demasiados resultados con coincidencias parciales (ej: "Sobrenatural T1" vs "Sobrenatural T.1"). Funciona en todos los modos de búsqueda (native, Google site, Google CSE).
+- **Búsqueda literal con comillas** (Nuevo 2026-01-08): Checkbox "Búsqueda literal" en la UI de testing permite envolver la query en comillas dobles para búsquedas exactas. Útil cuando el foro devuelve demasiados resultados con coincidencias parciales (ej: "Sobrenatural T1" vs "Sobrenatural T.1"). Funciona en `native` y `google_cse` (y también en `google_site` si está habilitado por feature flag).
 - Selectores CSS personalizables por foro
 - Sesiones FlareSolverr persistentes con TTL
 - Cookies persistidas con reutilización automática
@@ -453,13 +454,14 @@ const text = t('forums.addForum'); // "Añadir Foro"
    - Variantes de query en castellano: T1, 1x01, Temporada 1, S01E01
 
 3. **get** - Obtener/descargar release específico
-   - Endpoint: `/api/arr?t=get&guid=<base64_json>`
-   - Trigger: Cuando *arr selecciona un resultado
-   - Acción: Extrae enlaces del post, envía a JDownloader, crea Download record
+    - Endpoint: `/api/arr?t=get&guid=<base64_json>`
+    - Trigger: Cuando *arr selecciona un resultado
+    - Acción: Extrae enlaces del post (incluyendo “thanks gate” si aplica), envía a JDownloader y crea un `Download` en BD.
+    - Compatibilidad *arr: devuelve un **NZB mínimo** (`Content-Type: application/x-nzb`) para que el cliente Newznab/Torznab trate la acción como una descarga.
 
 #### Flujo Completo
 
-```
+```text
 *arr → /api/arr?t=search → Sweaterr busca en foros
                          → Devuelve RSS con GUIDs
 *arr selecciona → /api/arr?t=get&guid=X → Sweaterr extrae enlaces
@@ -495,6 +497,7 @@ model Forum {
   url             String
   // ... otros campos ...
   torznabApiKey   String   @unique  // Generated on creation
+  sabnzbdCategory String?          // Category advertised to *arr (SABnzbd-compatible download client)
   // ... timestamps ...
 }
 ```
@@ -512,6 +515,11 @@ model Forum {
 - Al listar forums: Se devuelve la API key para mostrar en UI
 - No hay opción de eliminar/regenerar (simplifica UX)
 - Cada forum puede usarse con cualquier *arr (Sonarr, Radarr, etc.)
+
+**Download Client (SABnzbd-compatible)**:
+
+- `sabnzbdCategory` permite controlar qué categoría “existe” para *arr al configurar Sweaterr como cliente SABnzbd.
+- Se configura por forum para evitar mezclar contextos entre indexers.
 
 #### Callbacks y Notificaciones
 
@@ -798,6 +806,20 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-13 (Fix: Native search filtering + Torznab titleonly support)
+
+- 🐛 **Problema**: La búsqueda nativa en Sonarr/Torznab (cuando se envía desde *arr) devolvía solo 25 resultados en lugar de todos los disponibles, porque solo buscaba en la página 1 de resultados. Además, Sonarr no tenía forma de solicitar búsquedas limitadas al título.
+- ✅ **Solución**:
+  - `ForumService.search()` ahora acepta opciones avanzadas (`titleOnly`, `fetchAll`, `maxPages`) que se propagan a `searchForum()`.
+  - El parámetro Torznab `titleonly=1` es capturado y pasado a la búsqueda nativa (inyecta `titleonly=1` en el POST al vBulletin `search.php`).
+  - El endpoint `/api/arr/search` ahora invoca búsqueda con `fetchAll: true` y `maxPages: 20`, permitiendo traer hasta ~500 resultados (25 por página × 20 páginas máximo).
+  - El endpoint `/api/arr/caps` ahora reporta `titleonly` como parámetro soportado en `<search>`, `<tv-search>`, `<movie-search>`, `<audio-search>` y `<book-search>`, permitiendo a Sonarr/Radarr enviar búsquedas más precisas.
+- 📝 **Archivos modificados**: `src/lib/services/forum.ts` (ExtendForumService.search signature), `src/app/api/arr/search/route.ts` (captura y paso de titleonly + fetchAll), `src/app/api/arr/caps/route.ts` (reporte de parámetros soportados).
+- 🎯 **Resultado**:
+  - Sonarr/Radarr pueden ahora enviar `titleonly=1` para búsquedas más restrictivas (solo en título).
+  - Búsquedas Torznab traen muchos más resultados (~400+) en lugar de solo la página 1 (25 items).
+  - Las búsquedas nativas siguen siendo rápidas porque el filtro por foro (`searchForumLabel`) se aplica a nivel vBulletin (POST), no en client-side.
+
 ### 2026-01-12 (Fix: Logs en zona horaria local)
 
 - 🕒 **Problema**: Los archivos de log (`logs/*.log`) se generaban en UTC y confundían al comparar con la hora local de Madrid.
@@ -816,6 +838,72 @@ DEEPSEEK_API_KEY="..."
   - Fallback adicional: intento GET con querystring cuando el POST no devuelve `searchid`.
 - 📝 **Archivos modificados**: `src/lib/services/forum.ts`, `src/lib/services/flaresolverr-client.ts`.
 - 🎯 **Resultado**: Mayor probabilidad de obtener `searchid` o resultados directos en modo nativo, reduciendo casos de 0 resultados por sesión no aplicada.
+
+### 2026-01-12 (Fix: Sonarr/*arr URL pública correcta + Grab estable)
+
+- 🐛 **Problema**: En entornos Docker/otra máquina, Sonarr podía intentar descargar el NZB contra `http://localhost:3000/...` (generado por el RSS), fallando el grab aunque el test de indexer fuese correcto.
+- ✅ **Solución**:
+  - Las rutas `caps` y `search` generan la URL pública desde la request (soporte `x-forwarded-host` / `x-forwarded-proto`) en vez de depender de `NEXT_PUBLIC_APP_URL` con fallback a `localhost`.
+  - El botón “Copy URL” usa `window.location.origin` para copiar siempre una URL alcanzable desde donde se está accediendo a la UI.
+  - El endpoint `t=get` (grab) guarda `arrType` detectándolo desde `User-Agent` y evita una referencia inválida.
+- 📝 **Archivos modificados**: `src/app/api/arr/caps/route.ts`, `src/app/api/arr/search/route.ts`, `src/app/api/arr/grab/route.ts`, `src/components/config/forums-table.tsx`, `src/lib/logger.ts`, `docs/ARR_DEBUG.md`, `README.md`, `FIXES_CHANGELOG.md`.
+- 🎯 **Resultado**: Sonarr/Radarr pueden consumir resultados y ejecutar el grab en redes/containers donde `localhost` no apunta a Sweaterr.
+
+### 2026-01-12 (Fix: Native search result parsing regression)
+
+- 🐛 **Problema**: La búsqueda nativa podía completar autenticación pero devolver 0 resultados cuando vBulletin devolvía enlaces SEO (`showthread.php?<id>`) o cuando el `searchid` aparecía solo en JavaScript/querystring y no en un input hidden.
+- ✅ **Solución**: Parser más tolerante:
+  - Extracción de `searchid` también desde querystring/JS/JSON-ish.
+  - `parseResults()` acepta enlaces `showthread.php?<id>` además de `showthread.php?t=<id>`.
+- 📝 **Archivos modificados**: `src/lib/services/forum.ts`.
+- 🎯 **Resultado**: La búsqueda nativa vuelve a detectar resultados aunque no haya redirect explícito a `search.php?searchid=...`.
+
+### 2026-01-12 (Fix: Native search forumchoice value)
+
+- 🐛 **Problema**: Al aplicar `searchForumLabel`, el selector podía enviar el *texto* del foro (ej. "Zona Series") en `forumchoice[]` en vez del `value` real (normalmente un ID). vBulletin ignora ese valor y no genera `searchid`/resultados.
+- ✅ **Solución**: `selectForumByLabel()` solo aplica el filtro cuando existe un `value` no vacío (y nunca usa el label como valor).
+- 📝 **Archivos modificados**: `src/lib/services/forum.ts`.
+- 🎯 **Resultado**: El POST `search.php?do=process` vuelve a devolver resultados/redirect con `searchid` cuando se filtra por foro.
+
+### 2026-01-12 (Fix: Native search forumchoice fallback)
+
+- 🐛 **Problema**: En algunos forms (ej. DescargasDD), `forumchoice[]` puede venir como texto (label) en vez de ID numérico, rompiendo `do=process` y dejando `searchid` en null.
+- ✅ **Solución**: Si `forumchoice*` no es numérico (y no es `0`), se elimina del POST para que vBulletin procese la búsqueda (fallback a "todos los foros").
+- 📝 **Archivos modificados**: `src/lib/services/forum.ts`.
+- 🎯 **Resultado**: La búsqueda vuelve a funcionar incluso si el filtro por foro no se puede aplicar de forma fiable.
+
+### 2026-01-12 (Fix: Sonarr/*arr usa la misma config que la UI)
+
+- 🐛 **Problema**: Los endpoints de *arr (`/api/arr/search` y `/api/arr?t=get`) no estaban pasando al `ForumService` campos críticos de configuración del foro (ej. `searchMode`, `cseId`, `searchForumLabel`, `persistentCookies`). Esto provocaba comportamiento inconsistente con la UI y re-login/Cloudflare innecesario al usar Sonarr.
+- ✅ **Solución**:
+  - Se pasan `searchMode`, `cseId`, `searchForumLabel` y `persistentCookies` desde BD al `ForumService` en rutas *arr.
+  - En búsquedas reales (q presente), si no hay resultados se devuelve un RSS vacío (sin items placeholder).
+  - `parseResults()` soporta también URLs tipo `/threads/<id>-...`.
+- 📝 **Archivos modificados**: `src/app/api/arr/search/route.ts`, `src/app/api/arr/grab/route.ts`, `src/lib/services/forum.ts`, `FIXES_CHANGELOG.md`.
+- 🎯 **Resultado**: Sonarr y la UI usan el mismo modo de búsqueda y la misma sesión/cookies persistentes, reduciendo regresiones al trabajar con *arr.
+
+### 2026-01-12 (Fix: /api/arr/search scoping por API key)
+
+- 🐛 **Problema**: `/api/arr/search` validaba `torznabApiKey` pero después buscaba en todos los foros habilitados. Esto rompe el enfoque recomendado de configurar “un foro por subforo” (una API key distinta para Sonarr/Radarr) y puede mezclar resultados.
+- ✅ **Solución**: La búsqueda se limita al foro asociado a la API key proporcionada.
+- 📝 **Archivos modificados**: `src/app/api/arr/search/route.ts`, `FIXES_CHANGELOG.md`.
+- 🎯 **Resultado**: Se pueden crear varias entradas de foro (mismo dominio, distinta `searchForumLabel`/modo) y usarlas como indexers separados en Sonarr/Radarr sin interferencias.
+
+### 2026-01-12 (Fix: Dev server no crashea al rotar logs grandes)
+
+- 🐛 **Problema**: Al arrancar en desarrollo, `logger.rotateLogs()` podía fallar con `ERR_STRING_TOO_LONG` si algún archivo en `logs/*.log` crecía demasiado (por ejemplo `logs/db.log`).
+- ✅ **Solución**: La rotación ahora lee solo el *tail* (bytes acotados) en archivos grandes y conserva las últimas 1000 líneas, evitando cargar el archivo completo en memoria.
+- 📝 **Archivos modificados**: `src/lib/logger.ts`.
+- 🎯 **Resultado**: `npm run dev` no falla por rotación de logs y los logs se mantienen acotados.
+
+### 2026-01-12 (Fix: db.log no explota por logs de Prisma)
+
+- 🐛 **Problema**: `logs/db.log` crecía muy rápido porque Prisma estaba configurado para emitir *todas* las queries (`db.$on('query')`) y se escribían como `INFO`. Con endpoints que hacen polling (descargas/JDownloader), esto puede generar decenas de líneas por segundo.
+- ✅ **Solución**: El log de queries SQL de Prisma ahora es **opt-in**.
+  - Para habilitarlo: `PRISMA_LOG_QUERIES=true`
+  - Para loguear solo queries lentas: `PRISMA_LOG_SLOW_MS=200` (en ms)
+- 📝 **Archivos modificados**: `src/lib/db.ts`
+- 🎯 **Resultado**: Por defecto no se registran queries SQL y `db.log` deja de crecer de forma explosiva.
 
 ### 2026-01-11 (Fix: Totales de descargas sin doble conteo)
 

@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
+function getPublicOrigin(request: NextRequest): string {
+  const forwardedProto = (request.headers.get('x-forwarded-proto') || '').split(',')[0]?.trim();
+  const forwardedHost = (request.headers.get('x-forwarded-host') || '').split(',')[0]?.trim();
+  const host = forwardedHost || request.headers.get('host');
+
+  if (host) {
+    return `${forwardedProto || 'http'}://${host}`;
+  }
+
+  return new URL(request.url).origin;
+}
+
 // Detect *arr service from User-Agent
 function detectArrService(userAgent: string | null): string {
   if (!userAgent) return 'unknown';
@@ -23,6 +35,7 @@ export async function GET(request: NextRequest) {
     const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
     const userAgent = request.headers.get('user-agent');
     const service = detectArrService(userAgent);
+    const origin = getPublicOrigin(request);
 
     logger.info('arr_caps', `[${service.toUpperCase()}] Caps request received. API Key: ${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
@@ -62,15 +75,15 @@ export async function GET(request: NextRequest) {
     // TODO: Detect forum type (Series/Películas/Música/Libros) and return appropriate categories
     const capsXml = `<?xml version="1.0" encoding="UTF-8"?>
 <caps>
-  <server version="1.0" title="Sweaterr - ${forum.name}" strapline="Direct download indexer" email="" url="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" image="" type="nzb" />
+  <server version="1.0" title="Sweaterr - ${forum.name}" strapline="Direct download indexer" email="" url="${origin}" image="" type="nzb" />
   <limits max="100" default="100"/>
   <registration available="no" open="no"/>
   <searching>
-    <search available="yes" supportedParams="q,cat"/>
-    <tv-search available="yes" supportedParams="q,season,ep,cat"/>
-    <movie-search available="yes" supportedParams="q,imdbid,tmdbid,cat"/>
-    <audio-search available="yes" supportedParams="q,artist,album,cat"/>
-    <book-search available="yes" supportedParams="q,author,title,cat"/>
+    <search available="yes" supportedParams="q,cat,titleonly"/>
+    <tv-search available="yes" supportedParams="q,season,ep,cat,titleonly"/>
+    <movie-search available="yes" supportedParams="q,imdbid,tmdbid,cat,titleonly"/>
+    <audio-search available="yes" supportedParams="q,artist,album,cat,titleonly"/>
+    <book-search available="yes" supportedParams="q,author,title,cat,titleonly"/>
   </searching>
   <categories>
     <category id="5000" name="TV">

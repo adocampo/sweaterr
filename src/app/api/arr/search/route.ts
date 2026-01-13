@@ -4,6 +4,18 @@ import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { logger } from '@/lib/logger';
 
+function getPublicOrigin(request: NextRequest): string {
+    const forwardedProto = (request.headers.get('x-forwarded-proto') || '').split(',')[0]?.trim();
+    const forwardedHost = (request.headers.get('x-forwarded-host') || '').split(',')[0]?.trim();
+    const host = forwardedHost || request.headers.get('host');
+
+    if (host) {
+        return `${forwardedProto || 'http'}://${host}`;
+    }
+
+    return new URL(request.url).origin;
+}
+
 // Detect *arr service from User-Agent
 function detectArrService(userAgent: string | null): string {
     if (!userAgent) return 'unknown';
@@ -22,6 +34,7 @@ function detectArrService(userAgent: string | null): string {
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
+        const origin = getPublicOrigin(request);
         const apiKey = searchParams.get('apikey') || request.headers.get('x-api-key');
         const userAgent = request.headers.get('user-agent');
         const service = detectArrService(userAgent);
@@ -32,8 +45,9 @@ export async function GET(request: NextRequest) {
         const ep = searchParams.get('ep');
         const imdbid = searchParams.get('imdbid');
         const tmdbid = searchParams.get('tmdbid');
+        const titleOnly = searchParams.get('titleonly') === '1' || searchParams.get('titleonly') === 'true';
 
-        logger.info('search', `[${service.toUpperCase()}] Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
+        logger.info('search', `[${service.toUpperCase()}] Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, titleonly=${titleOnly}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
         if (!apiKey) {
             logger.warn('search', `[${service.toUpperCase()}] Missing API key in request`);
@@ -47,9 +61,10 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Validate API key against forum's torznabApiKey
-        const forumWithApiKey = await db.forum.findFirst({
+        // Validate API key against forum's torznabApiKey and load its config
+        const forumWithApiKey = await db.forum.findUnique({
             where: { torznabApiKey: apiKey },
+            include: { credentials: true },
         });
 
         logger.info('search', `[${service.toUpperCase()}] Forum lookup result: ${forumWithApiKey ? `Found forum '${forumWithApiKey.name}'` : 'NOT FOUND'}`);
@@ -66,11 +81,8 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get enabled forums (all of them, since each has its own API key)
-        const forums = await db.forum.findMany({
-            where: { enabled: true },
-            include: { credentials: true },
-        });
+        // IMPORTANT: Each forum has its own API key. Only search the forum bound to this key.
+        const forums = [forumWithApiKey];
 
         logger.info('search', `[${service.toUpperCase()}] Found ${forums.length} enabled forums to search in`);
 
@@ -81,7 +93,7 @@ export async function GET(request: NextRequest) {
   <channel>
     <title>Sweaterr</title>
     <description>Direct download indexer</description>
-    <link>${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}</link>
+        <link>${origin}</link>
     <language>es-es</language>
     <webMaster>admin@sweaterr.local</webMaster>
   </channel>
@@ -112,10 +124,10 @@ export async function GET(request: NextRequest) {
         // Build search query and TV variants (without AI)
         // If q is empty but we have season/ep, Sonarr sent minimal data; return placeholders
         let searchQuery = q;
-        
+
         // Only attempt search if we have a query
         const shouldSearch = searchQuery && searchQuery.trim().length > 0;
-        
+
         logger.info('search', `[${service.toUpperCase()}] shouldSearch=${shouldSearch}, q="${q}", season=${season}, ep=${ep}, isTvSearch=${t?.toLowerCase() === 'tvsearch'}`);
 
         // Prepare forums for search; authenticate only when performing a real search
@@ -126,6 +138,10 @@ export async function GET(request: NextRequest) {
                 name: forum.name,
                 baseUrl: forum.baseUrl,
                 searchPath: forum.searchPath,
+                searchMode: (forum.searchMode as any) || undefined,
+                searchForumLabel: forum.searchForumLabel || undefined,
+                cseId: forum.cseId || undefined,
+                persistentCookies: forum.persistentCookies || undefined,
                 thankButtonSelector: forum.thankButtonSelector || undefined,
                 linksContainerSelector: forum.linksContainerSelector || undefined,
                 postTitleSelector: forum.postTitleSelector || undefined,
@@ -140,7 +156,7 @@ export async function GET(request: NextRequest) {
                 await forumService.authenticate(forum.id);
             }
         }
-        
+
         const buildTvVariants = (series: string, season?: string | null, ep?: string | null): string[] => {
             const s = season ? String(season).padStart(2, '0') : '';
             const e = ep ? String(ep).padStart(2, '0') : '';
@@ -183,8 +199,8 @@ export async function GET(request: NextRequest) {
                 try {
                     let found = false;
                     for (const vq of variants) {
-                        logger.info('search', `[${service.toUpperCase()}] Searching in forum "${forum.name}" with variant: "${vq}"`);
-                        const results = await forumService.search(forum.id, vq);
+                        logger.info('search', `[${service.toUpperCase()}] Searching in forum "${forum.name}" with variant: "${vq}"${titleOnly ? ' (titleonly)' : ''}`);
+                        const results = await forumService.search(forum.id, vq, { titleOnly, fetchAll: true, maxPages: 20 });
                         if (results.length > 0) {
                             logger.info('search', `[${service.toUpperCase()}] Found ${results.length} results in forum "${forum.name}"`);
                             allResults.push(...results.map(r => ({
@@ -207,24 +223,8 @@ export async function GET(request: NextRequest) {
             }
 
             // If all searches failed or returned nothing, emit placeholders so *arr receives items instead of empty results.
-            if (allResults.length === 0) {
-                const placeholderForums = forums.slice(0, Math.max(1, 3));
-                const placeholderCount = Math.max(3, requestedCategories.length || 1);
-
-                for (let i = 0; i < placeholderCount; i++) {
-                    const cat = requestedCategories.length > 0 ? requestedCategories[i % requestedCategories.length] : primaryCategory;
-                    const forum = placeholderForums[i % placeholderForums.length];
-                    allResults.push({
-                        title: `[Recent] ${forum.name}`,
-                        url: forum.baseUrl,
-                        snippet: 'Placeholder; run interactive search with a query for real results.',
-                        forumId: forum.id,
-                        forumName: forum.name,
-                        category: cat || primaryCategory,
-                        size: 1024,
-                    });
-                }
-            }
+            // NOTE: When performing a real search (q provided), return an empty RSS feed if there are no matches.
+            // Placeholder items cause confusing behavior in *arr (they look like real releases but cannot be grabbed).
         } else {
             // Recent mode: return lightweight placeholders tagged with the requested categories.
             const placeholderForums = forums.slice(0, Math.max(1, 3));
@@ -247,7 +247,7 @@ export async function GET(request: NextRequest) {
             if (allResults.length === 0) {
                 allResults.push({
                     title: '[Recent] Sweaterr placeholder',
-                    url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+                    url: origin,
                     snippet: 'No forums enabled; add a query to search.',
                     forumId: 'placeholder',
                     forumName: 'Sweaterr',
@@ -267,7 +267,7 @@ export async function GET(request: NextRequest) {
         // Convert to Newznab XML format
         const escapeXml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-        const selfLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${request.nextUrl.pathname}${request.nextUrl.search}`;
+        const selfLink = `${origin}${request.nextUrl.pathname}${request.nextUrl.search}`;
 
         const items = rankedResults.map((result, idx) => {
             // Extract quality hints from title
@@ -290,7 +290,7 @@ export async function GET(request: NextRequest) {
 
             const size = result.size || 1024;
             // Use standard Newznab download pattern: /api/arr?t=get&id=<guid>&apikey=<apiKey>
-            const enclosureUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr?t=get&id=${encodeURIComponent(guid)}&apikey=${apiKey}`;
+            const enclosureUrl = `${origin}/api/arr?t=get&id=${encodeURIComponent(guid)}&apikey=${apiKey}`;
             const escapedLink = escapeXml(enclosureUrl);
 
             return `    <item>
@@ -312,7 +312,7 @@ export async function GET(request: NextRequest) {
   <channel>
     <title>Sweaterr</title>
     <description>Direct download indexer</description>
-    <link>${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}</link>
+        <link>${origin}</link>
     <language>es-es</language>
     <webMaster>admin@forumdownloader.local</webMaster>
         <atom:link rel="self" href="${escapeXml(selfLink)}" type="application/rss+xml" />
