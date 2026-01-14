@@ -806,6 +806,77 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-15 (FIXED: Grab endpoint now uses correct extractLinksFromPost function with proper selectors and package naming)
+
+**Estado**: ✅ COMPLETADO
+
+**Problema detectado**:
+
+La refactorización del 2026-01-14 creó una nueva función `extractLinksFromPostWithThankClick()` que NO funcionaba correctamente. Esta función extraía imágenes y recursos del foro en lugar de los enlaces reales de descarga. Mientras tanto, el endpoint de testing `/api/extract-links` utilizaba la función original `extractLinksFromPost()` que SÍ funcionaba correctamente.
+
+**Síntomas**:
+- ❌ Grab endpoint extraía 17 enlaces incorrectos (imágenes .png, .webp, recursos de vBulletin, etc.)
+- ❌ No encontraba los enlaces reales de keeplinks.org, justpaste.it, controlc.com
+- ✅ Testing endpoint funcionaba perfectamente y extraía 3 enlaces correctos
+- ❌ Paquetes en JDownloader se nombraban como "DescargasDD - Nativo" en lugar del título del post
+
+**Root cause**:
+1. Se ignoró la función `extractLinksFromPost()` que ya funcionaba en `/api/extract-links`
+2. Se creó `extractLinksFromPostWithThankClick()` duplicando código pero sin la lógica correcta de extracción
+3. Esta nueva función no usaba `linksContainerSelector` ni `thankButtonSelector` de la configuración del foro
+4. No extraía enlaces desde `<pre class="bbcode_code">` donde están los enlaces reales
+5. El grab endpoint no cargaba `credentials` con `include: { credentials: true }`
+6. El GUID no contenía el `title` del post para nombrar correctamente los paquetes
+
+**Solución implementada**:
+
+1. **Endpoints ahora usan `extractLinksFromPost()` (la función que funciona)**:
+   - `/api/arr/grab/route.ts`: Modificado para usar `extractLinksFromPost()` con todos los parámetros necesarios
+   - `/api/testing/extract-links/route.ts`: Ya usaba la función correcta, ajustado para cargar credenciales correctamente
+   - Ambos endpoints ahora pasan `thankButtonSelector` y `linksContainerSelector` del forum config
+
+2. **Carga correcta de credenciales**:
+   ```typescript
+   const forum = await db.forum.findUnique({
+       where: { id: forumId },
+       include: { credentials: true }, // CRÍTICO: cargar credenciales
+   });
+   ```
+
+3. **GUID ahora incluye título del post**:
+   - **Search endpoint** (`/api/arr/search/route.ts`): Añadido `title` al GUID:
+     ```typescript
+     const guidData = JSON.stringify({
+         forumId: result.forumId,
+         category,
+         url: result.url,
+         title: result.title, // NUEVO
+     });
+     ```
+   - **Grab endpoint**: Parse del `title` desde GUID y uso para nombre de paquete:
+     ```typescript
+     const packageName = title || forum.name || 'Download';
+     ```
+
+**Resultado**:
+- ✅ Grab endpoint extrae exactamente los mismos enlaces que testing (3 enlaces correctos)
+- ✅ Paquetes en JDownloader se nombran con el título del post (ej: "Breaking bad x265 2160p T5")
+- ✅ No más imágenes ni recursos del foro en las descargas
+- ✅ Sonarr/Radarr integración funciona correctamente end-to-end
+
+**Lección aprendida**:
+- ⚠️ **SIEMPRE usar las funciones que ya funcionan en testing**
+- ⚠️ No crear funciones nuevas cuando ya existe una solución probada
+- ⚠️ Verificar que los selectores configurables se pasen a las funciones de extracción
+
+**Archivos modificados**:
+- `src/app/api/arr/grab/route.ts` - Usa `extractLinksFromPost()` con selectors, carga credentials, usa title para package name
+- `src/app/api/arr/search/route.ts` - Incluye title en GUID
+- `src/app/api/testing/extract-links/route.ts` - Carga credentials correctamente
+- `src/lib/services/link-extractor.ts` - Removido debug logging
+
+---
+
 ### 2026-01-14 (FIXED: Grab endpoint link extraction refactoring - Abstract Testing logic to shared service)
 
 **Estado**: ✅ COMPLETADO
