@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { ForumService } from '@/lib/services/forum';
 import { JDownloaderLocalService, JDownloaderService } from '@/lib/services/jdownloader';
 import { logger } from '@/lib/logger';
-import axios from 'axios';
-import { wrapper as axiosCookieJarSupport } from 'axios-cookiejar-support';
-import { CookieJar } from 'tough-cookie';
-import { FlareSolverrClient } from '@/lib/services/flaresolverr-client';
-import { getJarForHost, preloadJarCookies } from '@/lib/cookie-jar-store';
-import { extractDownloadLinksFromHtml } from '@/lib/services/link-extractor';
+import { extractLinksFromPostWithThankClick } from '@/lib/services/link-extractor';
 
 function detectArrService(userAgent: string | null): string {
     if (!userAgent) return 'unknown';
@@ -102,7 +96,6 @@ export async function GET(request: NextRequest) {
         // Get forum and JDownloader config
         const forum = await db.forum.findUnique({
             where: { id: forumId },
-            include: { credentials: true },
         });
 
         const jdConfig = await db.jDownloaderConfig.findFirst({ where: { enabled: true } });
@@ -118,162 +111,27 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Initialize JDownloader service
-        const jdMode = (jdConfig.mode || 'local').toLowerCase();
-        const jdLocal = jdMode === 'local'
-            ? new JDownloaderLocalService(jdConfig.localHost || 'localhost', jdConfig.localPort || 3128)
-            : null;
-        const jdRemote = jdMode === 'cloud'
-            ? new JDownloaderService(jdConfig.email, jdConfig.password, jdConfig.deviceName)
-            : null;
+        logger.info('arr_grab', `Grab requested for forum=${forum.name}, postUrl=${postUrl}, arrType=${arrType}`);
 
-        // Parse post to extract links using the SAME logic as testing endpoint
-        // We replicate the logic directly here instead of calling via HTTP to avoid concurrency issues
-        let links: string[] = [];
-        let clickedThanks = false;
-        
-        try {
-            const host = new URL(postUrl).hostname;
-            const jar: CookieJar = getJarForHost(host);
-            const parsedCookies = forum.persistentCookies ? JSON.parse(forum.persistentCookies) : [];
-            const cookieArr: Array<{ name: string; value: string; domain?: string; path?: string }> = Array.isArray(parsedCookies)
-                ? parsedCookies
-                : parsedCookies && typeof parsedCookies === 'object'
-                    ? Array.isArray((parsedCookies as any).cookies) ? (parsedCookies as any).cookies : []
-                    : [];
-            const storedUserAgent: string | undefined = parsedCookies && typeof parsedCookies === 'object' && typeof (parsedCookies as any).userAgent === 'string'
-                ? (parsedCookies as any).userAgent
-                : undefined;
+        // Use SHARED link extraction function (same as testing endpoint)
+        const extractResult = await extractLinksFromPostWithThankClick(forumId, postUrl);
 
-            if (cookieArr.length > 0) {
-                await preloadJarCookies(jar, postUrl, cookieArr);
-            }
-
-            const axiosClient = axiosCookieJarSupport(axios.create({
-                jar,
-                withCredentials: true,
-                headers: {
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'es-ES,es;q=0.9',
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache',
-                    'Upgrade-Insecure-Requests': '1',
-                    'User-Agent': storedUserAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Referer': forum.baseUrl || `https://${host}/`,
-                },
-                timeout: 20000,
-            }));
-
-            const flaresolverrUrl = process.env.FLARESOLVERR_URL;
-            const fsClient = flaresolverrUrl ? new FlareSolverrClient(flaresolverrUrl) : null;
-
-            const useFlareSolverr = async (url: string) => {
-                if (!fsClient) {
-                    throw new Error('FlareSolverr no configurado');
+        if (!extractResult.success) {
+            logger.warn('arr_grab', `Link extraction failed: ${extractResult.error}`);
+            return new NextResponse(
+                `<?xml version="1.0" encoding="UTF-8"?>
+<error code="300" description="Failed to extract links: ${extractResult.error}"/>`,
+                {
+                    status: 404,
+                    headers: { 'Content-Type': 'application/xml' },
                 }
-                const solution = await fsClient.request(url, 'GET');
-                const solvedCookies = solution.cookies || [];
-                if (solvedCookies.length > 0) {
-                    await preloadJarCookies(jar, url, solvedCookies);
-                    const mergedByName = new Map<string, string>();
-                    for (const c of cookieArr) mergedByName.set(c.name, c.value);
-                    for (const c of solvedCookies) mergedByName.set(c.name, c.value);
-                    const merged = Array.from(mergedByName.entries()).map(([name, value]) => ({ name, value }));
-                    const toPersist: any = { cookies: merged, userAgent: solution.userAgent || storedUserAgent };
-                    await db.forum.update({
-                        where: { id: forum.id },
-                        data: { persistentCookies: JSON.stringify(toPersist), cookiesUpdatedAt: new Date() },
-                    });
-                }
-                return solution.response || '';
-            };
-
-            const tryAxios = async (url: string) => {
-                const res = await axiosClient.get(url);
-                const body = String(res.data || '');
-                const looksLikeChallenge = res.status === 403 || body.includes('cf-mitigated') || body.includes('Just a moment');
-                if (looksLikeChallenge) {
-                    throw Object.assign(new Error('Cloudflare challenge'), { response: { status: res.status } });
-                }
-                return body;
-            };
-
-            console.log('[ARR/Grab] Fetching post:', postUrl);
-
-            let html = '';
-            try {
-                html = await tryAxios(postUrl);
-                console.log('[ARR/Grab] ✓ Axios succeeded for post');
-            } catch (firstErr: any) {
-                const status = firstErr?.response?.status;
-                console.log(`[ARR/Grab] ✗ Axios failed (status ${status}). Trying FlareSolverr...`);
-                html = await useFlareSolverr(postUrl);
-                try {
-                    html = await tryAxios(postUrl);
-                    console.log('[ARR/Grab] ✓ Axios succeeded after FlareSolverr');
-                } catch {
-                    console.log('[ARR/Grab] Using FlareSolverr HTML response');
-                }
-            }
-
-            // Check if we need to click "Thanks" button
-            const thanksLinkRegex = /thanks\.php\?do=post&(?:amp;)?postid=(\d+)/i;
-            const thanksMatch = html.match(thanksLinkRegex);
-
-            if (thanksMatch) {
-                const thanksUrl = thanksMatch[0].startsWith('http')
-                    ? thanksMatch[0]
-                    : `${forum.baseUrl}/${thanksMatch[0]}`;
-
-                console.log('[ARR/Grab] Found thanks link, clicking:', thanksUrl);
-
-                try {
-                    await tryAxios(thanksUrl);
-                } catch (err: any) {
-                    console.log('[ARR/Grab] Axios thanks failed, using FlareSolverr');
-                    await useFlareSolverr(thanksUrl);
-                }
-
-                // Refetch the post to reveal links
-                try {
-                    html = await tryAxios(postUrl);
-                    console.log('[ARR/Grab] ✓ Axios refetch after thanks');
-                } catch {
-                    html = await useFlareSolverr(postUrl);
-                    console.log('[ARR/Grab] Using FlareSolverr HTML after thanks');
-                }
-
-                clickedThanks = true;
-            }
-
-            // Extract download links using shared logic
-            const extractedLinks = extractDownloadLinksFromHtml(html, forum.baseUrl);
-            links = extractedLinks.map(l => l.url);
-
-            // DEBUG: Save HTML to file for inspection
-            const fs = require('fs');
-            try {
-                fs.writeFileSync(`/tmp/grab_${Date.now()}_html.html`, html);
-                console.log(`[ARR/Grab] HTML saved to /tmp/grab_${Date.now()}_html.html`);
-            } catch (e) {
-                console.log('[ARR/Grab] Could not save HTML:', e);
-            }
-
-            // DEBUG: Check what's in the HTML
-            const thanksCount = (html.match(/thanks/gi) || []).length;
-            const graciasCount = (html.match(/gracias/gi) || []).length;
-            const megaCount = (html.match(/mega\.nz/gi) || []).length;
-            const downloadCount = (html.match(/download|descargar/gi) || []).length;
-            console.log(`[ARR/Grab] HTML analysis: thanks=${thanksCount}, gracias=${graciasCount}, mega=${megaCount}, download=${downloadCount}`);
-
-            console.log('[ARR/Grab] Extracted', links.length, 'links');
-
-        } catch (extractErr) {
-            logger.warn('arr_grab', 'Failed to extract links:', extractErr);
-            console.log('[ARR/Grab] Link extraction error:', extractErr);
+            );
         }
 
+        const links = extractResult.links.map(l => l.url);
+
         if (links.length === 0) {
+            logger.warn('arr_grab', 'No download links found in post');
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="300" description="No download links found"/>`,
@@ -284,22 +142,21 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get package name from extracted data
-        let packageName = forum.name || 'Download';
-        
-        // Try to get filename from first link's extracted info
-        let html_for_title = '';
-        try {
-            // Attempt to extract title from HTML (was stored in last extraction)
-            const titleMatch = html_for_title ? /<title[^>]*>([^<]+)<\/title>/i.exec(html_for_title) : null;
-            if (titleMatch) {
-                packageName = titleMatch[1].trim();
-            }
-        } catch (e) {
-            // Fall back to forum name if title extraction fails
-        }
+        logger.info('arr_grab', `Extracted ${links.length} links from post`);
 
-        logger.info('arr_grab', 'ARR grab extracted links', {
+        // Initialize JDownloader service
+        const jdMode = (jdConfig.mode || 'local').toLowerCase();
+        const jdLocal = jdMode === 'local'
+            ? new JDownloaderLocalService(jdConfig.localHost || 'localhost', jdConfig.localPort || 3128)
+            : null;
+        const jdRemote = jdMode === 'cloud'
+            ? new JDownloaderService(jdConfig.email, jdConfig.password, jdConfig.deviceName)
+            : null;
+
+        // Get package name (use forum name as fallback)
+        const packageName = forum.name || 'Download';
+
+        logger.info('arr_grab', 'Sending links to JDownloader', {
             forumId: forum.id,
             forumName: forum.name,
             postUrl,
@@ -327,6 +184,7 @@ export async function GET(request: NextRequest) {
         } else if (jdRemote) {
             const jdAuthSuccess = await jdRemote.authenticate();
             if (!jdAuthSuccess) {
+                logger.error('arr_grab', 'JDownloader authentication failed');
                 return new NextResponse(
                     `<?xml version="1.0" encoding="UTF-8"?>
 <error code="300" description="JDownloader authentication failed"/>`,
@@ -346,6 +204,7 @@ export async function GET(request: NextRequest) {
                 await jdRemote.startDownloadController();
             }
         } else {
+            logger.error('arr_grab', 'JDownloader not configured');
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="300" description="JDownloader not configured"/>`,
@@ -357,6 +216,7 @@ export async function GET(request: NextRequest) {
         }
 
         if (!jdSuccess) {
+            logger.error('arr_grab', 'Failed to add links to JDownloader');
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
 <error code="300" description="Failed to add links to JDownloader"/>`,
@@ -366,6 +226,8 @@ export async function GET(request: NextRequest) {
                 }
             );
         }
+
+        logger.info('arr_grab', 'Links successfully added to JDownloader');
 
         // Create download record with ARR context
         const download = await db.download.create({
@@ -409,7 +271,7 @@ export async function GET(request: NextRequest) {
             headers: { 'Content-Type': 'application/x-nzb' },
         });
     } catch (error) {
-        console.error('Error in grab endpoint:', error);
+        logger.error('arr_grab', 'Error in grab endpoint', error);
         return new NextResponse(
             `<?xml version="1.0" encoding="UTF-8"?>
 <error code="900" description="Internal server error"/>`,
