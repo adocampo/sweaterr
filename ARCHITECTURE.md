@@ -885,9 +885,17 @@ Nueva categoría de logging `[extract-shared]` para rastrear la ejecución:
 - `src/app/api/testing/extract-links/route.ts` - Refactorizado a usar servicio (50 líneas)
 - `src/app/api/arr/grab/route.ts` - Refactorizado a usar servicio (230 líneas, -70 líneas de duplicación)
 
----
+**Corrección posterior (2026-01-14 23:45)**:
 
-### 2026-01-14 (Fix: Native search presets respected by *arr)
+🐛 **Bug encontrado**: Después de hacer login, FlareSolverr estaba usando una sesión diferente sin las cookies de autenticación, causando que el grab endpoint extrajera 0 enlaces.
+
+✅ **Fix aplicado**:
+
+- Se inicializa `sessionId` al inicio de `extractLinksFromPostWithThankClick()` usando `sessionManager.getSession()`
+- Se pasa `sessionId` a todas las llamadas `fsClient.request()` en la función `useFlareSolverr()`
+- Esto asegura que FlareSolverr usa la misma sesión después del login, manteniéndose la autenticación
+
+**Commit**: `fix(extract-shared): pass sessionId to FlareSolverr for session persistence`
 
 - 🐛 **Problema**: Sonarr no podía indicar "buscar solo en título" y el filtro de subforos/foro se aplicaba desde la UI pero no se persistía en la búsqueda Torznab. Además, la opción `titleonly` dependía del parámetro de Sonarr y no de la configuración del foro.
 - ✅ **Solución**:
