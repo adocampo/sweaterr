@@ -3,50 +3,6 @@ import { db } from '@/lib/db';
 import { ForumService } from '@/lib/services/forum';
 import { JDownloaderLocalService, JDownloaderService } from '@/lib/services/jdownloader';
 import { logger } from '@/lib/logger';
-import * as cheerio from 'cheerio';
-
-// Extract download links from HTML using hosting-specific patterns
-// This matches the logic from /api/testing/extract-links to ensure consistency
-function extractDownloadLinksFromHtml(html: string): string[] {
-    const links: string[] = [];
-
-    // Common download hosting patterns (same as testing endpoint)
-    const hostingPatterns = [
-        { name: 'Mega', regex: /https?:\/\/mega\.nz\/[^\s"'<>]*/gi },
-        { name: '1fichier', regex: /https?:\/\/1fichier\.com\/[^\s"'<>]*/gi },
-        { name: 'Uploaded', regex: /https?:\/\/uploaded\.net\/[^\s"'<>]*/gi },
-        { name: 'Rapidgator', regex: /https?:\/\/rapidgator\.net\/[^\s"'<>]*/gi },
-        { name: 'Nitroflare', regex: /https?:\/\/nitroflare\.com\/[^\s"'<>]*/gi },
-        { name: 'Turbobit', regex: /https?:\/\/turbobit\.net\/[^\s"'<>]*/gi },
-        { name: 'Mediafire', regex: /https?:\/\/(?:www\.)?mediafire\.com\/[^\s"'<>]*/gi },
-        { name: 'Uptobox', regex: /https?:\/\/uptobox\.com\/[^\s"'<>]*/gi },
-        { name: 'Katfile', regex: /https?:\/\/katfile\.com\/[^\s"'<>]*/gi },
-        { name: 'Filefactory', regex: /https?:\/\/filefactory\.com\/[^\s"'<>]*/gi },
-    ];
-
-    // Extract links for each hosting service
-    for (const pattern of hostingPatterns) {
-        let match;
-        while ((match = pattern.regex.exec(html)) !== null) {
-            const url = match[0];
-            if (!links.includes(url)) {
-                links.push(url);
-            }
-        }
-    }
-
-    // Also look for generic download links (http/https followed by common extensions)
-    const genericLinkRegex = /https?:\/\/[^\s"'<>]+\.(rar|zip|7z|mkv|mp4|avi|iso|exe|pdf)/gi;
-    let match;
-    while ((match = genericLinkRegex.exec(html)) !== null) {
-        const url = match[0];
-        if (!links.includes(url)) {
-            links.push(url);
-        }
-    }
-
-    return links;
-}
 
 function detectArrService(userAgent: string | null): string {
     if (!userAgent) return 'unknown';
@@ -156,9 +112,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Initialize services
-        const forumService = new ForumService();
-
+        // Initialize JDownloader service
         const jdMode = (jdConfig.mode || 'local').toLowerCase();
         const jdLocal = jdMode === 'local'
             ? new JDownloaderLocalService(jdConfig.localHost || 'localhost', jdConfig.localPort || 3128)
@@ -167,59 +121,26 @@ export async function GET(request: NextRequest) {
             ? new JDownloaderService(jdConfig.email, jdConfig.password, jdConfig.deviceName)
             : null;
 
-        // Add forum to service
-        forumService.addForum({
-            id: forum.id,
-            name: forum.name,
-            baseUrl: forum.baseUrl,
-            searchPath: forum.searchPath,
-            searchMode: (forum.searchMode as any) || undefined,
-            searchForumLabel: forum.searchForumLabel || undefined,
-            cseId: forum.cseId || undefined,
-            persistentCookies: forum.persistentCookies || undefined,
-            thankButtonSelector: forum.thankButtonSelector || undefined,
-            linksContainerSelector: forum.linksContainerSelector || undefined,
-            postTitleSelector: forum.postTitleSelector || undefined,
-            credentials: forum.credentials ? {
-                username: forum.credentials.username,
-                password: forum.credentials.password,
-            } : undefined,
-        });
-
-        // Authenticate with forum if needed
-        if (forum.credentials) {
-            const authSuccess = await forumService.authenticate(forum.id);
-            if (!authSuccess) {
-                return new NextResponse(
-                    `<?xml version="1.0" encoding="UTF-8"?>
-<error code="300" description="Forum authentication failed"/>`,
-                    {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/xml' },
-                    }
-                );
-            }
-        }
-
-        // Parse post to extract links. If links are hidden behind a "Thanks" gate,
-        // click the thank button and re-parse. Even if we found a link before clicking,
-        // the full set of hosters may only be visible after thanking.
-        let html = await forumService.fetchPostHtml(forum.id, postUrl);
-        let links = extractDownloadLinksFromHtml(html);
+        // Parse post to extract links using the TESTED and WORKING /api/testing/extract-links endpoint
+        // This avoids duplication and ensures we use code that we know works
+        let links: string[] = [];
+        let testingResult: any = null;
         
-        if (links.length === 0) {
-            // Check if thank button exists
-            const thankSelector = forum.thankButtonSelector
-                || '.thank-button, .thanks-btn, button[title*="thank" i], a[href*="post_thanks" i], a[href*="do=thank" i], a[href*="thanks" i]';
-            const $ = cheerio.load(html);
-            const thankRequired = $(thankSelector).length > 0;
-            
-            if (thankRequired) {
-                // Click thank button and refetch
-                await forumService.clickThankButton(forum.id, postUrl);
-                html = await forumService.fetchPostHtml(forum.id, postUrl);
-                links = extractDownloadLinksFromHtml(html);
+        try {
+            const testingResponse = await fetch('http://localhost:3000/api/testing/extract-links', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ forumId: forum.id, postUrl }),
+            });
+
+            if (testingResponse.ok) {
+                testingResult = await testingResponse.json();
+                if (testingResult.success && testingResult.links) {
+                    links = testingResult.links.map((l: any) => l.url);
+                }
             }
+        } catch (testErr) {
+            logger.warn('arr_grab', 'Failed to call testing endpoint:', testErr);
         }
 
         if (links.length === 0) {
@@ -233,10 +154,8 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const packageName = (() => {
-            const $ = cheerio.load(html);
-            return $(forum.postTitleSelector || '.post-title, .topic-title, h1, h2').first().text().trim() || 'Download';
-        })();
+        // Get package name from first link filename if available
+        const packageName = testingResult?.links?.[0]?.filename || forum.name || 'Download';
 
         logger.info('arr_grab', 'ARR grab extracted links', {
             forumId: forum.id,
