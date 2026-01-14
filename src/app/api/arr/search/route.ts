@@ -164,12 +164,12 @@ export async function GET(request: NextRequest) {
         // Clean the series name by removing season/episode information that Sonarr may have injected
         // This ensures better results when Sonarr sends "Breaking Bad temporada 4" instead of just "Breaking Bad"
         const cleanSeriesName = (name: string): string => {
-          if (!name) return '';
-          // Remove common season/episode patterns: "temporada X", "season X", "T##", "S##E##", etc.
-          return name
-            .replace(/\s+(temporada|temporadas|season|seasons|serie|series|s\d+e\d+|s\d+|t\d+|cap\s*\d+|capítulo\s*\d+|chapter\s*\d+|ep\s*\d+|episodio\s*\d+).*$/i, '')
-            .replace(/\s*[-–]\s*\d+x\d+.*$/i, '') // Remove "- 1x01" style
-            .trim();
+            if (!name) return '';
+            // Remove common season/episode patterns: "temporada X", "season X", "T##", "S##E##", etc.
+            return name
+                .replace(/\s+(temporada|temporadas|season|seasons|serie|series|s\d+e\d+|s\d+|t\d+|cap\s*\d+|capítulo\s*\d+|chapter\s*\d+|ep\s*\d+|episodio\s*\d+).*$/i, '')
+                .replace(/\s*[-–]\s*\d+x\d+.*$/i, '') // Remove "- 1x01" style
+                .trim();
         };
 
         const buildTvVariants = (series: string, season?: string | null, ep?: string | null): string[] => {
@@ -178,10 +178,10 @@ export async function GET(request: NextRequest) {
             const s = season ? String(season).padStart(2, '0') : '';
             const e = ep ? String(ep).padStart(2, '0') : '';
             const v: string[] = [];
-            
+
             // Always start with the cleaned series name as primary variant
             v.push(cleaned);
-            
+
             // Then add formatted variants if we have season/episode info
             if (s && e) {
                 v.push(`${cleaned} ${s}x${e}`);
@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
                 v.push(`${cleaned} T${parseInt(s, 10)}`);
                 v.push(`${cleaned} S${s}`);
             }
-            
+
             // Ensure uniqueness and limit
             return Array.from(new Set(v)).slice(0, 8);
         };
@@ -308,6 +308,7 @@ export async function GET(request: NextRequest) {
                 forumId: result.forumId,
                 category,
                 url: result.url,
+                title: result.title,
             });
             const guid = Buffer.from(guidData).toString('base64url');
             const pubDate = new Date().toUTCString();

@@ -587,7 +587,7 @@ export async function extractLinksFromPostWithThankClick(
         // Step 2: Initialize axios client with persisted cookies
         const host = new URL(postUrl).hostname;
         const jar: CookieJar = getJarForHost(host);
-        
+
         let parsedCookies = forum.persistentCookies ? JSON.parse(forum.persistentCookies) : [];
         const cookieArr: Array<{ name: string; value: string; domain?: string; path?: string }> = Array.isArray(parsedCookies)
             ? parsedCookies
@@ -636,7 +636,17 @@ export async function extractLinksFromPostWithThankClick(
                 throw new Error('FlareSolverr URL not configured');
             }
             logger.info('extract-shared', `Using FlareSolverr for ${url}`);
-            const solution = await fsClient.request(url, 'GET', undefined, sessionId);
+
+            // Get current cookies from jar to pass to FlareSolverr
+            const currentCookies = jar.getCookiesSync(url).map(c => ({
+                name: c.key,
+                value: c.value,
+                domain: c.domain || undefined,
+                path: c.path || undefined
+            }));
+            logger.info('extract-shared', `Passing ${currentCookies.length} cookies to FlareSolverr`);
+
+            const solution = await fsClient.request(url, 'GET', undefined, sessionId, undefined, currentCookies);
             const solvedCookies = solution.cookies || [];
             if (solvedCookies.length > 0) {
                 await preloadJarCookies(jar, url, solvedCookies);
@@ -761,6 +771,19 @@ export async function extractLinksFromPostWithThankClick(
 
         // Step 7: Extract download links from HTML
         logger.info('extract-shared', `Extracting download links from HTML...`);
+
+        // DEBUG: Save HTML to file for inspection
+        try {
+            const fs = await import('fs');
+            const path = await import('path');
+            const debugDir = path.join(process.cwd(), 'logs');
+            const debugFile = path.join(debugDir, 'debug-html.html');
+            fs.writeFileSync(debugFile, html, 'utf8');
+            logger.info('extract-shared', `HTML saved to ${debugFile} for inspection (${html.length} bytes)`);
+        } catch (e) {
+            logger.warn('extract-shared', `Could not save HTML: ${e}`);
+        }
+
         const links = extractDownloadLinksFromHtml(html, forum.baseUrl);
         logger.info('extract-shared', `✓ Extracted ${links.length} links`);
 
