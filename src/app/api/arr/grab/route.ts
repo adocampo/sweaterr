@@ -3,6 +3,12 @@ import { db } from '@/lib/db';
 import { ForumService } from '@/lib/services/forum';
 import { JDownloaderLocalService, JDownloaderService } from '@/lib/services/jdownloader';
 import { logger } from '@/lib/logger';
+import axios from 'axios';
+import { wrapper as axiosCookieJarSupport } from 'axios-cookiejar-support';
+import { CookieJar } from 'tough-cookie';
+import { FlareSolverrClient } from '@/lib/services/flaresolverr-client';
+import { getJarForHost, preloadJarCookies } from '@/lib/cookie-jar-store';
+import { extractDownloadLinksFromHtml } from '@/lib/services/link-extractor';
 
 function detectArrService(userAgent: string | null): string {
     if (!userAgent) return 'unknown';
@@ -121,26 +127,134 @@ export async function GET(request: NextRequest) {
             ? new JDownloaderService(jdConfig.email, jdConfig.password, jdConfig.deviceName)
             : null;
 
-        // Parse post to extract links using the TESTED and WORKING /api/testing/extract-links endpoint
-        // This avoids duplication and ensures we use code that we know works
+        // Parse post to extract links using the SAME logic as testing endpoint
+        // We replicate the logic directly here instead of calling via HTTP to avoid concurrency issues
         let links: string[] = [];
-        let testingResult: any = null;
+        let clickedThanks = false;
         
         try {
-            const testingResponse = await fetch('http://localhost:3000/api/testing/extract-links', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ forumId: forum.id, postUrl }),
-            });
+            const host = new URL(postUrl).hostname;
+            const jar: CookieJar = getJarForHost(host);
+            const parsedCookies = forum.persistentCookies ? JSON.parse(forum.persistentCookies) : [];
+            const cookieArr: Array<{ name: string; value: string; domain?: string; path?: string }> = Array.isArray(parsedCookies)
+                ? parsedCookies
+                : parsedCookies && typeof parsedCookies === 'object'
+                    ? Array.isArray((parsedCookies as any).cookies) ? (parsedCookies as any).cookies : []
+                    : [];
+            const storedUserAgent: string | undefined = parsedCookies && typeof parsedCookies === 'object' && typeof (parsedCookies as any).userAgent === 'string'
+                ? (parsedCookies as any).userAgent
+                : undefined;
 
-            if (testingResponse.ok) {
-                testingResult = await testingResponse.json();
-                if (testingResult.success && testingResult.links) {
-                    links = testingResult.links.map((l: any) => l.url);
+            if (cookieArr.length > 0) {
+                await preloadJarCookies(jar, postUrl, cookieArr);
+            }
+
+            const axiosClient = axiosCookieJarSupport(axios.create({
+                jar,
+                withCredentials: true,
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'es-ES,es;q=0.9',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Upgrade-Insecure-Requests': '1',
+                    'User-Agent': storedUserAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Referer': forum.baseUrl || `https://${host}/`,
+                },
+                timeout: 20000,
+            }));
+
+            const flaresolverrUrl = process.env.FLARESOLVERR_URL;
+            const fsClient = flaresolverrUrl ? new FlareSolverrClient(flaresolverrUrl) : null;
+
+            const useFlareSolverr = async (url: string) => {
+                if (!fsClient) {
+                    throw new Error('FlareSolverr no configurado');
+                }
+                const solution = await fsClient.request(url, 'GET');
+                const solvedCookies = solution.cookies || [];
+                if (solvedCookies.length > 0) {
+                    await preloadJarCookies(jar, url, solvedCookies);
+                    const mergedByName = new Map<string, string>();
+                    for (const c of cookieArr) mergedByName.set(c.name, c.value);
+                    for (const c of solvedCookies) mergedByName.set(c.name, c.value);
+                    const merged = Array.from(mergedByName.entries()).map(([name, value]) => ({ name, value }));
+                    const toPersist: any = { cookies: merged, userAgent: solution.userAgent || storedUserAgent };
+                    await db.forum.update({
+                        where: { id: forum.id },
+                        data: { persistentCookies: JSON.stringify(toPersist), cookiesUpdatedAt: new Date() },
+                    });
+                }
+                return solution.response || '';
+            };
+
+            const tryAxios = async (url: string) => {
+                const res = await axiosClient.get(url);
+                const body = String(res.data || '');
+                const looksLikeChallenge = res.status === 403 || body.includes('cf-mitigated') || body.includes('Just a moment');
+                if (looksLikeChallenge) {
+                    throw Object.assign(new Error('Cloudflare challenge'), { response: { status: res.status } });
+                }
+                return body;
+            };
+
+            console.log('[ARR/Grab] Fetching post:', postUrl);
+
+            let html = '';
+            try {
+                html = await tryAxios(postUrl);
+                console.log('[ARR/Grab] ✓ Axios succeeded for post');
+            } catch (firstErr: any) {
+                const status = firstErr?.response?.status;
+                console.log(`[ARR/Grab] ✗ Axios failed (status ${status}). Trying FlareSolverr...`);
+                html = await useFlareSolverr(postUrl);
+                try {
+                    html = await tryAxios(postUrl);
+                    console.log('[ARR/Grab] ✓ Axios succeeded after FlareSolverr');
+                } catch {
+                    console.log('[ARR/Grab] Using FlareSolverr HTML response');
                 }
             }
-        } catch (testErr) {
-            logger.warn('arr_grab', 'Failed to call testing endpoint:', testErr);
+
+            // Check if we need to click "Thanks" button
+            const thanksLinkRegex = /thanks\.php\?do=post&(?:amp;)?postid=(\d+)/i;
+            const thanksMatch = html.match(thanksLinkRegex);
+
+            if (thanksMatch) {
+                const thanksUrl = thanksMatch[0].startsWith('http')
+                    ? thanksMatch[0]
+                    : `${forum.baseUrl}/${thanksMatch[0]}`;
+
+                console.log('[ARR/Grab] Found thanks link, clicking:', thanksUrl);
+
+                try {
+                    await tryAxios(thanksUrl);
+                } catch (err: any) {
+                    console.log('[ARR/Grab] Axios thanks failed, using FlareSolverr');
+                    await useFlareSolverr(thanksUrl);
+                }
+
+                // Refetch the post to reveal links
+                try {
+                    html = await tryAxios(postUrl);
+                    console.log('[ARR/Grab] ✓ Axios refetch after thanks');
+                } catch {
+                    html = await useFlareSolverr(postUrl);
+                    console.log('[ARR/Grab] Using FlareSolverr HTML after thanks');
+                }
+
+                clickedThanks = true;
+            }
+
+            // Extract download links using shared logic
+            const extractedLinks = extractDownloadLinksFromHtml(html, forum.baseUrl);
+            links = extractedLinks.map(l => l.url);
+
+            console.log('[ARR/Grab] Extracted', links.length, 'links');
+
+        } catch (extractErr) {
+            logger.warn('arr_grab', 'Failed to extract links:', extractErr);
+            console.log('[ARR/Grab] Link extraction error:', extractErr);
         }
 
         if (links.length === 0) {
@@ -154,8 +268,20 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get package name from first link filename if available
-        const packageName = testingResult?.links?.[0]?.filename || forum.name || 'Download';
+        // Get package name from extracted data
+        let packageName = forum.name || 'Download';
+        
+        // Try to get filename from first link's extracted info
+        let html_for_title = '';
+        try {
+            // Attempt to extract title from HTML (was stored in last extraction)
+            const titleMatch = html_for_title ? /<title[^>]*>([^<]+)<\/title>/i.exec(html_for_title) : null;
+            if (titleMatch) {
+                packageName = titleMatch[1].trim();
+            }
+        } catch (e) {
+            // Fall back to forum name if title extraction fails
+        }
 
         logger.info('arr_grab', 'ARR grab extracted links', {
             forumId: forum.id,

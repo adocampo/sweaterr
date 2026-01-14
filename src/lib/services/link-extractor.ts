@@ -450,3 +450,94 @@ function extractLinksFromHTML(html: string, linksContainerSelector?: string): Ex
         };
     }
 }
+
+/**
+ * Shared link extraction helpers used by both testing and grab endpoints
+ * Extracts download links from HTML content using hosting-specific patterns
+ */
+
+export interface ExtractedLinkInfo {
+    url: string;
+    hosting: string;
+    filename?: string;
+}
+
+/**
+ * Extract download links from HTML and categorize by hosting provider
+ * Used by both /api/testing/extract-links and /api/arr/grab
+ */
+export function extractDownloadLinksFromHtml(html: string, baseUrl?: string): ExtractedLinkInfo[] {
+    const links: ExtractedLinkInfo[] = [];
+
+    // Common download hosting patterns
+    const hostingPatterns = [
+        { name: 'Mega', regex: /https?:\/\/mega\.nz\/[^\s"'<>]*/gi },
+        { name: '1fichier', regex: /https?:\/\/1fichier\.com\/[^\s"'<>]*/gi },
+        { name: 'Uploaded', regex: /https?:\/\/uploaded\.net\/[^\s"'<>]*/gi },
+        { name: 'Rapidgator', regex: /https?:\/\/rapidgator\.net\/[^\s"'<>]*/gi },
+        { name: 'Nitroflare', regex: /https?:\/\/nitroflare\.com\/[^\s"'<>]*/gi },
+        { name: 'Turbobit', regex: /https?:\/\/turbobit\.net\/[^\s"'<>]*/gi },
+        { name: 'Mediafire', regex: /https?:\/\/(?:www\.)?mediafire\.com\/[^\s"'<>]*/gi },
+        { name: 'Uptobox', regex: /https?:\/\/uptobox\.com\/[^\s"'<>]*/gi },
+        { name: 'Katfile', regex: /https?:\/\/katfile\.com\/[^\s"'<>]*/gi },
+        { name: 'Filefactory', regex: /https?:\/\/filefactory\.com\/[^\s"'<>]*/gi },
+    ];
+
+    // Extract links for each hosting service
+    for (const pattern of hostingPatterns) {
+        let match;
+        while ((match = pattern.regex.exec(html)) !== null) {
+            const url = match[0];
+
+            // Skip if already added
+            if (links.some(l => l.url === url)) continue;
+
+            // Try to extract filename from URL
+            const filename = extractFilenameFromUrl(url);
+
+            links.push({
+                url,
+                hosting: pattern.name,
+                filename,
+            });
+        }
+    }
+
+    // Also look for generic download links (http/https followed by common extensions)
+    const genericLinkRegex = /https?:\/\/[^\s"'<>]+\.(rar|zip|7z|mkv|mp4|avi|iso|exe|pdf)/gi;
+    let match;
+    while ((match = genericLinkRegex.exec(html)) !== null) {
+        const url = match[0];
+
+        // Skip if already added
+        if (links.some(l => l.url === url)) continue;
+
+        // Determine hosting from domain
+        const domain = new URL(url).hostname.replace('www.', '');
+        const hosting = domain.split('.')[0];
+
+        links.push({
+            url,
+            hosting: hosting.charAt(0).toUpperCase() + hosting.slice(1),
+            filename: extractFilenameFromUrl(url),
+        });
+    }
+
+    return links;
+}
+
+function extractFilenameFromUrl(url: string): string | undefined {
+    try {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        const filename = pathname.split('/').pop();
+
+        if (filename && filename.includes('.')) {
+            return decodeURIComponent(filename);
+        }
+    } catch (err) {
+        // Invalid URL, ignore
+    }
+
+    return undefined;
+}
