@@ -115,18 +115,51 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
         }
     };
 
-    const handleCopyUrl = () => {
-        const url = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/arr`;
-        navigator.clipboard.writeText(url);
-        setCopiedId('url');
-        setTimeout(() => setCopiedId(null), 2000);
+    const copyToClipboard = async (text: string): Promise<boolean> => {
+        // Try modern clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                console.warn('Clipboard API failed, using fallback:', err);
+            }
+        }
+        
+        // Fallback: create temporary textarea
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            const success = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            return success;
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            return false;
+        }
     };
 
-    const handleCopyApiKey = (forum: Forum) => {
+    const handleCopyUrl = async () => {
+        const url = `${window.location.origin}/api/arr`;
+        const success = await copyToClipboard(url);
+        if (success) {
+            setCopiedId('url');
+            setTimeout(() => setCopiedId(null), 2000);
+        }
+    };
+
+    const handleCopyApiKey = async (forum: Forum) => {
         if (!forum.torznabApiKey) return;
-        navigator.clipboard.writeText(forum.torznabApiKey);
-        setCopiedId(forum.id);
-        setTimeout(() => setCopiedId(null), 2000);
+        const success = await copyToClipboard(forum.torznabApiKey);
+        if (success) {
+            setCopiedId(forum.id);
+            setTimeout(() => setCopiedId(null), 2000);
+        }
     };
 
     const formatDuration = (seconds: number): string => {

@@ -105,9 +105,30 @@ Los webhooks permiten que *arr notifique a Sweaterr cuando una descarga es impor
    - Estado: `pending` → `downloading` → `completed`
    - Origen: `*arr` (Sonarr/Radarr)
 
+## Download Client (SABnzbd-compatible)
+
+Sonarr/Radarr normalmente requieren un **Download Client** para completar el flujo de "Add to download queue". Sweaterr expone un endpoint compatible (subset) con SABnzbd para que *arr pueda configurarlo sin necesidad de instalar SABnzbd.
+
+### Configurar en Sonarr/Radarr
+
+1. Settings → Download Clients → Add → **SABnzbd**
+2. Rellena los campos:
+   - **Host**: `http://<sweaterr-host>:3000`
+   - **API Path**: `/api/sabnzbd/api`
+   - **API Key**: usa la `torznabApiKey` del foro/indexer
+   - **Category**: debe existir en el Download Client.
+     - Configúrala en Sweaterr: Configuración → Foros → Editar → **Categoría (SABnzbd)** (ej: `tv-sonarr`).
+     - Si no se configura, Sweaterr anuncia por defecto la categoría `tv`.
+3. Click **Test** → debería ser exitoso
+
+### Notas importantes
+
+- Este endpoint es intencionalmente minimalista: el objetivo principal es que *arr acepte el flujo de download client, mientras Sweaterr ejecuta la descarga real en JDownloader.
+- El NZB devuelto por `t=get` incluye metadata (`guid`, `downloadId`) para mapear el job de forma idempotente.
+
 ## Flujo Completo de Descarga
 
-```
+```text
 1. *arr busca contenido
    ↓
 2. *arr consulta indexer Sweaterr (usando API key del foro)

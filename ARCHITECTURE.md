@@ -806,6 +806,16 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-14 (Fix: Native search presets respected by *arr)
+
+- 🐛 **Problema**: Sonarr no podía indicar "buscar solo en título" y el filtro de subforos/foro se aplicaba desde la UI pero no se persistía en la búsqueda Torznab. Además, la opción `titleonly` dependía del parámetro de Sonarr y no de la configuración del foro.
+- ✅ **Solución**:
+  - Nuevo flag `searchTitleOnly` por foro (UI + API + Prisma) con valor por defecto `true` para modo nativo; se usa automáticamente si Sonarr no envía `titleonly`.
+  - El flag `searchInChildForums` ahora se persiste y se envía al `search.php` (childforums=0/1) respetando lo configurado en la fuente.
+  - La búsqueda nativa en `/api/search` y `/api/arr/search` pasa `titleOnly` al `ForumService`, y éste aplica el valor por defecto del foro cuando no se especifica.
+- 📝 **Archivos modificados**: `prisma/schema.prisma`, `src/app/api/config/forums/route.ts`, `src/app/api/config/forums/[id]/route.ts`, `src/app/api/arr/search/route.ts`, `src/app/api/search/route.ts`, `src/components/config/forum-config.tsx`, `src/lib/services/forum.ts`, `src/lib/types.ts`, `src/locales/{en,es}.json`, `prisma/migrations/20260114000000_add_search_title_only/migration.sql`.
+- 🎯 **Resultado**: Las búsquedas nativas respetan los presets definidos en Sweaterr (solo título, subforos) sin depender de que *arr envíe parámetros adicionales; Sonarr/Radarr reciben resultados alineados con la configuración del foro.
+
 ### 2026-01-13 (Fix: Native search filtering + Torznab titleonly support)
 
 - 🐛 **Problema**: La búsqueda nativa en Sonarr/Torznab (cuando se envía desde *arr) devolvía solo 25 resultados en lugar de todos los disponibles, porque solo buscaba en la página 1 de resultados. Además, Sonarr no tenía forma de solicitar búsquedas limitadas al título.

@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
         persistentCookies: (forum as any).persistentCookies || undefined,
         searchMode: (forum as any).searchMode,
         searchForumLabel: (forum as any).searchForumLabel || undefined,
+        searchTitleOnly: (forum as any).searchTitleOnly ?? true,
+        searchInChildForums: (forum as any).searchInChildForums ?? false,
         thankButtonSelector: forum.thankButtonSelector || undefined,
         linksContainerSelector: forum.linksContainerSelector || undefined,
         postTitleSelector: forum.postTitleSelector || undefined,
@@ -79,7 +81,10 @@ export async function POST(request: NextRequest) {
     const allResults: any[] = [];
     for (const forum of forums) {
       try {
-        const results = await forumService.search(forum.id, query);
+        const titleOnly = (forum as any).searchMode === 'native'
+          ? ((forum as any).searchTitleOnly ?? true)
+          : false;
+        const results = await forumService.search(forum.id, query, { titleOnly });
         allResults.push(
           ...results.map((r) => ({ ...r, forumId: forum.id }))
         );

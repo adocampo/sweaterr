@@ -45,9 +45,11 @@ export async function GET(request: NextRequest) {
         const ep = searchParams.get('ep');
         const imdbid = searchParams.get('imdbid');
         const tmdbid = searchParams.get('tmdbid');
-        const titleOnly = searchParams.get('titleonly') === '1' || searchParams.get('titleonly') === 'true';
+        const rawTitleOnly = searchParams.get('titleonly');
+        const titleOnlyFromRequest = rawTitleOnly === '1' || rawTitleOnly === 'true';
+        const hasTitleOnlyParam = rawTitleOnly !== null;
 
-        logger.info('search', `[${service.toUpperCase()}] Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, titleonly=${titleOnly}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
+        logger.info('search', `[${service.toUpperCase()}] Search request: type=${t}, query="${q}", season=${season}, ep=${ep}, imdbid=${imdbid}, tmdbid=${tmdbid}, cats=${cats.join(',')}, titleonly=${hasTitleOnlyParam ? titleOnlyFromRequest : 'auto'}, apikey=${apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING'}`);
 
         if (!apiKey) {
             logger.warn('search', `[${service.toUpperCase()}] Missing API key in request`);
@@ -140,6 +142,8 @@ export async function GET(request: NextRequest) {
                 searchPath: forum.searchPath,
                 searchMode: (forum.searchMode as any) || undefined,
                 searchForumLabel: forum.searchForumLabel || undefined,
+                searchTitleOnly: forum.searchTitleOnly ?? true,
+                searchInChildForums: forum.searchInChildForums ?? false,
                 cseId: forum.cseId || undefined,
                 persistentCookies: forum.persistentCookies || undefined,
                 thankButtonSelector: forum.thankButtonSelector || undefined,
@@ -157,25 +161,41 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        // Clean the series name by removing season/episode information that Sonarr may have injected
+        // This ensures better results when Sonarr sends "Breaking Bad temporada 4" instead of just "Breaking Bad"
+        const cleanSeriesName = (name: string): string => {
+          if (!name) return '';
+          // Remove common season/episode patterns: "temporada X", "season X", "T##", "S##E##", etc.
+          return name
+            .replace(/\s+(temporada|temporadas|season|seasons|serie|series|s\d+e\d+|s\d+|t\d+|cap\s*\d+|capítulo\s*\d+|chapter\s*\d+|ep\s*\d+|episodio\s*\d+).*$/i, '')
+            .replace(/\s*[-–]\s*\d+x\d+.*$/i, '') // Remove "- 1x01" style
+            .trim();
+        };
+
         const buildTvVariants = (series: string, season?: string | null, ep?: string | null): string[] => {
+            // First, clean the series name to remove any injected season/episode info
+            const cleaned = cleanSeriesName(series);
             const s = season ? String(season).padStart(2, '0') : '';
             const e = ep ? String(ep).padStart(2, '0') : '';
-            const base = series.replace(/\s*-\s*\d+x\d+.*$/i, '').trim();
             const v: string[] = [];
+            
+            // Always start with the cleaned series name as primary variant
+            v.push(cleaned);
+            
+            // Then add formatted variants if we have season/episode info
             if (s && e) {
-                v.push(`${base} ${s}x${e}`);
-                v.push(`${base} S${s}E${e}`);
-                v.push(`${base} temporada ${parseInt(s, 10)}`);
-                v.push(`${base} T${parseInt(s, 10)}`);
-                v.push(`${base} episodio ${parseInt(e, 10)}`);
-                v.push(`${base} cap ${parseInt(e, 10)}`);
+                v.push(`${cleaned} ${s}x${e}`);
+                v.push(`${cleaned} S${s}E${e}`);
+                v.push(`${cleaned} temporada ${parseInt(s, 10)}`);
+                v.push(`${cleaned} T${parseInt(s, 10)}`);
+                v.push(`${cleaned} episodio ${parseInt(e, 10)}`);
+                v.push(`${cleaned} cap ${parseInt(e, 10)}`);
             } else if (s) {
-                v.push(`${base} temporada ${parseInt(s, 10)}`);
-                v.push(`${base} T${parseInt(s, 10)}`);
-                v.push(`${base} S${s}`);
-            } else {
-                v.push(base);
+                v.push(`${cleaned} temporada ${parseInt(s, 10)}`);
+                v.push(`${cleaned} T${parseInt(s, 10)}`);
+                v.push(`${cleaned} S${s}`);
             }
+            
             // Ensure uniqueness and limit
             return Array.from(new Set(v)).slice(0, 8);
         };
@@ -199,8 +219,12 @@ export async function GET(request: NextRequest) {
                 try {
                     let found = false;
                     for (const vq of variants) {
-                        logger.info('search', `[${service.toUpperCase()}] Searching in forum "${forum.name}" with variant: "${vq}"${titleOnly ? ' (titleonly)' : ''}`);
-                        const results = await forumService.search(forum.id, vq, { titleOnly, fetchAll: true, maxPages: 20 });
+                        const effectiveTitleOnly = hasTitleOnlyParam
+                            ? titleOnlyFromRequest
+                            : (forum.searchTitleOnly ?? (forum.searchMode === 'native'));
+
+                        logger.info('search', `[${service.toUpperCase()}] Searching in forum "${forum.name}" with variant: "${vq}"${effectiveTitleOnly ? ' (titleonly)' : ''}`);
+                        const results = await forumService.search(forum.id, vq, { titleOnly: effectiveTitleOnly, fetchAll: true, maxPages: 20 });
                         if (results.length > 0) {
                             logger.info('search', `[${service.toUpperCase()}] Found ${results.length} results in forum "${forum.name}"`);
                             allResults.push(...results.map(r => ({

@@ -43,6 +43,8 @@ export interface ForumConfig {
   searchPath: string;
   searchMode?: 'native' | 'google_site' | 'google_cse';
   searchForumLabel?: string;
+  searchTitleOnly?: boolean;
+  searchInChildForums?: boolean;
   cseId?: string;
   thankButtonSelector?: string;
   linksContainerSelector?: string;
@@ -557,6 +559,8 @@ export class ForumService {
       // Native search for vBulletin-style forums (descargasdd search.php)
       // IMPORTANT: run as authenticated user when credentials are configured.
       // Axios client already carries persistent cookies from the authentication step.
+      const resolvedTitleOnly = options?.titleOnly ?? (config.searchMode === 'native' ? (config.searchTitleOnly ?? true) : false);
+      const resolvedChildForums = config.searchInChildForums ?? true;
       const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
 
       const joinUrl = (base: string, path: string) => {
@@ -915,7 +919,7 @@ export class ForumService {
 
           if (foundValue) {
             tryApply(selName, foundValue);
-            postData['childforums'] = postData['childforums'] || '1';
+            postData['childforums'] = postData['childforums'] || (resolvedChildForums ? '1' : '0');
             forumFilterApplied = true;
           }
         });
@@ -942,7 +946,7 @@ export class ForumService {
 
           if (normalize(text).includes(label) || normalize(value).includes(label)) {
             tryApply(name, value);
-            postData['childforums'] = postData['childforums'] || '1';
+            postData['childforums'] = postData['childforums'] || (resolvedChildForums ? '1' : '0');
             forumFilterApplied = true;
           }
         });
@@ -993,7 +997,9 @@ export class ForumService {
         postData['query'] = query;
         postData['keywords'] = query;
         postData['showresults'] = postData['showresults'] || 'threads';
-        postData['childforums'] = postData['childforums'] || '1';
+        // Respect forum-level preference for including child forums
+        const childForumsValue = resolvedChildForums ? '1' : '0';
+        postData['childforums'] = postData['childforums'] ?? childForumsValue;
         postData['do'] = postData['do'] || 'process';
         postData['search_type'] = postData['search_type'] || '1';
 
@@ -1116,7 +1122,7 @@ export class ForumService {
 
           const postData = buildPostDataFromForm($formDoc, form);
           // Apply titleOnly filter when present
-          if (options?.titleOnly) {
+          if (resolvedTitleOnly) {
             postData['titleonly'] = '1';
           } else {
             // Ensure explicit 0 to avoid inherited defaults
@@ -1449,6 +1455,23 @@ export class ForumService {
   }
 
   // Parse forum post to extract links
+  // Fetch raw HTML of a post page without parsing (for custom link extraction)
+  async fetchPostHtml(forumId: string, postUrl: string): Promise<string> {
+    const config = this.configs.get(forumId);
+
+    if (!config) {
+      throw new Error(`Forum ${forumId} not configured`);
+    }
+
+    try {
+      // Get the post page (fallback to FlareSolverr on 403/Cloudflare)
+      return await this.fetchHtmlWithFallback(forumId, postUrl);
+    } catch (error) {
+      console.error(`HTML fetch error for ${config.name}:`, error);
+      throw error;
+    }
+  }
+
   async parsePost(forumId: string, postUrl: string): Promise<ForumPost> {
     const config = this.configs.get(forumId);
     const client = this.clients.get(forumId);
@@ -1466,11 +1489,13 @@ export class ForumService {
       const title = $(config.postTitleSelector || '.post-title, .topic-title, h1, h2').first().text().trim();
       const containerSelector = config.linksContainerSelector
         || '.post-content, .message-body, .post-body, #post_message, [id^="post_message_"]';
-      const candidateScopes: cheerio.Cheerio[] = [];
-      $(containerSelector).each((_, el) => {
-        candidateScopes.push($(el));
-      });
-      const scopes = candidateScopes.length > 0 ? candidateScopes : [$('body')];
+      
+      // CRITICAL FIX: Use only the FIRST matching container, not all of them.
+      // When parsing a post from a thread URL, we should extract links from the first post content only,
+      // not from all posts in the thread (which would include comments, replies, etc.).
+      // This prevents grabbing links from unrelated posts/messages on the same page.
+      const firstContainer = $(containerSelector).first();
+      const scopes = firstContainer.length > 0 ? [firstContainer] : [$('body')];
 
       const author = $('.author, .poster, .username').first().text().trim();
       const date = $('.date, .timestamp, .post-date').first().text().trim();
@@ -1520,19 +1545,14 @@ export class ForumService {
           }
         });
 
-        // Some forum views (archive/print) include links as plain text.
-        // Scan visible text for URL-like substrings.
-        {
-          const candidateText = scope.text();
-          const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
-          const matches = candidateText.match(urlRegex);
-          if (matches) {
-            for (const m of matches) {
-              if (!isLikelyDownloadUrl(m)) continue;
-              found.push(m);
-            }
-          }
-        }
+        // IMPORTANT: Do NOT scan plain text from the entire scope.
+        // This was causing extraction of unrelated links from page footers, scripts, and metadata.
+        // Forum download post structures typically use:
+        // - Direct <a> tags (already handled above)
+        // - Code blocks for paste-friendly lists (already handled above)
+        // Extracting from plain text creates false positives from tracking links, analytics, etc.
+        // The "thank button" mechanism in grab/route.ts will reveal hidden link containers,
+        // so we don't need broad text scanning here.
 
         const uniqueLinks = [...new Set(found)];
         const hosterLinks = uniqueLinks.filter((href) => {
