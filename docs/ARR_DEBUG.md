@@ -56,9 +56,13 @@ tail -f <archivo-log> | grep "\[arr-"
 #### Paso 1: Agregar Indexer en Sonarr/Radarr
 
 1. Abre Sonarr/Radarr
-2. Ve a **Settings → Indexers → Add New → Newznab**
-3. Pega la URL copiada de Sweaterr: `http://192.168.1.10:3000/api/arr?apikey=fdd-12e6550d0de40268bc3f53a637d5ad91`
-4. Haz click en **Test**
+1. Ve a **Settings → Indexers → Add New → Newznab**
+1. Pega en Sonarr:
+  URL: `http://192.168.1.10:3000/api/arr`
+  API Key: `fdd-12e6550d0de40268bc3f53a637d5ad91`
+1. Haz click en **Test**
+
+Nota: La URL debe ser accesible desde Sonarr (si Sonarr está en Docker, evita `http://localhost:3000`).
 
 **Resultado esperado en logs de Sweaterr:**
 

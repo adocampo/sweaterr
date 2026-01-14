@@ -106,6 +106,8 @@ Estado: 11 de enero de 2026
   - [ ] UI detecta sesión inválida y muestra modal/toast "Tu sesión expiró"
   - [ ] Actualizar el token silenciosamente si es posible (refresh token pattern)
   - [ ] Botón "Reintentar" en lugar de recargar página manualmente
+  - [ ] Si no hay usuario autenticado, bloquear acceso a cualquier página y redirigir a `/login`
+  - [ ] En el formulario de login, añadir enlaces visibles a "Register" y "Forgot password"
 - **Archivos**: `src/middleware.ts`, `src/hooks/use-api.ts` (agregar interceptor 401)
 - **Estimación**: 2-3 horas
 
@@ -365,7 +367,7 @@ Estado: 11 de enero de 2026
 
 **Ejemplo de flujo final**:
 
-```
+```text
 1. Usuario configura foro "Wolfmax 4k" en Sweaterr
 2. Hace click en "Detectar Subforos"
 3. Sweaterr obtiene: ["Series", "Películas", "Docu", "Anime"]

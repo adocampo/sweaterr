@@ -921,6 +921,36 @@ export class JDownloaderService {
     return this.sendJDCommand('/linkgrabberv2/moveToDownloadlist', [ids, pkgIds]);
   }
 
+  async startDownloadController(): Promise<boolean> {
+    // Ensures the download engine is running.
+    return this.sendJDCommand('/downloadcontroller/start', []);
+  }
+
+  async moveLinkGrabberPackagesToDownloadsByName(packageName: string): Promise<boolean> {
+    const name = (packageName || '').trim();
+    if (!name) return false;
+
+    const normalize = (value: string): string =>
+      (value || '')
+        .toLowerCase()
+        .trim()
+        // JDownloader may sanitize titles (e.g. ':' -> ';')
+        .replace(/[<>:"/\\|?*;]+/g, ' ')
+        .replace(/\s+/g, ' ');
+
+    const pkgs = await this.queryPackages('/linkgrabberv2/queryPackages');
+    const target = normalize(name);
+    const matches = pkgs
+      .filter((p) => normalize(p.name || '') === target)
+      .sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    if (matches.length === 0) return false;
+
+    // Move the most recently added matching package (avoid moving older unrelated packages).
+    const pkgIds = [matches[0].uuid];
+    // Move whole packages; linkIds can be empty.
+    return this.moveToDownloadList([], pkgIds);
+  }
+
   async removeLinkGrabberLinks(linkIds: Array<string | number>, packageIds?: Array<string | number>): Promise<boolean> {
     const ids = this.normalizeIds(linkIds);
     const pkgIds = packageIds ? this.normalizeIds(packageIds) : [];

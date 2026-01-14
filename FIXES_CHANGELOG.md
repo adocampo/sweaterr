@@ -10,7 +10,7 @@
 - ✅ Button ahora copia SOLO la API key: `fdd-12e6550d0de40268bc3f53a637d5ad91`
 - ✅ Tooltip muestra URL y API Key SEPARADAS para claridad:
 
-  ```
+  ```text
   URL: http://192.168.1.10:3000/api/arr
   API Key: fdd-12e6550d0de40268bc3f53a637d5ad91
   ```
@@ -36,6 +36,155 @@
 - ✅ Default: `false` (búsqueda normal, sin subforos)
 - ✅ Ready para: Checkbox en UI de configuración del foro
 - ✅ Archivos: `prisma/schema.prisma`, migrations
+
+### 4. **Sonarr en Docker: URLs con localhost + Grab crash** (CRÍTICO)
+
+**Problema**:
+
+- Cuando el RSS devolvía enlaces con `http://localhost:3000/...`, Sonarr (en Docker/otra máquina) intentaba descargar contra su propio `localhost` y fallaba.
+- El endpoint `t=get` (grab) referenciaba `service.type` sin existir, pudiendo romper el flujo al seleccionar un resultado.
+
+**Corrección**:
+
+- ✅ En `caps` y `search`, las URLs públicas ahora se generan desde la request (soporta `x-forwarded-host` / `x-forwarded-proto`).
+- ✅ El botón de copiar URL usa `window.location.origin` para evitar defaults incorrectos.
+- ✅ `grab` guarda `arrType` detectándolo desde `User-Agent`.
+
+**Archivos**: `src/app/api/arr/caps/route.ts`, `src/app/api/arr/search/route.ts`, `src/app/api/arr/grab/route.ts`, `src/components/config/forums-table.tsx`
+
+### 5. **Native search: 0 resultados por links SEO / searchid no estándar**
+
+**Problema**: En algunas respuestas vBulletin, los hilos aparecen como `showthread.php?<id>` (SEO) en vez de `showthread.php?t=<id>`, y el `searchid` puede venir en JavaScript o querystring, causando 0 resultados.
+
+**Corrección**:
+
+- ✅ `parseResults()` acepta `showthread.php?<id>`.
+- ✅ Extracción de `searchid` más tolerante (hidden input, querystring, JS).
+
+**Archivo**: `src/lib/services/forum.ts`
+
+### 6. **Native search: forumchoice[] enviaba label en vez de ID**
+
+**Problema**: Con `searchForumLabel`, el selector podía mandar `forumchoice[]="Zona Series"` (label) en vez del `value` real del option/input (ID). Resultado: `do=process` no generaba `searchid`.
+
+**Corrección**:
+
+- ✅ Solo aplicar la selección cuando existe `value` no vacío; nunca usar el texto del option como valor.
+
+**Archivo**: `src/lib/services/forum.ts`
+
+### 7. **Native search: fallback cuando forumchoice no es numérico**
+
+**Problema**: En DescargasDD el form puede exponer `forumchoice[]` como texto (ej. `" Zona Series"`). vBulletin no genera `searchid` y la búsqueda devuelve 0.
+
+**Corrección**:
+
+- ✅ Si `forumchoice*` no es numérico (y no es `0`), se elimina del POST para forzar búsqueda en todos los foros (fallback funcional).
+
+**Archivo**: `src/lib/services/forum.ts`
+
+### 8. **Sonarr: /api/arr no usaba searchMode ni cookies persistentes**
+
+**Problema**: La UI podía buscar bien (porque el foro está configurado con `searchMode`, `cseId`, `searchForumLabel` y cookies persistentes), pero `/api/arr/search` y `/api/arr?t=get` no pasaban esos campos al `ForumService`.
+
+Efectos típicos:
+
+- Sonarr disparaba logins/re-autenticación (Cloudflare) innecesarios, haciendo que “a veces funcione y a veces no”.
+- El modo de búsqueda podía no coincidir con el de la UI.
+- Cuando no había resultados reales, se devolvían *placeholders* que confunden a *arr.
+
+**Corrección**:
+
+- ✅ `/api/arr/search` y `/api/arr?t=get` ahora pasan `searchMode`, `cseId`, `searchForumLabel` y `persistentCookies` al `ForumService`, alineando Sonarr con la configuración real del foro.
+- ✅ En búsquedas reales (q presente), si no hay resultados se devuelve un RSS vacío (sin *placeholders*).
+- ✅ Parser nativo soporta URLs tipo `/threads/<id>-...` además de `showthread.php?...`.
+
+**Archivos**: `src/app/api/arr/search/route.ts`, `src/app/api/arr/grab/route.ts`, `src/lib/services/forum.ts`
+
+### 9. **Sonarr/Radarr: una API key debe buscar SOLO su foro**
+
+**Problema**: `/api/arr/search` validaba la API key contra un foro, pero luego buscaba en *todos* los foros habilitados. Esto impide el setup “1 foro por subforo” (una API key para Sonarr y otra para Radarr) y puede mezclar resultados entre fuentes.
+
+**Corrección**:
+
+- ✅ Ahora `/api/arr/search` busca únicamente en el foro asociado a `torznabApiKey`.
+
+**Archivo**: `src/app/api/arr/search/route.ts`
+
+### 10. **Sonarr: 0 resultados por retorno incorrecto de `ForumService.search()`** (CRÍTICO)
+
+**Problema**: Aunque el parser (especialmente en modo Google CSE) detectaba resultados válidos, Sonarr recibía 0 items porque `ForumService.search()` devolvía un objeto wrapper `{ results: [...] }` y el endpoint *arr lo trataba como si fuera un array.
+
+**Corrección**:
+
+- ✅ `ForumService.search()` devuelve directamente un array de resultados (`ForumSearchResult[]`).
+
+**Archivo**: `src/lib/services/forum.ts`
+
+### 11. **Sonarr: `t=get` debe devolver una descarga (NZB) + thanks gate + envío a JDownloader** (CRÍTICO)
+
+**Problema**:
+
+- El endpoint `t=get` no seguía el orden correcto: si los enlaces estaban ocultos tras “Gracias”, primero comprobaba `links.length` y fallaba antes de pulsar el botón.
+- Además, devolvía una respuesta de éxito tipo XML que algunos clientes Newznab/Torznab no interpretan como una descarga.
+
+**Corrección**:
+
+- ✅ Flujo correcto: parse → si `thankRequired` y no hay enlaces → click “Gracias” → re-parse → extraer enlaces.
+- ✅ Envío automático a JDownloader con `autostart=true`.
+- ✅ En modo cloud, best-effort para mover paquetes desde LinkGrabber a Downloads y arrancar el controlador de descargas.
+- ✅ Respuesta: devuelve un **NZB mínimo válido** con `Content-Type: application/x-nzb` para compatibilidad con Sonarr/Radarr.
+
+**Archivos**: `src/app/api/arr/grab/route.ts`, `src/lib/services/forum.ts`, `src/lib/services/jdownloader.ts`
+
+### 12. **Modo `google_site` deshabilitado por defecto (feature flag)**
+
+**Problema**: `google_site` es un modo frágil (bloqueos/captcha) y no era el objetivo actual. Mantenerlo activo podía causar comportamientos inesperados.
+
+**Corrección**:
+
+- ✅ `google_site` solo se ejecuta si `ENABLE_GOOGLE_SITE_SEARCH=true`.
+- ✅ Si no está habilitado, se hace fallback a `native`.
+
+**Archivo**: `src/lib/services/forum.ts`
+
+### 13. **Sonarr/Radarr: Download Client SABnzbd-compatible + categorías por foro**
+
+**Problema**:
+
+- *arr puede exigir un Download Client (tipo SABnzbd) para completar el flujo “Add to download queue”.
+- El test de Sonarr puede fallar si la **categoría** configurada no “existe” en el Download Client.
+
+**Corrección**:
+
+- ✅ Endpoint SABnzbd-compatible expuesto en `/api/sabnzbd/api` (subset).
+- ✅ Soporte de categorías en `get_config`, `fullstatus` y `get_cats`.
+- ✅ Configuración por foro vía campo `sabnzbdCategory` para evitar mezclar contextos entre indexers.
+
+**Archivos**: `src/app/api/sabnzbd/api/route.ts`, `src/components/config/forum-config.tsx`, `prisma/schema.prisma`, `prisma/migrations/*`
+
+### 14. **Dev server: crash al rotar logs gigantes (`ERR_STRING_TOO_LONG`)**
+
+**Problema**: Si algún log crecía mucho (ej. `logs/db.log`), al arrancar (`npm run dev`) `Logger.rotateLogs()` hacía `readFileSync()` completo y Node lanzaba `ERR_STRING_TOO_LONG`.
+
+**Corrección**:
+
+- ✅ Rotación segura: en archivos grandes, se lee solo el *tail* (bytes acotados) y se conservan las últimas 1000 líneas.
+- ✅ Evita cargar logs multi-GB en memoria y elimina el error al arrancar.
+
+**Archivo**: `src/lib/logger.ts`
+
+### 15. **db.log gigante por logs de queries Prisma**
+
+**Problema**: `logs/db.log` se llenaba de entradas SQL (p.ej. selects sobre `jdownloader_configs`) porque Prisma estaba configurado para loguear todas las queries. Con endpoints/polling esto genera decenas por segundo.
+
+**Corrección**:
+
+- ✅ Los logs de queries Prisma ahora son **opt-in**: por defecto no se registran queries SQL.
+- ✅ Para habilitar debug puntual: `PRISMA_LOG_QUERIES=true`
+- ✅ Para limitarlo a queries lentas: `PRISMA_LOG_SLOW_MS=200`
+
+**Archivo**: `src/lib/db.ts`
 
 ## 📋 PENDIENTE
 

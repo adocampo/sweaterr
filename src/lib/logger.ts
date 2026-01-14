@@ -15,9 +15,29 @@ if (typeof window === 'undefined') {
   }
 }
 
-export type LogModule = 'forum' | 'search' | 'extract' | 'auth' | 'jdownloader' | 'cloudflare' | 'api' | 'testing' | 'db' | 'metadata';
+export type LogModule =
+  | 'forum'
+  | 'search'
+  | 'extract'
+  | 'auth'
+  | 'jdownloader'
+  | 'cloudflare'
+  | 'api'
+  | 'sabnzbd'
+  | 'testing'
+  | 'db'
+  | 'metadata'
+  | 'arr_caps'
+  | 'arr_grab'
+  | 'arr-notify';
 
 class Logger {
+  private readonly maxLogLinesToKeep = 1000;
+  // Upper bound for how many bytes we will read from the end of a log file when rotating.
+  // This avoids loading multi-GB logs into memory (and hitting Node's string limits).
+  private readonly maxRotateReadBytes = 8 * 1024 * 1024; // 8 MiB
+  private readonly rotateReadBlockSize = 64 * 1024; // 64 KiB
+
   private formatLocalTimestamp() {
     const date = new Date();
 
@@ -97,16 +117,68 @@ class Logger {
         if (!file.endsWith('.log')) return;
 
         const filePath = path.join(logsDir, file);
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const lines = content.split('\n');
+        const stat = fs.statSync(filePath);
+        if (!stat.isFile()) return;
 
-        if (lines.length > 1000) {
-          const kept = lines.slice(-1000);
+        const readAllSafely = stat.size <= this.maxRotateReadBytes;
+
+        const tailContent = readAllSafely
+          ? fs.readFileSync(filePath, 'utf-8')
+          : this.readTailUtf8(filePath, this.maxRotateReadBytes);
+
+        const lines = tailContent.split('\n');
+        if (lines.length > this.maxLogLinesToKeep) {
+          const kept = lines.slice(-this.maxLogLinesToKeep);
           fs.writeFileSync(filePath, kept.join('\n'));
+          return;
+        }
+
+        // If the file is huge but the tail doesn't contain enough newlines (e.g., very long lines),
+        // still truncate it to the tail we read to prevent unbounded growth.
+        if (!readAllSafely && stat.size > this.maxRotateReadBytes) {
+          fs.writeFileSync(filePath, tailContent);
         }
       });
     } catch (err) {
       console.error('Failed to rotate logs:', err);
+    }
+  }
+
+  private readTailUtf8(filePath: string, maxBytes: number): string {
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile()) return '';
+    if (stat.size <= 0) return '';
+
+    const fd = fs.openSync(filePath, 'r');
+    try {
+      const fileSize = stat.size;
+      let position = fileSize;
+      let bytesRemaining = Math.min(fileSize, maxBytes);
+      let newlineCount = 0;
+
+      const chunks: Buffer[] = [];
+
+      while (bytesRemaining > 0 && newlineCount < this.maxLogLinesToKeep + 1) {
+        const toRead = Math.min(this.rotateReadBlockSize, bytesRemaining);
+        position -= toRead;
+
+        const buffer = Buffer.allocUnsafe(toRead);
+        const bytesRead = fs.readSync(fd, buffer, 0, toRead, position);
+        if (bytesRead <= 0) break;
+
+        const slice = bytesRead === toRead ? buffer : buffer.subarray(0, bytesRead);
+        chunks.unshift(slice);
+
+        for (let i = 0; i < slice.length; i++) {
+          if (slice[i] === 10) newlineCount++;
+        }
+
+        bytesRemaining -= bytesRead;
+      }
+
+      return Buffer.concat(chunks).toString('utf-8');
+    } finally {
+      fs.closeSync(fd);
     }
   }
 }

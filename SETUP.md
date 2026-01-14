@@ -100,7 +100,7 @@ El servidor estará en: `http://localhost:3000`
 3. Click en **"Añadir Foro"**
 4. Configuración para DescargasDD:
 
-   ```
+   ```text
    Nombre: DescargasDD
    URL Base: https://descargasdd.org
    Ruta de Búsqueda: /search.php?search_type=1
@@ -187,7 +187,7 @@ tail -50 logs/search.log
 
 Estos archivos NO están en el repositorio y se generan localmente:
 
-```
+```text
 sweaterr/
 ├── .env.local                    # Variables de entorno (CRÍTICO)
 ├── prisma/

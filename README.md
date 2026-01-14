@@ -211,11 +211,21 @@ La pestaña **Testing** ofrece herramientas avanzadas para:
 
 ### Como Indexer
 
-La aplicación expone una API compatible con Sonarr/Radarr para buscar contenido:
+Sweaterr expone un endpoint Newznab/Torznab compatible para usarlo como indexer en *arr:
 
 ```http
-GET /api/arr/indexer?query=<search_query>
+GET /api/arr?t=caps&apikey=<forum_torznabApiKey>
+GET /api/arr?t=tvsearch&q=<query>&season=<season>&ep=<ep>&apikey=<forum_torznabApiKey>
+GET /api/arr?t=movie&q=<query>&apikey=<forum_torznabApiKey>
+GET /api/arr?t=get&id=<guid>&apikey=<forum_torznabApiKey>
 ```
+
+En Sonarr/Radarr: **Settings → Indexers → Add New → Newznab**
+
+- URL: `http://<host>:3000/api/arr`
+- API Key: la `torznabApiKey` del foro
+
+Importante: la URL debe ser accesible desde el host/container de Sonarr (evita `http://localhost:3000` si Sonarr está en Docker).
 
 ### Como Client
 

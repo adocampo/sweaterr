@@ -37,8 +37,10 @@ const forumSchema = z.object({
   searchPath: z.string().optional(),
   searchMode: z.enum(['native', 'google_site', 'google_cse']).optional(),
   searchForumLabel: z.string().optional(),
-  searchInChildForums: z.boolean().optional(),
+  searchInChildForums: z.boolean().optional().default(false),
+  searchTitleOnly: z.boolean().optional().default(true),
   cseId: z.string().optional(),
+  sabnzbdCategory: z.string().optional(),
   thankButtonSelector: z.string().optional(),
   linksContainerSelector: z.string().optional(),
   postTitleSelector: z.string().optional(),
@@ -103,7 +105,9 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
       searchMode: 'native',
       searchForumLabel: '',
       searchInChildForums: false,
+      searchTitleOnly: true,
       cseId: '',
+      sabnzbdCategory: '',
       thankButtonSelector: '',
       linksContainerSelector: '',
       postTitleSelector: '',
@@ -298,6 +302,23 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="sabnzbdCategory"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('forumForm.sabnzbdCategory')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder="tv-sonarr" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    {t('forumForm.sabnzbdCategoryDescription')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {form.watch('searchMode') === 'google_cse' && (
               <FormField
                 control={form.control}
@@ -341,10 +362,31 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
 
                 <FormField
                   control={form.control}
+                  name="searchTitleOnly"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">{t('forumForm.searchTitleOnly')}</FormLabel>
+                        <FormDescription>
+                          {t('forumForm.searchTitleOnlyDescription')}
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="searchForumLabel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Foro donde buscar</FormLabel>
+                      <FormLabel>{t('forumForm.searchForumLabel')}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder={t('components.searchForumExample')}
@@ -365,9 +407,9 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                       <div className="space-y-0.5">
-                        <FormLabel className="text-base">Buscar en subforos</FormLabel>
+                        <FormLabel className="text-base">{t('forumForm.searchInChildForums')}</FormLabel>
                         <FormDescription>
-                          Incluir resultados de subforos en las búsquedas (childforums=1)
+                          {t('forumForm.searchInChildForumsDescription')}
                         </FormDescription>
                       </div>
                       <FormControl>
