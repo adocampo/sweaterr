@@ -250,6 +250,22 @@ export async function GET(request: NextRequest) {
             const extractedLinks = extractDownloadLinksFromHtml(html, forum.baseUrl);
             links = extractedLinks.map(l => l.url);
 
+            // DEBUG: Save HTML to file for inspection
+            const fs = require('fs');
+            try {
+                fs.writeFileSync(`/tmp/grab_${Date.now()}_html.html`, html);
+                console.log(`[ARR/Grab] HTML saved to /tmp/grab_${Date.now()}_html.html`);
+            } catch (e) {
+                console.log('[ARR/Grab] Could not save HTML:', e);
+            }
+
+            // DEBUG: Check what's in the HTML
+            const thanksCount = (html.match(/thanks/gi) || []).length;
+            const graciasCount = (html.match(/gracias/gi) || []).length;
+            const megaCount = (html.match(/mega\.nz/gi) || []).length;
+            const downloadCount = (html.match(/download|descargar/gi) || []).length;
+            console.log(`[ARR/Grab] HTML analysis: thanks=${thanksCount}, gracias=${graciasCount}, mega=${megaCount}, download=${downloadCount}`);
+
             console.log('[ARR/Grab] Extracted', links.length, 'links');
 
         } catch (extractErr) {
