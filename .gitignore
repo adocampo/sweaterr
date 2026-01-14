@@ -13,9 +13,9 @@ node_modules
 # testing
 /coverage
 
-# logs (keep folder, ignore generated logs)
-logs/*.log
-dev.out
+# logs
+logs/
+*.log
 
 # next.js
 /.next/
