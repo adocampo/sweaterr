@@ -541,3 +541,229 @@ function extractFilenameFromUrl(url: string): string | undefined {
 
     return undefined;
 }
+
+/**
+ * Core function: Extract links from a forum post with automatic "Thanks" button detection and clicking
+ * 
+ * This function encapsulates the COMPLETE flow:
+ * 1. Load forum config and get persisted cookies
+ * 2. Optionally login (if credentials provided)
+ * 3. Fetch the post HTML
+ * 4. Detect if "Thanks" button exists
+ * 5. If needed, click the thanks button and refetch
+ * 6. Extract download links from the revealed content
+ * 
+ * Used by both /api/testing/extract-links and /api/arr/grab endpoints
+ * 
+ * @param forumId - Forum database ID to lookup credentials and cached cookies
+ * @param postUrl - Full URL to the forum post
+ * @returns Object with success flag and extracted links (or error message)
+ */
+export async function extractLinksFromPostWithThankClick(
+    forumId: string,
+    postUrl: string
+): Promise<{ success: boolean; links: ExtractedLinkInfo[]; error?: string }> {
+    try {
+        logger.info('extract-shared', `Starting link extraction for forum=${forumId}, url=${postUrl}`);
+
+        // Step 1: Load forum config
+        const forum = await db.forum.findUnique({
+            where: { id: forumId },
+            include: { credentials: true },
+        });
+
+        if (!forum) {
+            logger.error('extract-shared', `Forum not found: ${forumId}`);
+            return { success: false, links: [], error: 'Forum not found' };
+        }
+
+        if (!forum.enabled) {
+            logger.warn('extract-shared', `Forum disabled: ${forumId}`);
+            return { success: false, links: [], error: 'Forum is disabled' };
+        }
+
+        logger.info('extract-shared', `Forum loaded: ${forum.name}`);
+
+        // Step 2: Initialize axios client with persisted cookies
+        const host = new URL(postUrl).hostname;
+        const jar: CookieJar = getJarForHost(host);
+        
+        let parsedCookies = forum.persistentCookies ? JSON.parse(forum.persistentCookies) : [];
+        const cookieArr: Array<{ name: string; value: string; domain?: string; path?: string }> = Array.isArray(parsedCookies)
+            ? parsedCookies
+            : parsedCookies && typeof parsedCookies === 'object'
+                ? Array.isArray((parsedCookies as any).cookies) ? (parsedCookies as any).cookies : []
+                : [];
+        let storedUserAgent: string | undefined = parsedCookies && typeof parsedCookies === 'object' && typeof (parsedCookies as any).userAgent === 'string'
+            ? (parsedCookies as any).userAgent
+            : undefined;
+
+        if (cookieArr.length > 0) {
+            await preloadJarCookies(jar, postUrl, cookieArr);
+            logger.info('extract-shared', `Loaded ${cookieArr.length} persisted cookies for ${host}`);
+        }
+
+        const axiosClient = axiosCookieJarSupport(axios.create({
+            jar,
+            withCredentials: true,
+            headers: {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'es-ES,es;q=0.9',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Upgrade-Insecure-Requests': '1',
+                'User-Agent': storedUserAgent || 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': forum.baseUrl || `https://${host}/`,
+            },
+            timeout: 20000,
+        }));
+
+        const flaresolverrUrl = process.env.FLARESOLVERR_URL;
+        const fsClient = flaresolverrUrl ? new FlareSolverrClient(flaresolverrUrl) : null;
+
+        // Helper: Try request with FlareSolverr fallback
+        const useFlareSolverr = async (url: string) => {
+            if (!fsClient) {
+                logger.error('extract-shared', 'FlareSolverr not configured');
+                throw new Error('FlareSolverr URL not configured');
+            }
+            logger.info('extract-shared', `Using FlareSolverr for ${url}`);
+            const solution = await fsClient.request(url, 'GET');
+            const solvedCookies = solution.cookies || [];
+            if (solvedCookies.length > 0) {
+                await preloadJarCookies(jar, url, solvedCookies);
+                const mergedByName = new Map<string, string>();
+                for (const c of cookieArr) mergedByName.set(c.name, c.value);
+                for (const c of solvedCookies) mergedByName.set(c.name, c.value);
+                const merged = Array.from(mergedByName.entries()).map(([name, value]) => ({ name, value }));
+                const toPersist: any = { cookies: merged, userAgent: solution.userAgent || storedUserAgent };
+                await db.forum.update({
+                    where: { id: forum.id },
+                    data: { persistentCookies: JSON.stringify(toPersist), cookiesUpdatedAt: new Date() },
+                });
+                logger.info('extract-shared', `Persisted ${merged.length} cookies after FlareSolverr`);
+            }
+            return solution.response || '';
+        };
+
+        const tryAxios = async (url: string) => {
+            const res = await axiosClient.get(url);
+            const body = String(res.data || '');
+            const looksLikeChallenge = res.status === 403 || body.includes('cf-mitigated') || body.includes('Just a moment');
+            if (looksLikeChallenge) {
+                logger.warn('extract-shared', `Cloudflare challenge detected (status ${res.status})`);
+                throw Object.assign(new Error('Cloudflare challenge'), { response: { status: res.status } });
+            }
+            return body;
+        };
+
+        // Step 3: Optionally login with credentials
+        if (forum.credentials?.username && forum.credentials?.password) {
+            logger.info('extract-shared', `Attempting login with credentials for ${forum.credentials.username}`);
+            if (fsClient) {
+                const loginResult = await loginToForum(
+                    forum.baseUrl,
+                    forum.credentials.username,
+                    forum.credentials.password,
+                    fsClient
+                );
+                if (!loginResult.success) {
+                    logger.error('extract-shared', `Login failed: ${loginResult.error}`);
+                    return { success: false, links: [], error: `Login failed: ${loginResult.error}` };
+                }
+                const sessionCookies = loginResult.cookies || [];
+                if (sessionCookies.length > 0) {
+                    await preloadJarCookies(jar, forum.baseUrl, sessionCookies);
+                    const mergedByName = new Map<string, string>();
+                    for (const c of cookieArr) mergedByName.set(c.name, c.value);
+                    for (const c of sessionCookies) mergedByName.set(c.name, c.value);
+                    const merged = Array.from(mergedByName.entries()).map(([name, value]) => ({ name, value }));
+                    await db.forum.update({
+                        where: { id: forumId },
+                        data: { persistentCookies: JSON.stringify({ cookies: merged, userAgent: storedUserAgent }), cookiesUpdatedAt: new Date() },
+                    });
+                    logger.info('extract-shared', `Login successful, persisted ${merged.length} cookies`);
+                }
+            }
+        }
+
+        // Step 4: Fetch post HTML
+        logger.info('extract-shared', `Fetching post: ${postUrl}`);
+        let html = '';
+        try {
+            html = await tryAxios(postUrl);
+            logger.info('extract-shared', `✓ Axios succeeded (${html.length} bytes)`);
+        } catch (firstErr: any) {
+            const status = firstErr?.response?.status;
+            logger.warn('extract-shared', `✗ Axios failed (status ${status}), trying FlareSolverr...`);
+            html = await useFlareSolverr(postUrl);
+            // Try axios again after FlareSolverr
+            try {
+                html = await tryAxios(postUrl);
+                logger.info('extract-shared', `✓ Axios succeeded after FlareSolverr`);
+            } catch {
+                logger.warn('extract-shared', `Using FlareSolverr HTML directly`);
+            }
+        }
+
+        if (!html || html.length === 0) {
+            logger.error('extract-shared', 'No HTML content received');
+            return { success: false, links: [], error: 'No HTML content received' };
+        }
+
+        // Step 5: Check if "Thanks" button exists and needs clicking
+        const thanksLinkRegex = /thanks\.php\?do=post&(?:amp;)?postid=(\d+)/i;
+        const thanksMatch = html.match(thanksLinkRegex);
+
+        if (thanksMatch) {
+            logger.info('extract-shared', `Found thanks button, constructing URL...`);
+            const thanksHref = thanksMatch[0];
+            const thanksUrl = thanksHref.startsWith('http')
+                ? thanksHref
+                : `${forum.baseUrl}/${thanksHref}`;
+
+            logger.info('extract-shared', `Clicking thanks URL: ${thanksUrl}`);
+
+            try {
+                await tryAxios(thanksUrl);
+                logger.info('extract-shared', `✓ Thanks click via axios`);
+            } catch (err: any) {
+                logger.warn('extract-shared', `✗ Axios thanks failed, using FlareSolverr`);
+                try {
+                    await useFlareSolverr(thanksUrl);
+                    logger.info('extract-shared', `✓ Thanks click via FlareSolverr`);
+                } catch (solverErr) {
+                    logger.error('extract-shared', `Failed to click thanks: ${solverErr}`);
+                    return { success: false, links: [], error: 'Failed to click thanks button' };
+                }
+            }
+
+            // Step 6: Refetch post to reveal hidden content
+            logger.info('extract-shared', `Refetching post after thanks click...`);
+            try {
+                html = await tryAxios(postUrl);
+                logger.info('extract-shared', `✓ Post refetch succeeded`);
+            } catch {
+                logger.warn('extract-shared', `Axios refetch failed, using FlareSolverr`);
+                html = await useFlareSolverr(postUrl);
+            }
+        } else {
+            logger.info('extract-shared', `No thanks button found (content may already be revealed)`);
+        }
+
+        // Step 7: Extract download links from HTML
+        logger.info('extract-shared', `Extracting download links from HTML...`);
+        const links = extractDownloadLinksFromHtml(html, forum.baseUrl);
+        logger.info('extract-shared', `✓ Extracted ${links.length} links`);
+
+        return { success: true, links };
+
+    } catch (error) {
+        logger.error('extract-shared', `Error: ${error instanceof Error ? error.message : String(error)}`);
+        return {
+            success: false,
+            links: [],
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
+}
