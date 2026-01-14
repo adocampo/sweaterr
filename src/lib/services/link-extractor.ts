@@ -621,6 +621,14 @@ export async function extractLinksFromPostWithThankClick(
         const flaresolverrUrl = process.env.FLARESOLVERR_URL;
         const fsClient = flaresolverrUrl ? new FlareSolverrClient(flaresolverrUrl) : null;
 
+        // Get or create FlareSolverr session for this forum
+        let sessionId: string | undefined;
+        const ttlMs = forum?.flaresolverrSessionTTL || 30 * 60 * 1000;
+        if (fsClient && forumId) {
+            sessionId = await sessionManager.getSession(forumId, host, ttlMs, fsClient);
+            logger.info('extract-shared', `Got FlareSolverr session: ${sessionId}`);
+        }
+
         // Helper: Try request with FlareSolverr fallback
         const useFlareSolverr = async (url: string) => {
             if (!fsClient) {
@@ -628,7 +636,7 @@ export async function extractLinksFromPostWithThankClick(
                 throw new Error('FlareSolverr URL not configured');
             }
             logger.info('extract-shared', `Using FlareSolverr for ${url}`);
-            const solution = await fsClient.request(url, 'GET');
+            const solution = await fsClient.request(url, 'GET', undefined, sessionId);
             const solvedCookies = solution.cookies || [];
             if (solvedCookies.length > 0) {
                 await preloadJarCookies(jar, url, solvedCookies);
