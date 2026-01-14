@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { JDownloaderLocalService, JDownloaderService } from '@/lib/services/jdownloader';
 import { logger } from '@/lib/logger';
-import { extractLinksFromPostWithThankClick } from '@/lib/services/link-extractor';
+import { extractLinksFromPost } from '@/lib/services/link-extractor';
 
 function detectArrService(userAgent: string | null): string {
     if (!userAgent) return 'unknown';
@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
         let forumId: string;
         let postUrl: string;
         let category: string | undefined;
+        let title: string | undefined;
 
         try {
             const decoded = Buffer.from(guid, 'base64url').toString('utf-8');
@@ -64,6 +65,7 @@ export async function GET(request: NextRequest) {
             forumId = guidData.forumId;
             postUrl = guidData.url;
             category = typeof guidData.category === 'string' ? guidData.category : undefined;
+            title = typeof guidData.title === 'string' ? guidData.title : undefined;
         } catch (parseError) {
             // Fallback: try old format (forumId-category-url) for backwards compatibility
             const parts = guid.split('-');
@@ -96,6 +98,7 @@ export async function GET(request: NextRequest) {
         // Get forum and JDownloader config
         const forum = await db.forum.findUnique({
             where: { id: forumId },
+            include: { credentials: true },
         });
 
         const jdConfig = await db.jDownloaderConfig.findFirst({ where: { enabled: true } });
@@ -113,8 +116,19 @@ export async function GET(request: NextRequest) {
 
         logger.info('arr_grab', `Grab requested for forum=${forum.name}, postUrl=${postUrl}, arrType=${arrType}`);
 
-        // Use SHARED link extraction function (same as testing endpoint)
-        const extractResult = await extractLinksFromPostWithThankClick(forumId, postUrl);
+        // Use EXACT SAME function as testing /api/extract-links endpoint
+        const extractResult = await extractLinksFromPost(
+            postUrl,
+            forum.baseUrl,
+            forum.credentials?.username,
+            forum.credentials?.password,
+            process.env.FLARESOLVERR_URL,
+            forumId,
+            {
+                thankButtonSelector: forum.thankButtonSelector || undefined,
+                linksContainerSelector: forum.linksContainerSelector || undefined,
+            }
+        );
 
         if (!extractResult.success) {
             logger.warn('arr_grab', `Link extraction failed: ${extractResult.error}`);
@@ -128,7 +142,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const links = extractResult.links.map(l => l.url);
+        const links = extractResult.links || [];
 
         if (links.length === 0) {
             logger.warn('arr_grab', 'No download links found in post');
@@ -153,8 +167,8 @@ export async function GET(request: NextRequest) {
             ? new JDownloaderService(jdConfig.email, jdConfig.password, jdConfig.deviceName)
             : null;
 
-        // Get package name (use forum name as fallback)
-        const packageName = forum.name || 'Download';
+        // Get package name (use title from GUID, fallback to forum name)
+        const packageName = title || forum.name || 'Download';
 
         logger.info('arr_grab', 'Sending links to JDownloader', {
             forumId: forum.id,

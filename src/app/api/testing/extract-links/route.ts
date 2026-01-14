@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { extractLinksFromPostWithThankClick } from '@/lib/services/link-extractor';
+import { extractLinksFromPost } from '@/lib/services/link-extractor';
 
 export async function POST(request: NextRequest) {
     try {
@@ -13,9 +13,12 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Verify forum exists
+        // Load forum with credentials
         const forum = await db.forum.findUnique({
             where: { id: forumId },
+            include: {
+                credentials: true,
+            },
         });
 
         if (!forum) {
@@ -25,8 +28,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Use the shared link extraction function
-        const result = await extractLinksFromPostWithThankClick(forumId, postUrl);
+        // Use the working link extraction function
+        const result = await extractLinksFromPost(
+            postUrl,
+            forum.baseUrl,
+            forum.credentials?.username,
+            forum.credentials?.password,
+            process.env.FLARESOLVERR_URL,
+            forumId
+        );
 
         if (!result.success) {
             return NextResponse.json(
@@ -35,11 +45,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Convert ExtractedLinkInfo[] to the format expected by the testing UI
-        const formattedLinks = result.links.map(link => ({
-            url: link.url,
-            hosting: link.hosting,
-            filename: link.filename,
+        // Convert string URLs to objects with url property
+        const formattedLinks = (result.links || []).map(url => ({
+            url,
+            hosting: '', // extractLinksFromPost doesn't provide hosting info
+            filename: undefined,
         }));
 
         console.log('[Testing/ExtractLinks] Extracted', formattedLinks.length, 'links');
