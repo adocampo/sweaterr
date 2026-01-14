@@ -806,6 +806,95 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-14 (IN PROGRESS: Grab endpoint link extraction refactoring - Abstract Testing logic to shared service)
+
+**Estado**: 🔴 BLOQUEADO - Requiere abstracción de código
+
+**Contexto breve**: El endpoint `/api/arr/grab` no extrae correctamente los enlaces de descarga porque está usando una implementación incompleta. El endpoint `/api/testing/extract-links` YA TIENE la solución completa y funcional. La tarea es **abstraer esa lógica funcional a un servicio compartido** en lugar de reimplementar.
+
+**Problema diagnosticado**:
+
+- ❌ `/api/arr/grab` devuelve "No download links found" (error 404) cuando intenta extraer enlaces de posts
+- ✅ `/api/testing/extract-links` extrae correctamente 3 enlaces del mismo post (Mega, 1fichier, Uploaded)
+- 🔍 **Causa raíz**: El testing endpoint tiene el flujo COMPLETO que incluye:
+  1. Autenticación login vBulletin (si requiere credenciales)
+  2. Detección de botón "Gracias" (regex `thanks.php?do=post&postid=\d+`)
+  3. **Click automático en el botón** para revelar contenido oculto
+  4. **Re-fetch del post después de click** para obtener HTML actualizado
+  5. Extracción de enlaces con 10+ patrones de hosting (Mega, 1fichier, Uploaded, etc)
+
+- El grab endpoint intenta hacer esto pero FALLA en el paso 3-4: nunca clickea el botón de gracias ni revela el contenido oculto, por lo que extrae 0 enlaces.
+
+**Detalles técnicos**:
+
+**Forum de prueba**:
+
+- URL: <https://descargasdd.org/showthread.php?t=479901>
+- Forum: DescargasDD.org (vBulletin 4.2.3)
+- Tipo: Foro español de descargas directas
+- Contenido: Breaking Bad temporada 4 con enlaces ocultos tras botón "Gracias"
+
+**Credenciales de prueba** (válidas ✅):
+
+- Username: `malevolent`
+- Password: `aCW7KF5dVUjeNxk`
+- Foro ID en BD: `cmkdufr6a0002p7z8facmimdg`
+
+**Infraestructura disponible**:
+
+- FlareSolverr: <http://192.168.1.100:8191> (funcionando, bypass Cloudflare OK)
+- Prisma SQLite con cookies persistidas (validadas en autenticación)
+- Testing endpoint comprobado: extrae 3 enlaces correctamente
+
+**Lo que sucede actualmente** (debugging realizado):
+
+1. ✅ Grab endpoint recibe HTML (145KB)
+2. ✅ HTML contiene contenido oculto en `<div id="vfc_hide_thanks_post_5967399">`
+3. ❌ Regex de thanks no coincide: `thanks.php?do=post&postid=` no se encuentra en HTML
+4. ❌ No se clickea ningun botón
+5. ❌ Links nunca se revelan
+6. ❌ extractDownloadLinks() retorna array vacío (no encuentra Mega, 1fichier, etc)
+
+**Logs recientes del debugging**:
+
+```text
+[ARR/Grab] HTML length: 145762
+[ARR/Grab] Thanks link found: false
+[ARR/Grab] HTML analysis: thanks=31, gracias=38, mega=0, download=0
+[ARR/Grab] Extracted 0 links
+```
+
+**Solución requerida** (no implementada aún):
+
+1. **NO reimplementar** - El testing endpoint YA TIENE esto funcionando
+2. **ABSTRAER** la lógica de Testing a `src/lib/services/link-extractor.ts` como servicio reutilizable:
+   - Mover toda la lógica de autenticación + thanks detection + click + re-fetch + extracción
+   - Exponer una función `extractLinksFromPost(forumId, postUrl): Promise<ExtractedLink[]>`
+3. **Reutilizar en ambos endpoints**:
+   - `/api/testing/extract-links` → usar servicio compartido
+   - `/api/arr/grab` → usar servicio compartido
+4. **Evitar duplicación**: Nunca copiar/pegar código entre endpoints
+
+**Archivos que necesitan cambios**:
+
+- `src/lib/services/link-extractor.ts` - Expandir con lógica completa de Testing
+- `src/app/api/testing/extract-links/route.ts` - Refactorizar para usar servicio
+- `src/app/api/arr/grab/route.ts` - Refactorizar para usar servicio
+
+**Restricción crítica para el siguiente paso**:
+
+- ⚠️ **NO hacer git push hasta que grab funcione end-to-end**
+- ✅ Probar manualmente con curl antes de cualquier commit
+- ✅ Testing endpoint es la PRUEBA DE CONCEPTO - copiar su patrón exacto
+
+**Por qué esto es importante**:
+
+- El grab endpoint es usado por *arr (Sonarr/Radarr) para descargar contenido
+- Si grab no extrae enlaces, Sonarr falla al intentar grabar downloads
+- Todos los usuarios que usen *arr dependen de que esto funcione correctamente
+
+---
+
 ### 2026-01-14 (Fix: Native search presets respected by *arr)
 
 - 🐛 **Problema**: Sonarr no podía indicar "buscar solo en título" y el filtro de subforos/foro se aplicaba desde la UI pero no se persistía en la búsqueda Torznab. Además, la opción `titleonly` dependía del parámetro de Sonarr y no de la configuración del foro.
