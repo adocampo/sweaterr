@@ -112,7 +112,7 @@ export default function Home() {
     return variants[status] || 'outline';
   };
 
-  // Fetch current user for user menu
+  // Fetch current user for user menu (only once on mount)
   useEffect(() => {
     let mounted = true;
     (async () => {
