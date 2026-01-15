@@ -42,6 +42,7 @@ function detectType(title: string, breadcrumbs: string): 'series' | 'movie' | 'u
     
     const hasSeasonIndicators = 
         /\btemporada\s+\d+\b/i.test(title) ||
+        /\d+(?:ª|º)\s+.{0,20}?\btemporada\b/i.test(title) || // 5ª 2/2 Temporada Final
         /\d+(?:ª|º)\s*temporada\b/i.test(title) || // 5ª Temporada, 3º Temporada
         /\b[Tt]\s*\d{1,2}\b/.test(title) ||
         /\bseason\s+\d+\b/i.test(title) ||
@@ -72,10 +73,16 @@ function extractYear(text: string): number | null {
 }
 
 function extractSeason(text: string): number | null {
-    // Priority 1: Ordinal patterns like "5ª Temporada", "3º Temporada" (with or without word boundary)
-    let match = text.match(/(\d{1,2})(?:ª|º)?\s*(?:temporada|temp\.?|season)/i);
+    // Priority 1: Ordinal patterns with possible text between: "5ª 2/2 Temporada Final", "3º mitad Temporada"
+    // Allow up to 20 chars between ordinal and "temporada" word to be flexible
+    let match = text.match(/(\d{1,2})(?:ª|º)\s+.{0,20}?\b(?:temporada|temp\.?|season)\b/i);
+    if (match) return parseInt(match[1], 10);
+    
+    // Standard ordinal without text between: "5ª Temporada", "3º Season"
+    match = text.match(/(\d{1,2})(?:ª|º)\s*(?:temporada|temp\.?|season)/i);
     if (match) return parseInt(match[1], 10);
 
+    // Reverse pattern: "Temporada 15ª", "Season 3º"
     match = text.match(/(?:temporada|temp\.?|season)\s*(\d{1,2})(?:ª|º)?/i);
     if (match) return parseInt(match[1], 10);
 
