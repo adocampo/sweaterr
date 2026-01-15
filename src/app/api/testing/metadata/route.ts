@@ -179,6 +179,11 @@ function extractCleanTitle(text: string): string {
     clean = clean.replace(/\[.*?\]/g, '');
     clean = clean.replace(/\(.*?\)/g, '');
     
+    // Remove stray brackets and plus signs that may remain
+    clean = clean.replace(/[\[\]]/g, '');
+    clean = clean.replace(/\s*\+\s*$/g, ''); // Remove trailing + with spaces
+    clean = clean.replace(/^\s*\+\s*/g, ''); // Remove leading + with spaces
+    
     // Remove extra whitespace and trim
     clean = clean.replace(/\s+/g, ' ').trim();
     
@@ -297,7 +302,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 const merged = mergeMetadata(heuristic, aiMetadata);
-                results.push({ url: url || '', metadata: merged });
+                results.push({ url: url || '', rawTitle: title, metadata: merged });
             }
 
             const totalErrors = results.filter((r) => r.error).length;
