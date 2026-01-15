@@ -31,7 +31,8 @@ export type LogModule =
   | 'metadata'
   | 'arr_caps'
   | 'arr_grab'
-  | 'arr-notify';
+  | 'arr-notify'
+  | 'tvdb';
 
 class Logger {
   private readonly maxLogLinesToKeep = 1000;
@@ -50,19 +51,8 @@ class Logger {
     const hours = pad(date.getHours());
     const minutes = pad(date.getMinutes());
     const seconds = pad(date.getSeconds());
-    const milliseconds = date.getMilliseconds().toString().padStart(3, '0');
 
-    const offsetMinutes = -date.getTimezoneOffset();
-    const sign = offsetMinutes >= 0 ? '+' : '-';
-    const absOffset = Math.abs(offsetMinutes);
-    const offsetHours = pad(Math.floor(absOffset / 60));
-    const offsetMins = pad(absOffset % 60);
-    const offset = `${sign}${offsetHours}:${offsetMins}`;
-
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const zoneSuffix = timeZone ? ` ${timeZone}` : '';
-
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}${offset}${zoneSuffix}`;
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
   }
 
   private logToFile(module: LogModule, level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: any) {

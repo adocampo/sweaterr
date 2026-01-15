@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
+import { searchSeries } from '@/lib/services/tvdb';
 import { logger } from '@/lib/logger';
 
 // Simplified metadata extraction for filtering season pack results
@@ -29,11 +30,50 @@ function extractSeasonFromTitle(title: string): number | null {
     return null;
 }
 
+/**
+ * Extract episode numbers from title
+ * Supports patterns like: [1/13], (13), 13/13, 01,02,03, etc
+ * Returns: "1-13", "1,2,3", etc. or null if not found
+ */
+function extractEpisodesFromTitle(title: string): string | null {
+    // Pattern 1: [X/Y] format (most common in forums) -> return range "1-Y"
+    let match = title.match(/\[(\d+)\/(\d+)\]/);
+    if (match) {
+        const episodeCount = parseInt(match[2], 10);
+        return `1-${episodeCount}`;
+    }
+
+    // Pattern 2: (X) format -> assume single episode or use as count
+    match = title.match(/\((\d+)\)/);
+    if (match) {
+        const count = parseInt(match[1], 10);
+        // If count > 1, assume it's total episode count for the season pack
+        if (count > 1) {
+            return `1-${count}`;
+        }
+        return `${count}`;
+    }
+
+    // Pattern 3: X/Y format without brackets
+    match = title.match(/\s(\d+)\/(\d+)\s/);
+    if (match) {
+        const episodeCount = parseInt(match[2], 10);
+        return `1-${episodeCount}`;
+    }
+
+    // Pattern 4: Explicit episode list: 01,02,03,... or 1,2,3,...
+    match = title.match(/(\d{1,2}(?:[,\s]\d{1,2})+)/);
+    if (match) {
+        return match[1].replace(/\s+/g, ',');
+    }
+
+    return null;
+}
+
 // TODO: Future enhancement - Include cleanTitle in Newznab XML response
 // Once metadata extraction stabilizes, update the <title> field to use cleanTitle
 // instead of raw forum title. This will allow Sonarr/Radarr to perform more
 // accurate searches and filtering by season/episode/quality.
-// Related: MediaMetadata.cleanTitle added in feature/improve-search-metadata
 
 function getPublicOrigin(request: NextRequest): string {
     const forwardedProto = (request.headers.get('x-forwarded-proto') || '').split(',')[0]?.trim();
@@ -459,6 +499,21 @@ export async function GET(request: NextRequest) {
 
         const selfLink = `${origin}${request.nextUrl.pathname}${request.nextUrl.search}`;
 
+        // Try to get TVDB ID for the series (for Sonarr integration)
+        // This allows Sonarr to automatically identify the series without override
+        let tvdbId: string | null = null;
+        if (isTv && searchQuery) {
+            try {
+                const seriesInfo = await searchSeries(searchQuery);
+                if (seriesInfo) {
+                    tvdbId = String(seriesInfo.tvdbId);
+                    logger.info('search', `[${service.toUpperCase()}] Found TVDB ID for "${searchQuery}": ${tvdbId}`);
+                }
+            } catch (error) {
+                logger.warn('search', `[${service.toUpperCase()}] Failed to find TVDB ID for "${searchQuery}": ${error}`);
+            }
+        }
+
         const items = rankedResults.map((result, idx) => {
             // Extract quality hints from title
             let category = result.category || '7000'; // Other by default
@@ -484,6 +539,30 @@ export async function GET(request: NextRequest) {
             const enclosureUrl = `${origin}/api/arr?t=get&id=${encodeURIComponent(guid)}&apikey=${apiKey}`;
             const escapedLink = escapeXml(enclosureUrl);
 
+            // Extract metadata for Newznab attributes
+            const detectedSeason = extractSeasonFromTitle(result.title);
+            const detectedEpisodes = extractEpisodesFromTitle(result.title);
+
+            // Build newznab attributes
+            let newznabAttrs = `            <newznab:attr name="category" value="${category}"/>
+            <newznab:attr name="size" value="${size}"/>
+            <newznab:attr name="guid" value="${guid}"/>`;
+
+            if (isTv && tvdbId) {
+                newznabAttrs += `
+            <newznab:attr name="tvdbid" value="${tvdbId}"/>`;
+            }
+
+            if (detectedSeason !== null) {
+                newznabAttrs += `
+            <newznab:attr name="season" value="${detectedSeason}"/>`;
+            }
+
+            if (detectedEpisodes) {
+                newznabAttrs += `
+            <newznab:attr name="episodes" value="${detectedEpisodes}"/>`;
+            }
+
             return `    <item>
             <title><![CDATA[${result.title}]]></title>
             <guid isPermaLink="false">${guid}</guid>
@@ -492,9 +571,7 @@ export async function GET(request: NextRequest) {
             <category>${category}</category>
             <description><![CDATA[${result.forum ?? result.forumName ?? 'Sweaterr'} - ${result.url}]]></description>
             <enclosure url="${escapedLink}" length="${size}" type="application/x-nzb"/>
-            <newznab:attr name="category" value="${category}"/>
-            <newznab:attr name="size" value="${size}"/>
-            <newznab:attr name="guid" value="${guid}"/>
+${newznabAttrs}
         </item>`;
         }).join('\n');
 
