@@ -1,7 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
-const logsDir = path.join(process.cwd(), 'logs');
+// Use __dirname to get the directory of this file, then go up to project root
+const projectRoot = path.resolve(__dirname, '../../..');
+const logsDir = path.join(projectRoot, 'logs');
 
 // Create logs directory if it doesn't exist (only on server)
 if (typeof window === 'undefined') {
