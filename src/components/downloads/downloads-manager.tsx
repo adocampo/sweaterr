@@ -106,7 +106,8 @@ export function DownloadsManager({ language = 'es' }: { language?: 'es' | 'en' }
   // See ARCHITECTURE.md > PROBLEMAS CONOCIDOS > Polling HTTP Floods Console Output
   useEffect(() => {
     fetchDownloads();
-    if (autoRefresh) {
+    // Disable polling in development to prevent constant reloads
+    if (autoRefresh && process.env.NODE_ENV === 'production') {
       // Reduce polling frequency: 3s for active downloads, 10s for idle
       // This prevents console spam while keeping UI responsive
       const hasActive = downloads.some((d) => {
