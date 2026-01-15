@@ -4,6 +4,31 @@ import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { logger } from '@/lib/logger';
 
+// Simplified metadata extraction for filtering season pack results
+function extractSeasonFromTitle(title: string): number | null {
+    // Priority 1: Ordinal patterns with possible text between: "5ª 2/2 Temporada Final", "3º mitad Temporada"
+    let match = title.match(/(\d{1,2})(?:ª|º)\s+.{0,20}?\b(?:temporada|temp\.?|season)\b/i);
+    if (match) return parseInt(match[1], 10);
+    
+    // Standard ordinal without text between: "5ª Temporada", "3º Season"
+    match = title.match(/(\d{1,2})(?:ª|º)\s*(?:temporada|temp\.?|season)/i);
+    if (match) return parseInt(match[1], 10);
+
+    // Reverse pattern: "Temporada 15ª", "Season 3º"
+    match = title.match(/(?:temporada|temp\.?|season)\s*(\d{1,2})(?:ª|º)?/i);
+    if (match) return parseInt(match[1], 10);
+
+    // Priority 2: T-prefixed patterns: T1, T.1, T5ª, etc
+    match = title.match(/\b[Tt]\.?(\d{1,2})/i);
+    if (match) return parseInt(match[1], 10);
+
+    // Priority 3: S-prefixed patterns: S1, Season 1, etc
+    match = title.match(/\b[Ss](?:eason)?\s*(\d{1,2})/i);
+    if (match) return parseInt(match[1], 10);
+
+    return null;
+}
+
 // TODO: Future enhancement - Include cleanTitle in Newznab XML response
 // Once metadata extraction stabilizes, update the <title> field to use cleanTitle
 // instead of raw forum title. This will allow Sonarr/Radarr to perform more
@@ -318,12 +343,33 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        // CRITICAL: Filter results by season if tvsearch with season param
+        // This ensures only matching season results are returned to Sonarr
+        let filteredResults = allResults;
+        if (shouldSearch && isTv && season) {
+            const requestedSeason = parseInt(String(season), 10);
+            const preFilterCount = allResults.length;
+            
+            filteredResults = allResults.filter(result => {
+                const detectedSeason = extractSeasonFromTitle(result.title || '');
+                const matches = detectedSeason === requestedSeason;
+                
+                if (!matches && detectedSeason !== null) {
+                    logger.info('search', `[${service.toUpperCase()}] Filtered out: "${result.title}" (detected season ${detectedSeason}, requested ${requestedSeason})`);
+                }
+                
+                return matches;
+            });
+
+            logger.info('search', `[${service.toUpperCase()}] Season filter applied: ${preFilterCount} results → ${filteredResults.length} results matching season ${requestedSeason}`);
+        }
+
         // Rank results with AI if available, or apply heuristic ranking for season packs
-        let rankedResults = allResults;
+        let rankedResults = filteredResults;
         
         // For season pack searches (tvsearch with season but no episode),
         // apply scoring to prioritize exact season matches
-        if (isTv && season && !ep && allResults.length > 0) {
+        if (isTv && season && !ep && filteredResults.length > 0) {
             const seasonNum = parseInt(String(season).padStart(2, '0'), 10);
             const scoreResult = (result: any): { score: number; reason: string } => {
                 let score = 0;
@@ -383,8 +429,8 @@ export async function GET(request: NextRequest) {
                 return { score, reason: reason.trim() };
             };
 
-            // Apply scoring
-            const scoredResults = allResults.map((result, idx) => ({
+            // Apply scoring to filtered results
+            const scoredResults = filteredResults.map((result, idx) => ({
                 ...result,
                 _score: scoreResult(result),
                 _originalIndex: idx,
@@ -403,7 +449,7 @@ export async function GET(request: NextRequest) {
             logger.info('search', `[${service.toUpperCase()}] Season pack scoring applied: Top result: "${rankedResults[0]?.title}" (score=${scoredResults[0]?._score.score}, reason=${scoredResults[0]?._score.reason})`);
         }
         
-        if (aiService && allResults.length > 0) {
+        if (aiService && filteredResults.length > 0) {
             // TODO: Use AI to further rank results
             // For now, use heuristic ranking above
         }
