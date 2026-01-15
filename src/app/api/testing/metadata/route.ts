@@ -166,6 +166,9 @@ function extractCleanTitle(text: string): string {
     clean = clean.replace(/\b(?:[Tt]emporada|[Ss]eason)\s+\d{1,2}(?:ª|º)?\b/gi, '');
     clean = clean.replace(/\b\d{1,2}(?:ª|º)?\s+(?:[Tt]emporada|[Ss]eason)\b/gi, '');
     
+    // Remove standalone "Temporada" or "Season" words (in case they remain after number removal)
+    clean = clean.replace(/\b(?:[Tt]emporada|[Ss]eason)\b/gi, '');
+    
     // Remove "Final" keyword (often used for final season/episodes)
     clean = clean.replace(/\bFinal\b/gi, '');
     
