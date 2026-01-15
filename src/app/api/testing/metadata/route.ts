@@ -172,12 +172,16 @@ function extractCleanTitle(text: string): string {
     // Remove size patterns: 2.5GB, 3.14 MB, etc
     clean = clean.replace(/\b\d+(?:[.,]\d+)?\s*(?:GB|GiB|MB|MiB)\b/gi, '');
     
-    // Remove language patterns: Dual, Castellano, Inglés, Español, English, etc
-    clean = clean.replace(/\b(?:Dual|Castellano|Español|Inglés|English|Francés|Latino|Latin|Latam|Japones|Japonés|Coreano|Koreano)\b/gi, '');
+    // Remove language patterns and subtitle indicators: Dual, Castellano, Inglés, Español, English, Subt, Subs, etc
+    clean = clean.replace(/\b(?:Dual|Castellano|Español|Inglés|English|Francés|Latino|Latin|Latam|Japones|Japonés|Coreano|Koreano|Subt|Subs|Sub)\b/gi, '');
     
     // Remove special/bracketed patterns: [...] and (...)
     clean = clean.replace(/\[.*?\]/g, '');
     clean = clean.replace(/\(.*?\)/g, '');
+    
+    // Remove + prefixed metadata (e.g., "+ Subt", "+ Castellano", "+ Dual")
+    clean = clean.replace(/\s*\+\s+\w+/gi, '');
+    clean = clean.replace(/\s*\+\s*$/g, ''); // Remove trailing +
     
     // Remove stray brackets and plus signs that may remain
     clean = clean.replace(/[\[\]]/g, '');
