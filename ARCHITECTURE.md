@@ -880,6 +880,72 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-16 (FEATURE: Automatic series identification in Sonarr via TVDB ID)
+
+**Estado**: ✅ COMPLETADO
+
+**Problema identificado**:
+
+Aunque Sweaterr devolvía los resultados correctos (temporada 5), Sonarr no sabía a qué serie pertenecían ni a qué temporada/episodios corresponder. El usuario tenía que hacer clic en "Override and add to download queue" para seleccionar manualmente:
+
+- Serie (de su lista de Sonarr)
+- Temporada
+- Episodios
+
+Esto era tedioso cuando Sweaterr ya **sabía** la serie, temporada, y cantidad de episodios.
+
+**Solución implementada (1 commit - 09fdc20)**:
+
+**1. Nuevo servicio TVDBService** (`src/lib/services/tvdb.ts`):
+
+- Búsqueda de series por nombre usando API gratuita de TVMaze
+- Extrae `tvdbId` (ID de TVDB) para cada serie
+- Implementa caché local para optimizar llamadas repetidas
+
+**2. Nueva función extractEpisodesFromTitle()** (`src/app/api/arr/search/route.ts`):
+
+- Detecta cantidad de episodios desde patrones comunes: `[24/24]`, `(13)`, `1/13`, etc.
+- Retorna rango: `"1-24"`, `"1-13"`, etc.
+
+**3. Actualización del XML de búsqueda**:
+
+- Ahora incluye atributos Newznab que Sonarr interpreta:
+  - `tvdbid`: ID de la serie (ej: `76156` para Scrubs)
+  - `season`: Temporada detectada (ej: `5`)
+  - `episodes`: Episodios (ej: `1-24`)
+
+**Flujo mejorado**:
+
+```text
+Usuario en Sonarr: busca "Scrubs" season 5
+↓
+Sweaterr devuelve XML con:
+  <newznab:attr name="tvdbid" value="76156"/>
+  <newznab:attr name="season" value="5"/>
+  <newznab:attr name="episodes" value="1-24"/>
+↓
+Sonarr reconoce automáticamente:
+  - Serie: Scrubs (tvdbId 76156)
+  - Temporada: 5
+  - Episodios: 1-24
+↓
+Usuario PUEDE hacer clic en "Add to download queue" SIN override
+```
+
+**Validación**:
+
+```bash
+# Búsqueda de Scrubs season 5
+curl "http://localhost:3000/api/arr?t=tvsearch&q=scrubs&season=5&apikey=..."
+
+# Respuesta incluye:
+# <newznab:attr name="tvdbid" value="76156"/>
+# <newznab:attr name="season" value="5"/>
+# <newznab:attr name="episodes" value="1-24"/>
+```
+
+---
+
 ### 2026-01-16 (FIX: Logger path resolution in compiled builds)
 
 **Estado**: ✅ COMPLETADO
