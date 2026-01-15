@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
-// Use __dirname to get the directory of this file, then go up to project root
-const projectRoot = path.resolve(__dirname, '../../..');
-const logsDir = path.join(projectRoot, 'logs');
+// Use process.cwd() to get the working directory where the process was started
+// This works consistently in both dev and production builds
+const logsDir = path.join(process.cwd(), 'logs');
 
 // Create logs directory if it doesn't exist (only on server)
 if (typeof window === 'undefined') {
