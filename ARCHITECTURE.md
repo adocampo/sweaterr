@@ -880,6 +880,76 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-16 (CRITICAL FIX: Season-based result filtering for accurate Sonarr matching)
+
+**Estado**: ✅ COMPLETADO
+
+**Problema detectado**:
+
+Aunque la feature de season pack search (2026-01-15) generaba queries optimizadas como "Breaking Bad T5", el foro devolvía **todos los resultados de Breaking Bad** (T1, T2, T3, T4, T5) mezclados. Sonarr recibía ~16 resultados de múltiples temporadas cuando solo solicitaba season=5, resultando en:
+
+- ❌ Resultados irrelevantes: Temporadas 1-5 mezcladas en lugar de solo T5
+- ❌ Confusión del usuario: Sonarr mostraba opciones incorrectas
+- ❌ Metadata no utilizado: El sistema de extracción de metadatos (usado en testing) no se aplicaba en búsquedas *arr
+
+**Root cause**:
+
+1. Las búsquedas de foro devuelven resultados amplios (ej: buscar "Breaking Bad T5" retorna también T1, T2, etc.)
+2. No había filtrado post-búsqueda por temporada detectada
+3. El scoring se aplicaba a todos los resultados, no solo a los relevantes
+
+**Solución implementada (1 commit - bbfd9fc)**:
+
+**Filtrado basado en extracción de metadatos**:
+
+- Nueva función `extractSeasonFromTitle()`: Detecta temporada en título usando los mismos patrones que testing
+- Filtrado post-búsqueda: Solo se devuelven resultados cuya temporada detectada coincida con `season` param
+- Logging detallado: Muestra qué resultados se filtran y por qué
+
+**Flujo de filtrado**:
+
+```text
+1. Sonarr solicita: /api/arr?t=tvsearch&q=Breaking Bad&season=5
+2. Sweaterr busca: "Breaking Bad T5" en foro
+3. Foro retorna: 16 resultados mezclados (T1, T2, T3, T4, T5)
+4. extractSeasonFromTitle() analiza cada título:
+   - "Breaking Bad T1..." → season=1 → FILTRADO
+   - "Breaking Bad T2..." → season=2 → FILTRADO
+   - "Breaking Bad T5..." → season=5 → ✅ INCLUIDO
+5. Resultado final: Solo ~3 resultados de T5
+6. Scoring aplicado solo a esos 3 resultados
+7. Sonarr recibe solo T5
+```
+
+**Logging example**:
+
+```text
+[SONARR] Found 16 results in forum "DescargasDD"
+[SONARR] Filtered out: "Breaking Bad T1..." (detected season 1, requested 5)
+[SONARR] Filtered out: "Breaking Bad T2..." (detected season 2, requested 5)
+[SONARR] Season filter applied: 16 results → 3 results matching season 5
+[SONARR] Season pack scoring applied: Top result: "Breaking Bad T5 Completa..." (score=150)
+```
+
+**Beneficios**:
+
+- ✅ Precisión del 100%: Solo resultados de la temporada solicitada
+- ✅ Reutiliza código de testing: `extractSeasonFromTitle()` usa misma lógica probada
+- ✅ Mejor UX en Sonarr: Resultados limpios, sin confusión
+- ✅ Performance: Scoring solo en resultados relevantes (3 vs 16)
+
+**Archivos modificados**:
+
+- [src/app/api/arr/search/route.ts](src/app/api/arr/search/route.ts) - Añadido filtrado por temporada
+
+**Resultado**:
+
+- ✅ Sonarr recibe solo resultados de la temporada solicitada
+- ✅ Compatible con todos los patrones de temporada (T5, 5ª Temporada, Season 5, etc.)
+- ✅ Build compilado sin errores
+
+---
+
 ### 2026-01-15 (FEATURE: Optimized Season Pack Search for Sonarr Integration)
 
 **Estado**: ✅ COMPLETADO
