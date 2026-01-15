@@ -16,6 +16,7 @@ node_modules
 # logs
 logs/
 *.log
+dev.out
 
 # next.js
 /.next/
@@ -34,7 +35,9 @@ logs/
 # databases / prisma
 *.sqlite
 *.db
+*.db-journal
 /dev.db
+/dev_migrate_check.db
 /prisma/dev.db*
 
 # misc

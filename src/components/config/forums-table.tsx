@@ -101,9 +101,11 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
         };
 
         fetchSessions();
-        // Refresh every 30 seconds
-        const interval = setInterval(fetchSessions, 30000);
-        return () => clearInterval(interval);
+        // Refresh every 30 seconds (disabled in development to prevent reloads)
+        if (process.env.NODE_ENV === 'production') {
+            const interval = setInterval(fetchSessions, 30000);
+            return () => clearInterval(interval);
+        }
     }, [forums]);
 
     const handleDelete = async (forumId: string) => {

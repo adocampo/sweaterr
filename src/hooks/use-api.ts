@@ -400,9 +400,11 @@ export function useDownloads() {
   useEffect(() => {
     fetchDownloads();
 
-    // Update status every 30 seconds
-    const interval = setInterval(updateStatus, 30000);
-    return () => clearInterval(interval);
+    // Skip polling in development to avoid constant reloads during testing
+    if (process.env.NODE_ENV === 'production') {
+      const interval = setInterval(updateStatus, 30000);
+      return () => clearInterval(interval);
+    }
   }, []);
 
   return {

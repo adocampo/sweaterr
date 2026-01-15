@@ -806,6 +806,57 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-15 (FIXED: Prevented full page re-renders during download updates via React Context isolation)
+
+**Estado**: ✅ COMPLETADO
+
+**Problema detectado**:
+
+El dashboard principal (`src/app/page.tsx`) causaba re-renders completos de toda la página cada vez que se actualizaban las estadísticas de descargas. Esto ocurría porque el estado de descargas (totalSpeed, activeDownloadsCount, jDownloaderStats, etc.) se manejaba directamente en el componente raíz del dashboard. Cuando este estado cambiaba (cada 10 segundos con descargas activas de JDownloader), React re-renderizaba todo el árbol de componentes de la página.
+
+**Síntomas**:
+
+- ❌ Toda la página se re-renderizaba cada 10 segundos con descargas activas de JDownloader
+- ❌ Re-renders innecesarios de componentes que no dependían del estado de descargas
+- ❌ Mala experiencia de usuario: posible lag durante re-renders
+- ❌ Polling de otros componentes se disparaba en cascada durante el re-render
+- ❌ Arquitectura incorrecta: estado global en componente individual
+
+**Root cause**:
+
+1. El estado de descargas (totalSpeed, activeDownloadsCount, jDownloaderStats, jDownloaderDownloads) estaba declarado en `page.tsx` con `useState()`
+2. Un `useEffect` con polling cada 10s actualizaba estos estados en el componente principal
+3. Cada actualización de estado causaba que React re-renderizara todo el árbol de `page.tsx` y sus hijos
+4. Componentes que no necesitaban los datos de descargas también se re-renderizaban innecesariamente
+
+**Solución implementada (1 commit - eb41940)**:
+
+**Creación de React Context para aislar estado de descargas**:
+
+- Creado `src/contexts/downloads-context.tsx` con `DownloadsProvider` y `useDownloadsContext()` hook
+- Movida toda la lógica de polling del componente `page.tsx` al provider del contexto
+- Polling para JDownloader: cada 10 segundos (`/api/downloads/status`)
+- Polling para DB downloads: cada 30 segundos (`/api/downloads`)
+- Estado gestionado: `totalSpeed`, `activeDownloadsCount`, `jDownloaderStats`, `jDownloaderDownloads`, `dbDownloads`
+- Solo componentes que consumen el contexto con `useDownloadsContext()` se re-renderizan al cambiar el estado
+- Página principal (`page.tsx`) ahora solo proporciona el provider sin manejar estado de descargas
+- Build verificado: sin errores de prerendering
+
+**Archivos modificados**:
+
+- `src/contexts/downloads-context.tsx`: **NUEVO** - Context provider con lógica de polling aislada
+- `src/app/page.tsx`: Refactorizado para usar context en lugar de estado local
+
+**Resultado**:
+
+- ✅ Solo los componentes específicos que usan `useDownloadsContext()` se re-renderizan
+- ✅ El resto de la página permanece estático durante actualizaciones de descargas
+- ✅ Mejor rendimiento y experiencia de usuario
+- ✅ Arquitectura correcta: estado global en contexto, no en componente individual
+- ✅ Facilita futuras optimizaciones (React.memo, useMemo, etc.)
+
+---
+
 ### 2026-01-15 (IMPROVED: Comprehensive metadata extraction refinement - strict series detection, ordinal patterns, and comprehensive title cleaning)
 
 **Estado**: ✅ COMPLETADO

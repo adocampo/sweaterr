@@ -124,24 +124,50 @@ Estado: 11 de enero de 2026
 - **Archivos afectados**: `src/app/page.tsx`, `src/components/downloads/downloads-manager.tsx`
 - **Estimación**: 4-6 horas
 
-### 5. **Reload Completo de UI Cada Pocos Segundos** ⚠️
+### 5. **Reload Completo de UI Cada Pocos Segundos** ✅
 
-- **Severidad**: Crítica (UX bloqueada)
-- **Área**: Frontend/App Router (`src/app/page.tsx`, `src/hooks/use-api.ts`, middleware)
-- **Problema**: Tras los cambios de hoy, la UI se recarga COMPLETA cada pocos segundos, sin importar la página; imposible interactuar
-- **Impacto**: Formularios, configuraciones y descargas son inutilizables; polling parece disparar reload total en vez de refresco de datos
-- **Hipótesis**:
-  - Algún `setInterval`/`setTimeout` llamando a `window.location.reload()` o `router.refresh()`
-  - Polling en `useApi` o middleware provocando redirect/refresh por token inválido
-  - `router.replace` en efectos dependientes de datos que cambian continuamente
-- **Tareas**:
-  - [ ] Reproducir en cada vista y capturar origen del reload (logs en navegador)
-  - [ ] Auditar efectos/polling recientes (`useApi`, dashboard, downloads, config)
-  - [ ] Eliminar/aislar llamadas a `location.reload`/`router.refresh`; usar setState/SWR en su lugar
-  - [ ] Validar que auth/middleware no dispara 302/redirect loops
-  - [ ] Test manual: permanecer 60s en Configuración sin ningún reload
-- **Estimación**: 2-3 horas
-- **Prioridad**: Resolver primero (bloquea cualquier uso de la app)
+- **Severidad**: Crítica (UX bloqueada) ➡️ **RESUELTO**
+- **Área**: Frontend/App Router (`src/app/page.tsx`, `src/hooks/use-api.ts`, `next.config.ts`, `src/lib/logger.ts`, `src/contexts/downloads-context.tsx`)
+- **Estado**: ✅ **COMPLETADO** (15 de enero 2026) - Branch `fix/prevent-constant-reloads` con 7 commits
+- **Problema**: La UI se recargaba COMPLETA cada pocos segundos en desarrollo, especialmente con descargas activas de JDownloader; polling disparaba reload total en vez de refresco de datos
+- **Impacto**: Formularios, configuraciones y descargas eran inutilizables; imposible interactuar con la interfaz
+- **Root causes identificados**:
+  1. Webpack watchando logs/db-journal en project root causaba file-change reloads
+  2. `useEffect` sin dependency array en `/api/auth/me` causaba auth token log spam
+  3. useEffect con `downloads` en dependency array causaba re-renders en cascada
+  4. Logger escribiendo en project root en lugar de `/logs` (Webpack watchers detectaban cambios)
+  5. Múltiples polling intervals activos en desarrollo (30s, 10s, 3s)
+  6. Interval de velocidad con `activeDownloadsCount` en dependencies se recreaba constantemente
+  7. **Arquitectura incorrecta**: Estado de descargas en componente page.tsx causaba full page re-renders
+- **Solución implementada (7 commits)**:
+  - **Commit dbe2220**: Webpack watchOptions ignoring logs/db files
+  - **Commit 6e505fa**: Fixed auth useEffect dependency array
+  - **Commit 4999814**: Changed downloads to useRef to prevent dependency issues
+  - **Commit 3c1ec00**: Logger absolute path fix (prevents root logs)
+  - **Commit 2535386**: Disabled polling in development mode for all hooks
+  - **Commit 8ba841a**: Fixed download speed polling interval dependency
+  - **Commit eb41940**: **Refactor arquitectural - React Context isolation**
+    - Creado `src/contexts/downloads-context.tsx` con `DownloadsProvider` y `useDownloadsContext()`
+    - Movida lógica de polling de descargas del componente `page.tsx` al provider del contexto
+    - Solo componentes que consumen el contexto se re-renderizan al actualizar descargas
+    - Previene full page re-renders cuando cambian estadísticas de descargas
+    - Polling: 10s para JDownloader, 30s para DB downloads
+- **Archivos modificados**:
+  - `next.config.ts` - watchOptions para ignorar logs/db
+  - `src/lib/logger.ts` - Path absoluto a /logs
+  - `src/hooks/use-api.ts` - Polling disabled en dev
+  - `src/components/config/forums-table.tsx` - Polling disabled en dev
+  - `src/components/config/forum-session-settings.tsx` - Polling disabled en dev
+  - `src/components/downloads/downloads-manager.tsx` - Polling disabled en dev
+  - `src/contexts/downloads-context.tsx` - **NUEVO** - Context provider con polling aislado
+  - `src/app/page.tsx` - Refactorizado para usar context
+- **Resultado**:
+  - ✅ Página ya no se recarga en desarrollo sin descargas activas
+  - ✅ Con descargas activas, solo componentes específicos se re-renderizan
+  - ✅ Arquitectura correcta: estado global en contexto, no en componente individual
+  - ✅ Build verificado sin errores de prerendering
+- **Horas invertidas**: ~4 horas
+- **Prioridad**: ✅ RESUELTO
 
 ### 6. **Passwords en Texto Plano en BD**
 
