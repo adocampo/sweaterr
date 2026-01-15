@@ -30,6 +30,7 @@ interface ExtractedLink {
 interface MediaMetadata {
     type: 'series' | 'movie' | 'unknown';
     title?: string | null;
+    cleanTitle?: string | null;
     year?: number | null;
     season?: number | null;
     quality?: string | null;
@@ -77,8 +78,42 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
     const [metadataTime, setMetadataTime] = useState<number | null>(null);
     const [metadataMode, setMetadataMode] = useState<string | null>(null);
     const [totalMetadataResults, setTotalMetadataResults] = useState<number | null>(null);
+    const [visibleTypes, setVisibleTypes] = useState<Set<'series' | 'movie' | 'unknown'>>(
+        new Set(['series', 'movie', 'unknown'])
+    );
     const { loading: bulkLoading, resolveTitles } = useBulkTitles();
     const [bulkError, setBulkError] = useState<string | null>(null);
+
+    // Toggle visibility of a specific type
+    const toggleType = (type: 'series' | 'movie' | 'unknown') => {
+        const newSet = new Set(visibleTypes);
+        if (newSet.has(type)) {
+            newSet.delete(type);
+        } else {
+            newSet.add(type);
+        }
+        setVisibleTypes(newSet);
+    };
+
+    // Filter results based on visible types
+    const filteredResults = results.filter(result => {
+        const meta = metadataByPost[result.url];
+        if (!meta) return true; // Show if metadata not yet loaded
+        return visibleTypes.has(meta.type);
+    });
+
+    // Count results by type
+    const typeCount = {
+        series: 0,
+        movie: 0,
+        unknown: 0,
+    };
+    results.forEach(result => {
+        const meta = metadataByPost[result.url];
+        if (meta) {
+            typeCount[meta.type]++;
+        }
+    });
 
     const formatResultsSummary = () => {
         if (totalResults) {
@@ -420,6 +455,44 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                         </div>
                     )}
 
+                    {/* Type filter checkboxes */}
+                    <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/30 rounded-md">
+                        <span className="text-sm font-medium">{t('testing.filterByType')}</span>
+                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <input
+                                type="checkbox"
+                                checked={visibleTypes.has('series')}
+                                onChange={() => toggleType('series')}
+                                className="rounded"
+                            />
+                            <span>{t('testing.typeSeries')} ({typeCount.series})</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <input
+                                type="checkbox"
+                                checked={visibleTypes.has('movie')}
+                                onChange={() => toggleType('movie')}
+                                className="rounded"
+                            />
+                            <span>{t('testing.typeMovie')} ({typeCount.movie})</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+                            <input
+                                type="checkbox"
+                                checked={visibleTypes.has('unknown')}
+                                onChange={() => toggleType('unknown')}
+                                className="rounded"
+                            />
+                            <span>{t('testing.typeUnknown')} ({typeCount.unknown})</span>
+                        </label>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                            {t('testing.showingFilteredResults', { 
+                                shown: filteredResults.length, 
+                                total: results.length 
+                            })}
+                        </span>
+                    </div>
+
                     <div className="overflow-x-auto border rounded-md">
                         <table className="min-w-full text-sm">
                             <thead className="bg-muted/60">
@@ -437,10 +510,10 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                 </tr>
                             </thead>
                             <tbody>
-                                {results.map((result, index) => {
+                                {filteredResults.map((result, index) => {
                                     const postLinks = extractedByPost[result.url] || [];
                                     const meta = metadataByPost[result.url];
-                                    const displayTitle = meta?.title || titles[result.url] || result.title;
+                                    const displayTitle = meta?.cleanTitle || meta?.title || titles[result.url] || result.title;
                                     const typeLabel = meta?.type === 'series'
                                         ? t('testing.typeSeries')
                                         : meta?.type === 'movie'

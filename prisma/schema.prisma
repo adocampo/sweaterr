@@ -55,6 +55,9 @@ model Forum {
   // Download client (SABnzbd-compatible) category advertised to *arr
   sabnzbdCategory String? // e.g. "tv-sonarr" or "movies-radarr"
   
+  // Default language for forum audio (e.g., "es-ES", "en-US")
+  defaultLanguage String @default("es-ES") // Language of audio content in this forum
+  
   // Configuration for parsing
   thankButtonSelector    String? // CSS selector for thank button
   linksContainerSelector String? // CSS selector for links container

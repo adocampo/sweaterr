@@ -100,6 +100,7 @@ export interface ForumConfigForm {
   searchTitleOnly?: boolean;
   cseId?: string;
   sabnzbdCategory?: string;
+  defaultLanguage?: string;
   thankButtonSelector?: string;
   linksContainerSelector?: string;
   postTitleSelector?: string;
