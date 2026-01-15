@@ -545,6 +545,80 @@ Para mejorar matching en foros hispanohablantes:
 - `Series 1x05` → `Series S01E05`, `Series temporada 1 episodio 5`
 - Límite: 8 variantes por búsqueda para evitar sobrecarga
 
+#### 8.1. Búsqueda Optimizada de Season Packs (NEW - Enero 2026)
+
+**Problema resuelto**: Cuando Sonarr busca una serie con temporada específica (ej: `Breaking Bad Season 5`), el sistema anterior devolvía resultados genéricos del foro. Para foros de descarga directa que típicamente albergan "packs" de temporadas completas, era ineficiente.
+
+**Solución implementada**:
+
+**Función `buildSeasonPackVariants()`**: Cuando `tvsearch` incluye `season` pero NO `ep` (búsqueda de temporada completa), genera variantes específicas para season packs:
+
+```text
+// Prioridad 1: Season pack queries (Spanish-optimized for direct download forums)
+- "${series} T${season}" // Breaking Bad T5
+- "${series} temporada ${season}" // Breaking Bad temporada 5
+- "${series} T${season} pack" // Breaking Bad T5 pack
+- "${series} temporada ${season} completa" // Breaking Bad temporada 5 completa
+- "${series} season ${season} pack" // Breaking Bad season 5 pack (English fallback)
+- "${series} season ${season}" // Breaking Bad season 5 (English fallback)
+```
+
+**Integración en flujo de búsqueda**:
+
+1. **Detección de búsqueda por temporada**: Si `tvsearch` con `season` pero sin `ep`, activa modo season pack
+2. **Priorización de variantes**: Las variantes de season pack se intentan primero, antes que búsquedas genéricas
+3. **Orden de intentos**: Stop at first successful match (mejora velocidad y evita resultados irrelevantes)
+
+**Scoring inteligente de resultados** (cuando hay resultados de multiple variantes):
+
+```typescript
+// Scoring heurístico para season packs:
++ 100 puntos: Coincidencia exacta de temporada en título (T5, temporada 5, season 5)
++  50 puntos: Indicadores de pack (pack, completa, complete, full)
+-  30 puntos: Múltiples temporadas en el mismo resultado (penalización)
+
+// Ejemplo:
+"Breaking Bad T5 Español 1080p" → +100 (exact season match)
+"Breaking Bad T5 pack" → +100 + 50 = +150 (exact season + pack indicator)
+"Breaking Bad T1-T5" → -30 (multiple seasons detected)
+"Breaking Bad" → 0 (no season info)
+```
+
+**Beneficios**:
+
+- ✅ Resultados más relevantes: Season packs exactos se priorizan automáticamente
+- ✅ Compatible con Sonarr/Radarr: Integrarse naturalmente en búsqueda indexer
+- ✅ Mejor velocidad: Stop at first match evita búsquedas innecesarias
+- ✅ Multiidioma: Variantes en español e inglés según foro preferido
+
+**Ejemplo de flujo con Sonarr**:
+
+```
+1. Usuario añade "Breaking Bad" a Sonarr
+2. Sonarr → GET /api/arr?t=tvsearch&q=Breaking+Bad&season=5
+3. Sweaterr ejecuta buildTvVariants() → activa season pack mode
+4. Intenta variantes en orden:
+   - "Breaking Bad T5" ✅ Encuentra 3 resultados
+   - (stop, no intenta "Breaking Bad temporada 5" etc.)
+5. Aplica scoring:
+   - "Breaking Bad T5 Completa 1080p" → score 150 (rank 1)
+   - "Breaking Bad T5 pack" → score 150 (rank 2)
+   - "Breaking Bad T5" → score 100 (rank 3)
+6. Devuelve top 3 resultados en XML/RSS
+7. Sonarr muestra "Breaking Bad T5 Completa 1080p" como default
+8. Usuario selecciona → Se descarga automáticamente
+```
+
+**Logging**:
+
+```text
+[SONARR] Starting forum search for query: "Breaking Bad" (variants: 6, isTv=true, season=5, ep=null)
+[SONARR] Searching in forum "DescargasDD" with variant: "Breaking Bad T5"
+[SONARR] Found 3 results in forum "DescargasDD"
+[SONARR] Season pack scoring applied: Top result: "Breaking Bad T5 Completa 1080p" (score=150, reason=Exact season match; Season pack indicator;)
+[SONARR] Returning XML response with 3 items
+```
+
 #### Placeholders y Fallbacks
 
 **Problema**: *arr puede interpretar resultado vacío como indexer offline
@@ -805,6 +879,70 @@ DEEPSEEK_API_KEY="..."
 ---
 
 ## 📝 CHANGELOG
+
+### 2026-01-15 (FEATURE: Optimized Season Pack Search for Sonarr Integration)
+
+**Estado**: ✅ COMPLETADO
+
+**Feature completada**: Búsqueda optimizada de season packs cuando Sonarr solicita una temporada específica. El sistema ahora prioriza queries de "season pack" (ej: "Breaking Bad T5") antes que búsquedas genéricas, resultando en mejor matching y velocidad.
+
+**Problema resuelto**:
+
+Cuando Sonarr busca una serie con temporada específica (ejemplo: `Breaking Bad Season 5`), el endpoint `/api/arr/search` devolvía resultados genéricos del foro sin considerar que los foros de descarga directa típicamente albergan "packs" de temporadas completas. Esto resultaba en:
+
+- ❌ Búsquedas lentas: Múltiples variantes de queries genéricas sin éxito
+- ❌ Resultados irrelevantes: Mezcla de episodios individuales, capítulos parciales, etc.
+- ❌ Experiencia pobre: Sonarr no podía auto-seleccionar el pack más relevante
+
+**Solución implementada**:
+
+**1. Nueva función `buildSeasonPackVariants()` (src/app/api/arr/search/route.ts)**:
+
+Cuando `tvsearch` incluye `season` pero NO `ep`, genera 6 variantes específicas para season packs:
+
+- Spanish-optimized: "T5", "temporada 5", "T5 pack", "temporada 5 completa"
+- English fallback: "season 5 pack", "season 5"
+
+**2. Reordenamiento de prioridades en `buildTvVariants()`**:
+
+- Si season pero sin episode: Intenta variantes de season pack PRIMERO
+- Stop at first match: Evita búsquedas innecesarias cuando ya hay resultados relevantes
+- Limit: máx 10 variantes por búsqueda (aumento de 8 anterior)
+
+**3. Scoring inteligente de resultados** (nueva función de scoring post-búsqueda):
+
+```text
+Puntos por criterio:
++ 100: Coincidencia exacta de temporada (T5, temporada 5, season 5)
++  50: Indicadores de pack (pack, completa, complete, full)
+-  30: Múltiples temporadas detectadas en título
+
+Ejemplo ranking:
+1. "Breaking Bad T5 Completa 1080p" (score 150)
+2. "Breaking Bad T5 pack" (score 150)
+3. "Breaking Bad T5" (score 100)
+4. "Breaking Bad" (score 0)
+```
+
+**Beneficios**:
+
+- ✅ Resultados más relevantes: Season packs exactos automáticamente priorizados
+- ✅ Mejor velocidad: Stop at first match evita búsquedas innecesarias
+- ✅ Compatible con Sonarr/Radarr: Integración transparente en búsqueda de indexer
+- ✅ Multiidioma: Variantes español e inglés automáticas
+
+**Archivos modificados**:
+
+- [src/app/api/arr/search/route.ts](src/app/api/arr/search/route.ts) - Implementación de season pack search
+- [ARCHITECTURE.md](ARCHITECTURE.md#81-búsqueda-optimizada-de-season-packs-new---enero-2026) - Documentación
+
+**Validación**:
+
+- ✅ Build compilado sin errores (npm run build)
+- ✅ Lógica de scoring testeada con ejemplos
+- ✅ Logging detallado para debugging en `/api/arr/search`
+
+---
 
 ### 2026-01-15 (FIXED: Prevented full page re-renders during download updates via React Context isolation)
 

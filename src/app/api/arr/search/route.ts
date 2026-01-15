@@ -178,6 +178,29 @@ export async function GET(request: NextRequest) {
                 .trim();
         };
 
+        // Build season pack-specific variants for more accurate Sonarr searches
+        // Season packs are complete seasons typically named "Serie T5", "Serie Season 5 pack", etc.
+        const buildSeasonPackVariants = (series: string, season?: string | null): string[] => {
+            const cleaned = cleanSeriesName(series);
+            if (!season) return [];
+
+            const s = String(season).padStart(2, '0');
+            const seasonNum = parseInt(s, 10);
+            const v: string[] = [];
+
+            // Spanish variants for season packs (most common in Spanish forums)
+            v.push(`${cleaned} T${seasonNum}`);
+            v.push(`${cleaned} temporada ${seasonNum}`);
+            v.push(`${cleaned} T${seasonNum} pack`);
+            v.push(`${cleaned} temporada ${seasonNum} completa`);
+
+            // English variants as fallback
+            v.push(`${cleaned} season ${seasonNum} pack`);
+            v.push(`${cleaned} season ${seasonNum}`);
+
+            return Array.from(new Set(v)).slice(0, 6);
+        };
+
         const buildTvVariants = (series: string, season?: string | null, ep?: string | null): string[] => {
             // First, clean the series name to remove any injected season/episode info
             const cleaned = cleanSeriesName(series);
@@ -185,25 +208,29 @@ export async function GET(request: NextRequest) {
             const e = ep ? String(ep).padStart(2, '0') : '';
             const v: string[] = [];
 
-            // Always start with the cleaned series name as primary variant
+            // Priority 1: If we have season but no episode, search for season packs first
+            // This is the primary use case for Sonarr integration with direct download forums
+            if (s && !e) {
+                const packVariants = buildSeasonPackVariants(series, season);
+                v.push(...packVariants);
+            }
+
+            // Always start with the cleaned series name as secondary variant
             v.push(cleaned);
 
-            // Then add formatted variants if we have season/episode info
+            // Then add formatted variants if we have episode info
             if (s && e) {
                 v.push(`${cleaned} ${s}x${e}`);
                 v.push(`${cleaned} S${s}E${e}`);
-                v.push(`${cleaned} temporada ${parseInt(s, 10)}`);
-                v.push(`${cleaned} T${parseInt(s, 10)}`);
                 v.push(`${cleaned} episodio ${parseInt(e, 10)}`);
                 v.push(`${cleaned} cap ${parseInt(e, 10)}`);
             } else if (s) {
-                v.push(`${cleaned} temporada ${parseInt(s, 10)}`);
-                v.push(`${cleaned} T${parseInt(s, 10)}`);
+                // Additional season variants after pack-specific ones
                 v.push(`${cleaned} S${s}`);
             }
 
             // Ensure uniqueness and limit
-            return Array.from(new Set(v)).slice(0, 8);
+            return Array.from(new Set(v)).slice(0, 10);
         };
         if (aiService && q) {
             // TODO: Use AI to enhance search query
@@ -214,16 +241,20 @@ export async function GET(request: NextRequest) {
         const allResults: any[] = [];
         const primaryCategory = cats[0] || '5000'; // Default to TV, actual category determined by service
         const requestedCategories = (cats.length > 0 ? Array.from(new Set(cats)) : [primaryCategory]).slice(0, 10);
+        const isTv = (t || '').toLowerCase() === 'tvsearch';
 
         if (shouldSearch) {
-            const isTv = (t || '').toLowerCase() === 'tvsearch';
             const variants = isTv ? buildTvVariants(searchQuery, season, ep) : [searchQuery];
 
-            logger.info('search', `[${service.toUpperCase()}] Starting forum search for query: "${searchQuery}" (variants: ${variants.length})`);
+            logger.info('search', `[${service.toUpperCase()}] Starting forum search for query: "${searchQuery}" (variants: ${variants.length}, isTv=${isTv}, season=${season}, ep=${ep})`);
 
             for (const forum of forums) {
                 try {
                     let found = false;
+
+                    // For season pack searches (tvsearch with season but no episode),
+                    // try variants in order and stop at first successful result
+                    // This gives priority to season pack queries which are more specific
                     for (const vq of variants) {
                         const effectiveTitleOnly = hasTitleOnlyParam
                             ? titleOnlyFromRequest
@@ -287,11 +318,94 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // Rank results with AI if available
+        // Rank results with AI if available, or apply heuristic ranking for season packs
         let rankedResults = allResults;
+        
+        // For season pack searches (tvsearch with season but no episode),
+        // apply scoring to prioritize exact season matches
+        if (isTv && season && !ep && allResults.length > 0) {
+            const seasonNum = parseInt(String(season).padStart(2, '0'), 10);
+            const scoreResult = (result: any): { score: number; reason: string } => {
+                let score = 0;
+                let reason = '';
+
+                // Exact season match: T5, temporada 5, season 5 in title
+                const titleLower = result.title.toLowerCase();
+                const seasonPatterns = [
+                    new RegExp(`\\bT${seasonNum}\\b`, 'i'),
+                    new RegExp(`\\btemporada\\s+${seasonNum}`, 'i'),
+                    new RegExp(`\\bseason\\s+${seasonNum}\\b`, 'i'),
+                    new RegExp(`\\bS${String(seasonNum).padStart(2, '0')}\\b`, 'i'),
+                ];
+
+                const hasExactSeasonMatch = seasonPatterns.some(p => p.test(titleLower));
+                if (hasExactSeasonMatch) {
+                    score += 100;
+                    reason += 'Exact season match; ';
+                }
+
+                // Pack indicators: complete, full, pack, completa
+                const packPatterns = [/\bpack\b/i, /\bcompleta\b/i, /\bcomplete\b/i, /\bfull\b/i];
+                const hasPackIndicator = packPatterns.some(p => p.test(titleLower));
+                if (hasPackIndicator) {
+                    score += 50;
+                    reason += 'Season pack indicator; ';
+                }
+
+                // Penalize if title contains other season numbers
+                const otherSeasonPatterns = [
+                    /\bT\d+\b/gi,
+                    /\btemporada\s+\d+/gi,
+                    /\bseason\s+\d+\b/gi,
+                    /\bS\d{2}\b/gi,
+                ];
+
+                let hasOtherSeasons = false;
+                for (const pattern of otherSeasonPatterns) {
+                    const matches = titleLower.match(pattern);
+                    if (matches) {
+                        const hasOtherMatch = matches.some(m => {
+                            const matchNum = parseInt(m.replace(/\D/g, ''), 10);
+                            return matchNum !== seasonNum;
+                        });
+                        if (hasOtherMatch) {
+                            hasOtherSeasons = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hasOtherSeasons) {
+                    score -= 30;
+                    reason += 'Multiple seasons; ';
+                }
+
+                return { score, reason: reason.trim() };
+            };
+
+            // Apply scoring
+            const scoredResults = allResults.map((result, idx) => ({
+                ...result,
+                _score: scoreResult(result),
+                _originalIndex: idx,
+            }));
+
+            // Sort by score (descending), then by original index for stable sort
+            rankedResults = scoredResults
+                .sort((a, b) => {
+                    if (b._score.score !== a._score.score) {
+                        return b._score.score - a._score.score;
+                    }
+                    return a._originalIndex - b._originalIndex;
+                })
+                .map(({ _score, _originalIndex, ...result }) => result);
+
+            logger.info('search', `[${service.toUpperCase()}] Season pack scoring applied: Top result: "${rankedResults[0]?.title}" (score=${scoredResults[0]?._score.score}, reason=${scoredResults[0]?._score.reason})`);
+        }
+        
         if (aiService && allResults.length > 0) {
-            // TODO: Use AI to rank results
-            // For now, keep original order
+            // TODO: Use AI to further rank results
+            // For now, use heuristic ranking above
         }
 
         // Convert to Newznab XML format
