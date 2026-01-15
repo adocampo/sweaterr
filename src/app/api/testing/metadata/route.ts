@@ -42,6 +42,7 @@ function detectType(title: string, breadcrumbs: string): 'series' | 'movie' | 'u
     
     const hasSeasonIndicators = 
         /\btemporada\s+\d+\b/i.test(title) ||
+        /\d+(?:ª|º)\s*temporada\b/i.test(title) || // 5ª Temporada, 3º Temporada
         /\b[Tt]\s*\d{1,2}\b/.test(title) ||
         /\bseason\s+\d+\b/i.test(title) ||
         /\bs\d{1,2}\b/i.test(title) ||
@@ -57,8 +58,9 @@ function detectType(title: string, breadcrumbs: string): 'series' | 'movie' | 'u
         return 'movie';
     }
     
-    // Default to movie for any ambiguous content (stricter than before)
-    return 'movie';
+    // Default to unknown for ambiguous content that doesn't match clear patterns
+    // This prevents false positives for incorrectly posted content
+    return 'unknown';
 }
 
 function extractYear(text: string): number | null {
@@ -70,18 +72,19 @@ function extractYear(text: string): number | null {
 }
 
 function extractSeason(text: string): number | null {
-    // Priority 1: Patterns like "15ª Temporada" or "Temporada 15ª" (ordinal number + temporada)
-    let match = text.match(/(\d{1,2})(?:ª|º)\s*(?:temporada|temp\.?)/i);
+    // Priority 1: Ordinal patterns like "5ª Temporada", "3º Temporada" (with or without word boundary)
+    let match = text.match(/(\d{1,2})(?:ª|º)?\s*(?:temporada|temp\.?|season)/i);
     if (match) return parseInt(match[1], 10);
 
-    match = text.match(/(?:temporada|temp\.)\s*(\d{1,2})(?:ª|º)/i);
+    match = text.match(/(?:temporada|temp\.?|season)\s*(\d{1,2})(?:ª|º)?/i);
     if (match) return parseInt(match[1], 10);
 
-    // Priority 2: Standard patterns without ordinal markers: T1, Temp1, Temporada 1, S1, Season 1
-    match = text.match(/(?:temporada|temp\.?)\s*(\d{1,2})(?!ª|º)/i);
+    // Priority 2: T-prefixed patterns: T1, T.1, T5ª, etc
+    match = text.match(/\b[Tt]\.?(\d{1,2})/i);
     if (match) return parseInt(match[1], 10);
 
-    match = text.match(/(?:t\.?|s(?:eason)?)\s*(\d{1,2})/i);
+    // Priority 3: S-prefixed patterns: S1, Season 1, etc
+    match = text.match(/\b[Ss](?:eason)?\s*(\d{1,2})/i);
     if (match) return parseInt(match[1], 10);
 
     return null;
