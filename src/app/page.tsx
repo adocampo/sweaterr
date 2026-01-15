@@ -150,6 +150,7 @@ export default function Home() {
   }, [loadingUser, isAdmin, activeTab]);
 
   // Poll download speed and JDownloader stats for header badge
+  // Poll download speed and JDownloader stats for header badge
   useEffect(() => {
     const normalizeStatus = (status: string) => {
       const s = (status || '').toLowerCase();
@@ -216,10 +217,14 @@ export default function Home() {
       }
     };
 
+    // Initial fetch
     fetchDownloadSpeed();
-    const interval = setInterval(fetchDownloadSpeed, activeDownloadsCount > 0 ? 3000 : 10000);
+    
+    // Use a fixed 10-second interval to prevent constant recreation
+    // This avoids reload issues while still keeping the UI updated
+    const interval = setInterval(fetchDownloadSpeed, 10000);
     return () => clearInterval(interval);
-  }, [activeDownloadsCount]); // Removed 'downloads' dependency to prevent infinite re-renders
+  }, []); // Empty dependency array - interval never recreated
 
   // Format speed in human-readable format
   const formatSpeed = (bytesPerSecond: number) => {
