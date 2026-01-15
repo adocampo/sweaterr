@@ -880,6 +880,61 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-16 (FIX: Logger path resolution in compiled builds)
+
+**Estado**: ✅ COMPLETADO
+
+**Problema detectado**:
+
+Los logs de módulos (search.log, forum.log, db.log, arr_caps.log) no se estaban creando en `logs/` en la raíz del proyecto como se esperaba. Solo aparecían jdownloader.log y sabnzbd.log. Tras investigar, se descubrió que los logs se estaban escribiendo en `.next/server/logs/` cuando se ejecutaba desde el build compilado.
+
+**Root cause**:
+
+- El logger usaba `__dirname` para resolver la ruta del proyecto root
+- En código compilado, `__dirname` apunta a `.next/server/app/lib` (donde se compila logger.ts)
+- path.resolve(__dirname, '../../..') desde ese directorio daba `.next/server/`
+- Por tanto, `logs/` se creaba dentro del build en lugar de la raíz del proyecto
+
+**Solución implementada (1 commit - 40d2de9)**:
+
+**Cambio en src/lib/logger.ts línea 5**:
+
+```typescript
+// ANTES (incorrecto en builds):
+const projectRoot = path.resolve(__dirname, '../../..');
+const logsDir = path.join(projectRoot, 'logs');
+
+// DESPUÉS (correcto siempre):
+const logsDir = path.join(process.cwd(), 'logs');
+```
+
+**Por qué funciona**:
+
+- `process.cwd()` siempre retorna el directorio desde donde se inició el proceso Node
+- Tanto en `npm run dev` como en `npm run start`, el proceso se inicia desde la raíz del proyecto
+- Elimina dependencia de la ubicación del archivo compilado
+
+**Validación**:
+
+```bash
+# Test 1: capabilities endpoint
+curl "http://localhost:3000/api/arr?t=caps&apikey=..."
+→ ✅ Creó logs/arr_caps.log
+
+# Test 2: TV search
+curl "http://localhost:3000/api/arr?t=tvsearch&q=scrubs&season=5&apikey=..."
+→ ✅ Creó logs/search.log con mensajes de filtrado por temporada
+→ ✅ Creó logs/forum.log con operaciones del foro
+```
+
+**Resultado**:
+
+- ✅ Todos los módulos escriben logs en `logs/` raíz del proyecto
+- ✅ Logs visibles y accesibles para debugging
+- ✅ Funcionamiento consistente entre dev y producción
+
+---
+
 ### 2026-01-16 (CRITICAL FIX: Season-based result filtering for accurate Sonarr matching)
 
 **Estado**: ✅ COMPLETADO
