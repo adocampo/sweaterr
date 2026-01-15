@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -92,6 +92,12 @@ export default function Home() {
   const { downloads, loading: downloadsLoading } = useDownloads();
   const { theme, setTheme } = useTheme();
 
+  // Use ref to access latest downloads without triggering re-renders in the polling effect
+  const downloadsRef = useRef(downloads);
+  useEffect(() => {
+    downloadsRef.current = downloads;
+  }, [downloads]);
+
   const isAdmin = currentUser?.role === 'admin';
 
   const getStatusIcon = (connected: boolean) => {
@@ -175,8 +181,8 @@ export default function Home() {
 
           // Historical stats from DB (dedupe by current JD queue)
           const activeIds = new Set(normalizedDownloads.map((d: any) => d.uuid || d.jDownloaderId));
-          const dbCompleted = downloads.filter((d) => d.status === 'completed' && (!d.jDownloaderId || !activeIds.has(d.jDownloaderId))).length;
-          const dbFailed = downloads.filter((d) => d.status === 'failed' && (!d.jDownloaderId || !activeIds.has(d.jDownloaderId))).length;
+          const dbCompleted = downloadsRef.current.filter((d) => d.status === 'completed' && (!d.jDownloaderId || !activeIds.has(d.jDownloaderId))).length;
+          const dbFailed = downloadsRef.current.filter((d) => d.status === 'failed' && (!d.jDownloaderId || !activeIds.has(d.jDownloaderId))).length;
 
           const speed = activeDownloading.reduce((sum: number, d: any) => sum + (d.speed || 0), 0);
 
@@ -213,7 +219,7 @@ export default function Home() {
     fetchDownloadSpeed();
     const interval = setInterval(fetchDownloadSpeed, activeDownloadsCount > 0 ? 3000 : 10000);
     return () => clearInterval(interval);
-  }, [activeDownloadsCount, downloads]);
+  }, [activeDownloadsCount]); // Removed 'downloads' dependency to prevent infinite re-renders
 
   // Format speed in human-readable format
   const formatSpeed = (bytesPerSecond: number) => {
