@@ -59,9 +59,11 @@ export function ForumSessionSettings({ forumId, forumName, language = 'es' }: Fo
 
     useEffect(() => {
         fetchData();
-        // Refresh every 10 seconds
-        const interval = setInterval(fetchData, 10000);
-        return () => clearInterval(interval);
+        // Refresh every 10 seconds (disabled in development to prevent reloads)
+        if (process.env.NODE_ENV === 'production') {
+            const interval = setInterval(fetchData, 10000);
+            return () => clearInterval(interval);
+        }
     }, [forumId]);
 
     const handleUpdateTTL = async () => {
