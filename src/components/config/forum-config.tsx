@@ -353,7 +353,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
               <FormField
                 control={form.control}
                 name="cseId"
-                render={({ field}) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('forumForm.cseId')}</FormLabel>
                     <FormControl>

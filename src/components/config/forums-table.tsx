@@ -127,7 +127,7 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                 console.warn('Clipboard API failed, using fallback:', err);
             }
         }
-        
+
         // Fallback: create temporary textarea
         try {
             const textarea = document.createElement('textarea');
