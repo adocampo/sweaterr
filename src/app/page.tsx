@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { DownloadsProvider, useDownloadsContext } from '@/contexts/downloads-context';
 import {
   Settings,
   Download,
@@ -53,23 +54,22 @@ import { UserManagement } from '@/components/config/user-management';
 import { useI18n } from '@/hooks/use-i18n';
 
 export default function Home() {
+  return (
+    <DownloadsProvider>
+      <HomeContent />
+    </DownloadsProvider>
+  );
+}
+
+function HomeContent() {
   const [activeTab, setActiveTab] = useState('overview');
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
   const [userLanguage, setUserLanguage] = useState<'es' | 'en'>('es');
   const { t } = useI18n(userLanguage);
 
-  // Download speed tracking for header
-  const [totalSpeed, setTotalSpeed] = useState<number>(0);
-  const [activeDownloadsCount, setActiveDownloadsCount] = useState<number>(0);
-  const [jdownloaderStats, setJDownloaderStats] = useState({
-    total: 0,
-    downloading: 0,
-    completed: 0,
-    failed: 0,
-    pending: 0
-  });
-  const [jdownloaderDownloads, setJDownloaderDownloads] = useState<any[]>([]);
+  // Get download stats from context (only components using this will re-render)
+  const { totalSpeed, activeDownloadsCount, jDownloaderStats, jDownloaderDownloads, dbDownloads } = useDownloadsContext();
 
   // Testing state
   const [testingResults, setTestingResults] = useState<any[]>([]);
@@ -89,14 +89,7 @@ export default function Home() {
   const { forums, loading: forumsLoading, createForum, updateForum, deleteForum, refetch: refetchForums, testConnection: testForumConnection } = useForums();
   const { instances: jdownloaders, loading: jdLoading, createInstance: createJDownloader, deleteInstance: deleteJDownloader, toggleInstance: toggleJDownloader, refetch: refetchJDownloaders } = useJDownloaders();
   const { models: aiModels, loading: aiLoading, createModel: createAIModel, deleteModel: deleteAIModel, toggleModel: toggleAIModel, refetch: refetchAIModels } = useAIModels();
-  const { downloads, loading: downloadsLoading } = useDownloads();
   const { theme, setTheme } = useTheme();
-
-  // Use ref to access latest downloads without triggering re-renders in the polling effect
-  const downloadsRef = useRef(downloads);
-  useEffect(() => {
-    downloadsRef.current = downloads;
-  }, [downloads]);
 
   const isAdmin = currentUser?.role === 'admin';
 
@@ -149,83 +142,6 @@ export default function Home() {
     }
   }, [loadingUser, isAdmin, activeTab]);
 
-  // Poll download speed and JDownloader stats for header badge
-  // Poll download speed and JDownloader stats for header badge
-  useEffect(() => {
-    const normalizeStatus = (status: string) => {
-      const s = (status || '').toLowerCase();
-      if (s === 'finished' || s.includes('complete')) return 'completed';
-      if (s === 'running' || s === 'downloading') return 'downloading';
-      if (s === 'extracting') return 'extracting';
-      if (s.includes('fail') || s.includes('error')) return 'failed';
-      if (s === 'paused' || s === 'stopped') return 'pending';
-      return 'pending';
-    };
-
-    const fetchDownloadSpeed = async () => {
-      try {
-        const response = await fetch('/api/downloads/status');
-        const data = await response.json();
-        if (data.success && data.data) {
-          const normalizedDownloads = data.data.map((d: any) => {
-            const normalizedStatus = normalizeStatus(d.status);
-            const progressValue = typeof d.progress === 'number' ? d.progress : 0;
-            const progressNormalized = normalizedStatus === 'completed' && progressValue < 99 ? 100 : progressValue;
-            return { ...d, status: normalizedStatus, progress: progressNormalized };
-          });
-
-          // Active stats from JDownloader (queue)
-          const activeDownloading = normalizedDownloads.filter((d: any) => d.status === 'downloading' || d.status === 'extracting');
-          const activePending = normalizedDownloads.filter((d: any) => d.status === 'pending');
-          const activeCompleted = normalizedDownloads.filter((d: any) => d.status === 'completed').length;
-          const activeFailed = normalizedDownloads.filter((d: any) => d.status === 'failed').length;
-
-          // Historical stats from DB (dedupe by current JD queue)
-          const activeIds = new Set(normalizedDownloads.map((d: any) => d.uuid || d.jDownloaderId));
-          const dbCompleted = downloadsRef.current.filter((d) => d.status === 'completed' && (!d.jDownloaderId || !activeIds.has(d.jDownloaderId))).length;
-          const dbFailed = downloadsRef.current.filter((d) => d.status === 'failed' && (!d.jDownloaderId || !activeIds.has(d.jDownloaderId))).length;
-
-          const speed = activeDownloading.reduce((sum: number, d: any) => sum + (d.speed || 0), 0);
-
-          setTotalSpeed(speed);
-          setActiveDownloadsCount(activeDownloading.length);
-          setJDownloaderStats({
-            total: normalizedDownloads.length + dbCompleted + dbFailed,
-            downloading: activeDownloading.length,
-            completed: activeCompleted + dbCompleted,
-            failed: activeFailed + dbFailed,
-            pending: activePending.length,
-          });
-          setJDownloaderDownloads(normalizedDownloads.sort((a: any, b: any) => {
-            // Sort by status priority (downloading > pending > completed > failed)
-            // then by date/progress
-            const statusOrder: Record<string, number> = {
-              'running': 0,
-              'downloading': 0,
-              'extracting': 0,
-              'pending': 1,
-              'completed': 2,
-              'failed': 3
-            };
-            const aOrder = statusOrder[a.status.toLowerCase()] ?? 4;
-            const bOrder = statusOrder[b.status.toLowerCase()] ?? 4;
-            return aOrder - bOrder;
-          }));
-        }
-      } catch (error) {
-        console.error('Error fetching download speed:', error);
-      }
-    };
-
-    // Initial fetch
-    fetchDownloadSpeed();
-    
-    // Use a fixed 10-second interval to prevent constant recreation
-    // This avoids reload issues while still keeping the UI updated
-    const interval = setInterval(fetchDownloadSpeed, 10000);
-    return () => clearInterval(interval);
-  }, []); // Empty dependency array - interval never recreated
-
   // Format speed in human-readable format
   const formatSpeed = (bytesPerSecond: number) => {
     if (!bytesPerSecond) return '0 KB/s';
@@ -257,15 +173,15 @@ export default function Home() {
         (jdownloaders as any[])[0]?.mode === 'local'
           ? `${(jdownloaders as any[])[0]?.localHost ?? ''}:${(jdownloaders as any[])[0]?.localPort ?? ''}`
           : (jdownloaders as any[])[0]?.deviceName || t('dashboard.notConfigured'),
-      downloadsActive: downloads.filter(d => d.status === 'downloading').length,
-      downloadsTotal: downloads.length
+      downloadsActive: dbDownloads.filter(d => d.status === 'downloading').length,
+      downloadsTotal: dbDownloads.length
     },
     downloads: {
-      total: downloads.length,
-      pending: downloads.filter(d => d.status === 'pending').length,
-      downloading: downloads.filter(d => d.status === 'downloading').length,
-      completed: downloads.filter(d => d.status === 'completed').length,
-      failed: downloads.filter(d => d.status === 'failed').length
+      total: dbDownloads.length,
+      pending: dbDownloads.filter(d => d.status === 'pending').length,
+      downloading: dbDownloads.filter(d => d.status === 'downloading').length,
+      completed: dbDownloads.filter(d => d.status === 'completed').length,
+      failed: dbDownloads.filter(d => d.status === 'failed').length
     },
     ai: {
       provider: aiModels[0]?.provider || t('dashboard.notConfigured'),
@@ -374,26 +290,26 @@ export default function Home() {
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{jdownloaderStats.total}</div>
+                <div className="text-2xl font-bold">{jDownloaderStats.total}</div>
                 <p className="text-xs text-muted-foreground">
                   {t('dashboard.activeDownloads')}
                 </p>
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   <div className="p-2 rounded bg-green-50 dark:bg-green-950">
                     <p className="text-xs text-muted-foreground font-medium">{t('dashboard.downloading')}</p>
-                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{jdownloaderStats.downloading}</p>
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">{jDownloaderStats.downloading}</p>
                   </div>
                   <div className="p-2 rounded bg-yellow-50 dark:bg-yellow-950">
                     <p className="text-xs text-muted-foreground font-medium">{t('dashboard.pending')}</p>
-                    <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{jdownloaderStats.pending}</p>
+                    <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{jDownloaderStats.pending}</p>
                   </div>
                   <div className="p-2 rounded bg-blue-50 dark:bg-blue-950">
                     <p className="text-xs text-muted-foreground font-medium">{t('dashboard.completed')}</p>
-                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{jdownloaderStats.completed}</p>
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{jDownloaderStats.completed}</p>
                   </div>
                   <div className="p-2 rounded bg-red-50 dark:bg-red-950">
                     <p className="text-xs text-muted-foreground font-medium">{t('dashboard.failed')}</p>
-                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{jdownloaderStats.failed}</p>
+                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{jDownloaderStats.failed}</p>
                   </div>
                 </div>
               </CardContent>
@@ -409,11 +325,11 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {jdownloaderDownloads.length === 0 ? (
+              {jDownloaderDownloads.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">{t('dashboard.noRecentDownloads')}</p>
               ) : (
                 <div className="space-y-3">
-                  {jdownloaderDownloads.slice(0, 10).map((download, index) => {
+                  {jDownloaderDownloads.slice(0, 10).map((download, index) => {
                     const statusColor = {
                       'running': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
                       'downloading': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
