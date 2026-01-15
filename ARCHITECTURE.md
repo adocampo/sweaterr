@@ -806,6 +806,120 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-15 (FIXED: Improved metadata extraction accuracy - strict series detection and clean title extraction)
+
+**Estado**: ✅ COMPLETADO
+
+**Problema detectado**:
+
+El sistema de extracción de metadatos estaba fallando en tres aspectos críticos:
+
+1. **Falsos positivos en detección de series**: "Breaking Bad: 4K + Dolby Vision" se detectaba como serie basándose únicamente en el breadcrumb "Zona Series", sin validar patrón `[X/Y]`
+2. **Limpieza de título incompleta**: `extractCleanTitle()` no removía patrones como "T1-T9", "DDP5.1", "Dolby Vision", dejando metadatos en los títulos
+3. **Sin visibilidad del título original**: Los usuarios no podían verificar que la extracción de metadatos correspondía al título correcto del thread
+
+**Síntomas**:
+
+- ❌ ~92% de resultados (23/25) se detectaban incorrectamente como "Serie" sin patrón `[X/Y]`
+- ❌ Títulos limpios contenían fragmentos como "T2", "T3", "DDP5.1", "Dolby Vision"
+- ❌ Sin forma de verificar visualmente si los metadatos extraídos coincidían con el título original del thread
+
+**Root cause**:
+
+1. `detectType()` usaba verificación de palabras clave de forma muy permisiva:
+   - Buscaba "serie" en breadcrumbs (no solo en título)
+   - No requería patrón `[X/Y]` como indicador estricto de serie
+   - Fallback a "unknown" para contenido ambiguo
+
+2. `extractCleanTitle()` tenía patrones de regex incompletos:
+   - No removía variantes de temporada como "T1-T99", "T01-T99"
+   - No removía codecs de audio como "DDP5.1", "DD5.1", "AC35.1"
+   - No removía keywords HDR como "Dolby Vision", "HDR10", "Dolby Atmos"
+   - No removía "10-bit", "HEVC", "AVC", patrones de remux
+
+3. La respuesta del endpoint `/api/testing/metadata` no retornaba `rawTitle` para validación
+
+**Solución implementada**:
+
+1. **Refactorización de `detectType()` en `/api/testing/metadata/route.ts`**:
+
+```typescript
+// STRICT: Si hay patrón [X/Y], es serie
+if (detectSeriesByEpisodePattern(title)) return 'series';
+
+// Solo indicadores claros de temporada en el TÍTULO (no breadcrumbs)
+// No confiamos en "serie" keyword del breadcrumb
+const hasSeasonIndicators = 
+    /\btemporada\s+\d+\b/i.test(title) ||
+    /\b[Tt]\s*\d{1,2}\b/.test(title) ||
+    /\bseason\s+\d+\b/i.test(title) ||
+    /\bs\d{1,2}\b/i.test(title);
+
+if (hasSeasonIndicators) return 'series';
+
+// Fallback: movie (no unknown)
+return 'movie';
+```
+
+   - ✅ Ahora requiere `[X/Y]` O indicadores claros de season en el título
+   - ✅ No usa breadcrumbs para inferir series
+   - ✅ Fallback seguro a "movie" en lugar de "unknown"
+
+2. **Expansión de regex en `extractCleanTitle()`**:
+
+```typescript
+// Remove season patterns: T1, T.1, T01, Temporada 1, etc
+clean = clean.replace(/\b[Tt]\.?\d{1,2}\b/gi, '');
+
+// Remove audio codecs and formats: DDP5.1, DD5.1, AC35.1, 5.1, 7.1
+clean = clean.replace(/\b(DDP|DD|AC3|AAC|FLAC)\s*\d\.\d\b/gi, '');
+clean = clean.replace(/\b\d\.\d\s*(?:ch|channels|canales)?\b/gi, '');
+
+// Remove HDR/color: Dolby Vision, Dolby Atmos, HDR10, 10-bit
+clean = clean.replace(/\b(Dolby\s+Vision|Dolby\s+Atmos|HDR10|HDR|10[-\s]?bit|Dolby\s+Digital)\b/gi, '');
+
+// Remove codec/source variants: h.264, x.265, HEVC, AVC, remux, etc
+clean = clean.replace(/\b(h\.?264|h\.?265|x\.?264|x\.?265|hevc|avc)\b/gi, '');
+```
+
+   - ✅ Ahora elimina todos los patrones comunes: T1-T99, audio codecs, HDR keywords
+   - ✅ Regex más agresivo pero seguro para nombres de películas/series
+
+3. **Adición de `rawTitle` a la respuesta del endpoint**:
+
+```typescript
+interface MetadataResult {
+    url: string;
+    rawTitle?: string;  // Original forum post title
+    metadata?: MediaMetadata;
+    error?: string;
+}
+```
+
+   - ✅ El endpoint ahora retorna el título original del thread
+
+4. **Implementación de fila expandible en Testing UI** (`src/components/testing/result-viewer.tsx`):
+   - ✅ Nuevo estado: `expandedRawTitles`, `rawTitlesByPost`
+   - ✅ Nueva función: `toggleRawTitle(url)` para expandir/contraer
+   - ✅ Botón ChevronDown junto al cleanTitle para mostrar/ocultar
+   - ✅ Fila adicional debajo de cada resultado con "Original title: [rawTitle]"
+   - ✅ Usuarios pueden verificar visualmente que metadatos corresponden al post correcto
+
+**Archivos modificados**:
+
+- `src/app/api/testing/metadata/route.ts`: Refactorización de `detectType()` y mejora de `extractCleanTitle()`
+- `src/components/testing/result-viewer.tsx`: Adición de UI expandible para rawTitle
+- ✅ Sin cambios en Prisma schema necesarios
+
+**Validación**:
+
+- ✅ Tipificación TypeScript correcta
+- ✅ Build completa sin errores
+- ✅ Backward compatible: campos opcionales, no breaking changes
+- ✅ Todos los patrones probados contra ejemplos reales ("Breaking Bad", "T1-T13", "DDP5.1", etc.)
+
+---
+
 ### 2026-01-15 (FIXED: Grab endpoint now uses correct extractLinksFromPost function with proper selectors and package naming)
 
 **Estado**: ✅ COMPLETADO
