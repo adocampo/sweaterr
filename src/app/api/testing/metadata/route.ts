@@ -157,10 +157,17 @@ function extractCleanTitle(text: string): string {
     // Remove year patterns (1900-2099)
     clean = clean.replace(/\b(19|20)\d{2}\b/g, '');
     
+    // Remove ordinal season+episode patterns: 5ª 1/2, 5ª 2/, 3º 1/2, etc
+    clean = clean.replace(/\b\d{1,2}(?:ª|º)\s+\d{1,2}\/\d{0,2}\b/gi, '');
+    clean = clean.replace(/\b\d{1,2}(?:ª|º)\s+\d{1,2}\/\b/gi, '');
+    
     // Remove season patterns: T1, T.1, T01, Temporada 1, 1ª Temporada, Season 1, etc
     clean = clean.replace(/\b[Tt]\.?\d{1,2}\b/gi, '');
     clean = clean.replace(/\b(?:[Tt]emporada|[Ss]eason)\s+\d{1,2}(?:ª|º)?\b/gi, '');
     clean = clean.replace(/\b\d{1,2}(?:ª|º)?\s+(?:[Tt]emporada|[Ss]eason)\b/gi, '');
+    
+    // Remove "Final" keyword (often used for final season/episodes)
+    clean = clean.replace(/\bFinal\b/gi, '');
     
     // Remove episode/chapter patterns: [13/13], [13 de 13], Capítulo 5, etc
     clean = clean.replace(/\[\s*\d{1,3}\s*(?:de|\/)\s*\d{1,3}\s*\]/gi, '');
