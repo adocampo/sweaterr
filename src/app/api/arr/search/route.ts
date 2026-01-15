@@ -4,6 +4,12 @@ import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { logger } from '@/lib/logger';
 
+// TODO: Future enhancement - Include cleanTitle in Newznab XML response
+// Once metadata extraction stabilizes, update the <title> field to use cleanTitle
+// instead of raw forum title. This will allow Sonarr/Radarr to perform more
+// accurate searches and filtering by season/episode/quality.
+// Related: MediaMetadata.cleanTitle added in feature/improve-search-metadata
+
 function getPublicOrigin(request: NextRequest): string {
     const forwardedProto = (request.headers.get('x-forwarded-proto') || '').split(',')[0]?.trim();
     const forwardedHost = (request.headers.get('x-forwarded-host') || '').split(',')[0]?.trim();

@@ -41,6 +41,7 @@ const forumSchema = z.object({
   searchTitleOnly: z.boolean().optional().default(true),
   cseId: z.string().optional(),
   sabnzbdCategory: z.string().optional(),
+  defaultLanguage: z.string().optional().default('es-ES'),
   thankButtonSelector: z.string().optional(),
   linksContainerSelector: z.string().optional(),
   postTitleSelector: z.string().optional(),
@@ -108,6 +109,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
       searchTitleOnly: true,
       cseId: '',
       sabnzbdCategory: '',
+      defaultLanguage: 'es-ES',
       thankButtonSelector: '',
       linksContainerSelector: '',
       postTitleSelector: '',
@@ -319,11 +321,39 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="defaultLanguage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('forumForm.defaultLanguage')}</FormLabel>
+                  <FormControl>
+                    <select className="w-full border rounded-md h-9 px-2" {...field}>
+                      <option value="es-ES">Español (España)</option>
+                      <option value="es-LA">Español (Latinoamérica)</option>
+                      <option value="en-US">English (US)</option>
+                      <option value="en-GB">English (UK)</option>
+                      <option value="fr-FR">Français</option>
+                      <option value="it-IT">Italiano</option>
+                      <option value="de-DE">Deutsch</option>
+                      <option value="pt-BR">Português (Brasil)</option>
+                      <option value="ja-JP">日本語</option>
+                      <option value="ko-KR">한국어</option>
+                    </select>
+                  </FormControl>
+                  <FormDescription>
+                    {t('forumForm.defaultLanguageDescription')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {form.watch('searchMode') === 'google_cse' && (
               <FormField
                 control={form.control}
                 name="cseId"
-                render={({ field }) => (
+                render={({ field}) => (
                   <FormItem>
                     <FormLabel>{t('forumForm.cseId')}</FormLabel>
                     <FormControl>

@@ -20,6 +20,7 @@ export interface AISearchResult {
 export interface MediaMetadata {
   type: 'series' | 'movie' | 'unknown';
   title?: string | null;
+  cleanTitle?: string | null;
   year?: number | null;
   season?: number | null;
   quality?: string | null;

@@ -23,11 +23,26 @@ function normalizeWhitespace(value: string): string {
     return value.replace(/\s+/g, ' ').trim();
 }
 
+// Detect if text contains [X/Y] episode pattern (indicates series)
+function detectSeriesByEpisodePattern(text: string): boolean {
+    // Match patterns like [13/13], [13 de 13], [ 13 / 13 ], [13de13]
+    return /\[\s*(\d{1,3})\s*(?:de|\/)\s*(\d{1,3})\s*\]/i.test(text);
+}
+
 function detectType(title: string, breadcrumbs: string): 'series' | 'movie' | 'unknown' {
     const text = `${title} ${breadcrumbs}`.toLowerCase();
+    
+    // Priority 1: Detect by episode pattern [X/Y]
+    if (detectSeriesByEpisodePattern(text)) return 'series';
+    
+    // Priority 2: Detect by series keywords
     if (/serie|temporad|season|episodio|capitulo|capítulo|s\d{1,2}/.test(text)) return 'series';
+    
+    // Priority 3: Detect by movie keywords
     if (/pelicul|movie|film|cine/.test(text)) return 'movie';
-    return 'unknown';
+    
+    // Default fallback: movie (not unknown)
+    return 'movie';
 }
 
 function extractYear(text: string): number | null {
@@ -96,11 +111,55 @@ function extractLanguages(text: string): { audio: string[]; subtitles: string[] 
 }
 
 function extractEpisodes(text: string): { available?: number | null; total?: number | null } {
-    const match = text.match(/(\d{1,3})\s*\/\s*(\d{1,3})/);
+    // Match patterns like [13/13], [13 de 13], [ 13 / 13 ]
+    const match = text.match(/\[\s*(\d{1,3})\s*(?:de|\/)\s*(\d{1,3})\s*\]/i);
     if (match) {
-        return { available: parseInt(match[1], 10), total: parseInt(match[2], 10) };
+        const available = parseInt(match[1], 10);
+        const total = parseInt(match[2], 10);
+        // Validate range 1-300
+        if (available >= 1 && available <= 300 && total >= 1 && total <= 300) {
+            return { available, total };
+        }
     }
     return {};
+}
+
+// Extract clean title by removing metadata (year, season, episodes, quality, size, languages, etc)
+function extractCleanTitle(text: string): string {
+    let clean = text;
+    
+    // Remove year patterns (1900-2099)
+    clean = clean.replace(/\b(19|20)\d{2}\b/g, '');
+    
+    // Remove season patterns: T1, T.1, Temporada 1, 1ª Temporada, Season 1, etc
+    clean = clean.replace(/\b[Tt](?:\.\d{1,2}|emporada\s+\d{1,2}|emporada\s+\d{1,2}ª)\b/gi, '');
+    clean = clean.replace(/\b\d{1,2}(?:ª|º)?\s+Temporada\b/gi, '');
+    clean = clean.replace(/\b[Ss](?:eason)?\s+\d{1,2}\b/gi, '');
+    
+    // Remove episode/chapter patterns: [13/13], [13 de 13], Capítulo 5, etc
+    clean = clean.replace(/\[\s*\d{1,3}\s*(?:de|\/)\s*\d{1,3}\s*\]/gi, '');
+    clean = clean.replace(/\b(?:Capítulo|Episodio|Cap\.|Ep\.?)\s+\d+\b/gi, '');
+    
+    // Remove quality patterns: 2160p, 4K, 1080p, 720p, 480p
+    clean = clean.replace(/\b(2160p|4k|1080p|720p|480p)\b/gi, '');
+    
+    // Remove source patterns: BluRay, WEB-DL, HDRip, etc
+    clean = clean.replace(/\b(BluRay|BRRip|WEB[-\s]?DL|WebRip|HDRip|DVDRip|HMAX|DVDScr)\b/gi, '');
+    
+    // Remove size patterns: 2.5GB, 3.14 MB, etc
+    clean = clean.replace(/\b\d+(?:[.,]\d+)?\s*(?:GB|GiB|MB|MiB)\b/gi, '');
+    
+    // Remove language patterns: Dual, Castellano, Inglés, Español, English, etc
+    clean = clean.replace(/\b(?:Dual|Castellano|Español|Inglés|English|Francés|Latino|Latin|Latam|Japones|Japonés|Coreano|Koreano)\b/gi, '');
+    
+    // Remove special/bracketed patterns: [...] and (...)
+    clean = clean.replace(/\[.*?\]/g, '');
+    clean = clean.replace(/\(.*?\)/g, '');
+    
+    // Remove extra whitespace and trim
+    clean = clean.replace(/\s+/g, ' ').trim();
+    
+    return clean;
 }
 
 function extractSize(text: string): string | null {
@@ -129,10 +188,12 @@ function buildHeuristicMetadata(params: {
     const { audio, subtitles } = extractLanguages(combined + ' ' + bodyText);
     const episodes = extractEpisodes(combined);
     const size = extractSize(combined) || extractSize(bodyText);
+    const cleanTitle = extractCleanTitle(rawTitle);
 
     return {
         type,
         title: rawTitle || null,
+        cleanTitle: cleanTitle || null,
         year,
         season,
         quality,
@@ -150,6 +211,7 @@ function mergeMetadata(base: MediaMetadata, ai: MediaMetadata | null): MediaMeta
     return {
         type: ai.type !== 'unknown' ? ai.type : base.type,
         title: ai.title || base.title,
+        cleanTitle: ai.cleanTitle || base.cleanTitle || null,
         year: ai.year ?? base.year ?? null,
         season: ai.season ?? base.season ?? null,
         quality: ai.quality || base.quality || null,
