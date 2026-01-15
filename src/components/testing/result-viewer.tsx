@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ExternalLink, Download, Loader2, Copy, Check, Send, AlertCircle } from 'lucide-react';
+import { ExternalLink, Download, Loader2, Copy, Check, Send, AlertCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/hooks/use-i18n';
 import {
@@ -44,6 +44,7 @@ interface MediaMetadata {
 
 interface MetadataResult {
     url: string;
+    rawTitle?: string;  // Original forum post title for verification
     metadata?: MediaMetadata;
     error?: string;
 }
@@ -81,6 +82,8 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
     const [visibleTypes, setVisibleTypes] = useState<Set<'series' | 'movie' | 'unknown'>>(
         new Set(['series', 'movie', 'unknown'])
     );
+    const [expandedRawTitles, setExpandedRawTitles] = useState<Set<string>>(new Set());
+    const [rawTitlesByPost, setRawTitlesByPost] = useState<Record<string, string>>({});
     const { loading: bulkLoading, resolveTitles } = useBulkTitles();
     const [bulkError, setBulkError] = useState<string | null>(null);
 
@@ -93,6 +96,17 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
             newSet.add(type);
         }
         setVisibleTypes(newSet);
+    };
+
+    // Toggle raw title visibility
+    const toggleRawTitle = (url: string) => {
+        const newSet = new Set(expandedRawTitles);
+        if (newSet.has(url)) {
+            newSet.delete(url);
+        } else {
+            newSet.add(url);
+        }
+        setExpandedRawTitles(newSet);
     };
 
     // Filter results based on visible types
@@ -352,12 +366,15 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                 if (data.success && data.data?.results) {
                     const metaMap: Record<string, MediaMetadata> = {};
                     const errorMap: Record<string, string> = {};
+                    const rawTitleMap: Record<string, string> = {};
                     (data.data.results as MetadataResult[]).forEach((item) => {
                         if (item.metadata) metaMap[item.url] = item.metadata;
                         if (item.error) errorMap[item.url] = item.error;
+                        if (item.rawTitle) rawTitleMap[item.url] = item.rawTitle;
                     });
                     setMetadataByPost(metaMap);
                     setMetadataErrors(errorMap);
+                    setRawTitlesByPost(rawTitleMap);
                     setMetadataTime(metaElapsed);
                     setMetadataMode(data.data?.mode || null);
                     setTotalMetadataResults(data.data?.totalResults || null);
@@ -513,6 +530,8 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                 {filteredResults.map((result, index) => {
                                     const postLinks = extractedByPost[result.url] || [];
                                     const meta = metadataByPost[result.url];
+                                    const rawTitle = rawTitlesByPost[result.url];
+                                    const isExpanded = expandedRawTitles.has(result.url);
                                     const displayTitle = meta?.cleanTitle || meta?.title || titles[result.url] || result.title;
                                     const typeLabel = meta?.type === 'series'
                                         ? t('testing.typeSeries')
@@ -536,90 +555,110 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                     const metaError = metadataErrors[result.url];
 
                                     return (
-                                        <tr key={index} className={`border-b ${selectedPost === result.url ? 'bg-accent/40' : ''}`}>
-                                            <td className="px-3 py-2 align-top">
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <span className="font-medium leading-tight">{displayTitle}</span>
-                                                        <a
-                                                            href={result.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1"
-                                                        >
-                                                            <ExternalLink className="h-3 w-3" />
-                                                            {t('testing.open')}
-                                                        </a>
-                                                    </div>
-                                                    {result.snippet && (
-                                                        <p className="text-xs text-muted-foreground line-clamp-2">{result.snippet}</p>
-                                                    )}
-                                                    {metaError && (
-                                                        <div className="text-xs text-red-500 flex items-center gap-1">
-                                                            <AlertCircle className="h-3 w-3" />
-                                                            {metaError}
+                                        <>
+                                            <tr key={`${index}-main`} className={`border-b ${selectedPost === result.url ? 'bg-accent/40' : ''}`}>
+                                                <td className="px-3 py-2 align-top">
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            {rawTitle && (
+                                                                <button
+                                                                    onClick={() => toggleRawTitle(result.url)}
+                                                                    className="text-muted-foreground hover:text-primary transition-colors p-0 h-5 w-5 flex items-center justify-center"
+                                                                    title={isExpanded ? 'Hide raw title' : 'Show raw title'}
+                                                                >
+                                                                    <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                </button>
+                                                            )}
+                                                            <span className="font-medium leading-tight">{displayTitle}</span>
+                                                            <a
+                                                                href={result.url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+                                                            >
+                                                                <ExternalLink className="h-3 w-3" />
+                                                                {t('testing.open')}
+                                                            </a>
                                                         </div>
-                                                    )}
-                                                    {!meta?.title && !titles[result.url] && /\.\.\./.test(result.title) && (
-                                                        <Button size="sm" variant="ghost" onClick={() => enrichTitle(result.url, result.title)} disabled={!!enriching[result.url]} className="h-7 px-2">
-                                                            {enriching[result.url] ? (
-                                                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                            ) : null}
-                                                            {t('testing.completeTitle')}
+                                                        {result.snippet && (
+                                                            <p className="text-xs text-muted-foreground line-clamp-2">{result.snippet}</p>
+                                                        )}
+                                                        {metaError && (
+                                                            <div className="text-xs text-red-500 flex items-center gap-1">
+                                                                <AlertCircle className="h-3 w-3" />
+                                                                {metaError}
+                                                            </div>
+                                                        )}
+                                                        {!meta?.title && !titles[result.url] && /\.\.\./.test(result.title) && (
+                                                            <Button size="sm" variant="ghost" onClick={() => enrichTitle(result.url, result.title)} disabled={!!enriching[result.url]} className="h-7 px-2">
+                                                                {enriching[result.url] ? (
+                                                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                                ) : null}
+                                                                {t('testing.completeTitle')}
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-3 py-2 align-top">{typeLabel}</td>
+                                                <td className="px-3 py-2 align-top">{yearLabel}</td>
+                                                <td className="px-3 py-2 align-top">{seasonLabel}</td>
+                                                <td className="px-3 py-2 align-top">{episodesLabel}</td>
+                                                <td className="px-3 py-2 align-top">{qualityLabel}</td>
+                                                <td className="px-3 py-2 align-top">
+                                                    <div className="space-y-1">
+                                                        <div className="text-xs">{t('testing.audioLabel')}: {audioLabel}</div>
+                                                        <div className="text-xs">{t('testing.subsLabel')}: {subsLabel}</div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-3 py-2 align-top">{genresLabel}</td>
+                                                <td className="px-3 py-2 align-top">{sizeLabel}</td>
+                                                <td className="px-3 py-2 align-top">
+                                                    <div className="flex items-center gap-2 justify-end">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleExtractLinks(result.url)}
+                                                            disabled={extractingLinks && selectedPost === result.url}
+                                                        >
+                                                            {extractingLinks && selectedPost === result.url ? (
+                                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                            ) : (
+                                                                <Download className="h-4 w-4 mr-2" />
+                                                            )}
+                                                            {t('testing.extractLinks')}
                                                         </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            disabled={sendingToJd[result.url] || postLinks.length === 0}
+                                                            onClick={() => sendToJDownloader(result.url, postLinks, meta?.title || titles[result.url] || result.title)}
+                                                        >
+                                                            {sendingToJd[result.url] ? (
+                                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                            ) : (
+                                                                <Send className="h-4 w-4 mr-2" />
+                                                            )}
+                                                            {t('testing.send')}
+                                                        </Button>
+                                                    </div>
+                                                    {sendSuccess[result.url] && (
+                                                        <div className="text-[11px] text-green-600 text-right mt-1">{t('testing.sentToJDownloader')}</div>
                                                     )}
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-2 align-top">{typeLabel}</td>
-                                            <td className="px-3 py-2 align-top">{yearLabel}</td>
-                                            <td className="px-3 py-2 align-top">{seasonLabel}</td>
-                                            <td className="px-3 py-2 align-top">{episodesLabel}</td>
-                                            <td className="px-3 py-2 align-top">{qualityLabel}</td>
-                                            <td className="px-3 py-2 align-top">
-                                                <div className="space-y-1">
-                                                    <div className="text-xs">{t('testing.audioLabel')}: {audioLabel}</div>
-                                                    <div className="text-xs">{t('testing.subsLabel')}: {subsLabel}</div>
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-2 align-top">{genresLabel}</td>
-                                            <td className="px-3 py-2 align-top">{sizeLabel}</td>
-                                            <td className="px-3 py-2 align-top">
-                                                <div className="flex items-center gap-2 justify-end">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleExtractLinks(result.url)}
-                                                        disabled={extractingLinks && selectedPost === result.url}
-                                                    >
-                                                        {extractingLinks && selectedPost === result.url ? (
-                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                        ) : (
-                                                            <Download className="h-4 w-4 mr-2" />
-                                                        )}
-                                                        {t('testing.extractLinks')}
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="secondary"
-                                                        disabled={sendingToJd[result.url] || postLinks.length === 0}
-                                                        onClick={() => sendToJDownloader(result.url, postLinks, meta?.title || titles[result.url] || result.title)}
-                                                    >
-                                                        {sendingToJd[result.url] ? (
-                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                        ) : (
-                                                            <Send className="h-4 w-4 mr-2" />
-                                                        )}
-                                                        {t('testing.send')}
-                                                    </Button>
-                                                </div>
-                                                {sendSuccess[result.url] && (
-                                                    <div className="text-[11px] text-green-600 text-right mt-1">{t('testing.sentToJDownloader')}</div>
-                                                )}
-                                                {sendErrors[result.url] && (
-                                                    <div className="text-[11px] text-red-600 text-right mt-1">{sendErrors[result.url]}</div>
-                                                )}
-                                            </td>
-                                        </tr>
+                                                    {sendErrors[result.url] && (
+                                                        <div className="text-[11px] text-red-600 text-right mt-1">{sendErrors[result.url]}</div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                            {isExpanded && rawTitle && (
+                                                <tr key={`${index}-raw`} className="border-b bg-muted/30">
+                                                    <td colSpan={10} className="px-3 py-2">
+                                                        <div className="text-xs text-muted-foreground">
+                                                            <span className="font-semibold">Original title:</span> {rawTitle}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </>
                                     );
                                 })}
                             </tbody>
