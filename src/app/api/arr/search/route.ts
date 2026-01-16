@@ -578,7 +578,12 @@ ${items}
         });
 
         logger.info('search', `[${service.toUpperCase()}] Returning XML response with ${rankedResults.length} items (${rssXml.length} bytes)`);
-        logger.info('search', `[${service.toUpperCase()}] XML preview: ${rssXml.substring(0, 500)}...`);
+        
+        // Log first item XML for debugging
+        const firstItemMatch = rssXml.match(/<item>[\s\S]*?<\/item>/);
+        if (firstItemMatch) {
+            logger.info('search', `[${service.toUpperCase()}] First item XML:\n${firstItemMatch[0]}`);
+        }
 
         return new NextResponse(rssXml, {
             headers: {
