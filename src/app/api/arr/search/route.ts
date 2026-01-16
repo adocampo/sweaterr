@@ -611,7 +611,13 @@ ${items}
         logger.info('search', `[${service.toUpperCase()}] XML preview: ${rssXml.substring(0, 500)}...`);
 
         return new NextResponse(rssXml, {
-            headers: { 'Content-Type': 'application/rss+xml' },
+            headers: {
+                'Content-Type': 'application/rss+xml; charset=utf-8',
+                'Content-Length': Buffer.byteLength(rssXml, 'utf-8').toString(),
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+            },
         });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
