@@ -571,13 +571,17 @@ export async function GET(request: NextRequest) {
             <newznab:attr name="episodes" value="${detectedEpisodes}"/>`;
             }
 
+            const forumName = result.forum ?? result.forumName ?? 'Sweaterr';
+            const escapedDescription = escapeXml(`${forumName} - ${result.url}`);
+            const escapedTitle = escapeXml(result.title);
+
             return `    <item>
-            <title><![CDATA[${result.title}]]></title>
+            <title>${escapedTitle}</title>
             <guid isPermaLink="false">${guid}</guid>
             <link>${escapedLink}</link>
             <pubDate>${pubDate}</pubDate>
             <category>${category}</category>
-            <description><![CDATA[${result.forum ?? result.forumName ?? 'Sweaterr'} - ${escapeXml(result.url)}]]></description>
+            <description>${escapedDescription}</description>
             <enclosure url="${escapedLink}" length="${size}" type="application/x-nzb"/>
 ${newznabAttrs}
         </item>`;
