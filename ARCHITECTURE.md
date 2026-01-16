@@ -2704,6 +2704,29 @@ Nueva categoría de logging `[extract-shared]` para rastrear la ejecución:
 - 🐛 **Fix extracción de temporada**: Regex de `extractSeason()` reordenado para priorizar patrones ordinales ("15ª Temporada") sobre patrones genéricos, evitando detección incorrecta (antes "15ª Temporada" se detectaba como T3, ahora T15).
 - ✨ **Métricas de rendimiento**: La UI muestra el tiempo de extracción de metadatos (en ms), el modo usado (direct/fetch) y el total de resultados procesados junto al contador de resultados.
 - 📋 **ROADMAP**: Añadida sección "Gestión Avanzada de Subforos" con tareas para toggle `searchInChildForums`, selección múltiple de subforos, UI con checkboxes, listado automático de subforos disponibles e integración con endpoint Torznab para *arr.
+
+### 2026-01-16
+
+**Funciones centralizadas de conversión de tamaño**:
+
+- ✅ **`extractSize(text: string): string | null`**: Extrae tamaño del texto como string legible (ej: "2.5 GB", "1500 MB")
+- ✅ **`convertSizeToBytes(sizeString: string): number`**: Convierte string de tamaño a bytes (ej: "2.5 GB" → 2684354560). GB = GiB (1 GB = 1073741824 bytes)
+- ✅ **`convertBytesToSize(bytes: number): string`**: Convierte bytes a string legible (ej: 2684354560 → "2.5 GB")
+- ✅ **ForumService actualizado**: Usa `extractSize()` + `convertSizeToBytes()` en lugar de `extractSizeFromTitle()`, buscando primero en título y luego en snippet
+- ✅ **Flujo unificado**:
+  - Testing: Usa `extractSize()` directamente (muestra string)
+  - ForumService: Extrae con `extractSize()`, convierte a bytes con `convertSizeToBytes()`
+  - Arr/search: Recibe bytes de ForumSearchResult, los envía a Sonarr/Newznab
+  - Display humano: Usa `convertBytesToSize()` para mostrar bytes en formato legible
+- 📝 **Eliminado**: `extractSizeFromTitle()` de utils.ts ya no se usa
+- 📝 **Módulo centralizado**: Todas las funciones de extracción y conversión viven en `src/lib/metadata-extractor.ts`
+
+**Archivos afectados**:
+
+- `src/lib/metadata-extractor.ts` (agregadas funciones de conversión)
+- `src/lib/services/forum.ts` (actualizado para usar extractSize + convertSizeToBytes)
+- `src/app/api/arr/search/route.ts` (removido import de extractSizeFromTitle)
+
 - **Multi-foro simultáneo**: Buscar en todos los foros configurados en paralelo
 - **Sistema de prioridades**: Ranking de foros según velocidad/disponibilidad
 - **Caché de búsquedas**: Redis para resultados recientes

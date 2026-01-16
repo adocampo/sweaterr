@@ -4,7 +4,6 @@ import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { searchSeries } from '@/lib/services/tvdb';
 import { logger } from '@/lib/logger';
-import { extractSizeFromTitle } from '@/lib/utils';
 import { extractSeason, extractEpisodes, episodeCountToNewznabList } from '@/lib/metadata-extractor';
 
 // TODO: Future enhancement - Include cleanTitle in Newznab XML response

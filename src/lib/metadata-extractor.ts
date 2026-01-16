@@ -141,6 +141,52 @@ export function extractSize(text: string): string | null {
     return `${size} ${match[2].toUpperCase()}`;
 }
 
+/**
+ * Convert size string to bytes (number)
+ * GB = GiB (1 GB = 1073741824 bytes)
+ * @example convertSizeToBytes("2.5 GB") // 2684354560
+ * @example convertSizeToBytes("1500 MB") // 1572864000
+ */
+export function convertSizeToBytes(sizeString: string): number {
+    const match = sizeString.match(/^(\d+(?:\.\d+)?)\s*(GB|GiB|MB|MiB)$/i);
+    if (!match) return 0;
+    
+    const value = parseFloat(match[1]);
+    const unit = match[2].toUpperCase();
+    
+    // GB = GiB = 1073741824 bytes (2^30)
+    // MB = MiB = 1048576 bytes (2^20)
+    if (unit === 'GB' || unit === 'GIB') {
+        return Math.round(value * 1073741824);
+    }
+    if (unit === 'MB' || unit === 'MIB') {
+        return Math.round(value * 1048576);
+    }
+    
+    return 0;
+}
+
+/**
+ * Convert bytes to human-readable size string
+ * @example convertBytesToSize(2684354560) // "2.5 GB"
+ * @example convertBytesToSize(1572864000) // "1500 MB"
+ */
+export function convertBytesToSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    if (bytes < 1048576) {
+        // Less than 1 MB
+        return `${Math.round(bytes / 1024)} KB`;
+    }
+    if (bytes < 1073741824) {
+        // Less than 1 GB
+        const mb = bytes / 1048576;
+        return `${mb % 1 === 0 ? mb : mb.toFixed(1)} MB`;
+    }
+    // GB
+    const gb = bytes / 1073741824;
+    return `${gb % 1 === 0 ? gb : gb.toFixed(1)} GB`;
+}
+
 export function extractEpisodes(text: string): { available?: number | null; total?: number | null } {
     // Match patterns like [13/13], [13 de 13], [ 13 / 13 ]
     const match = text.match(/\[\s*(\d{1,3})\s*(?:de|\/)\s*(\d{1,3})\s*\]/i);

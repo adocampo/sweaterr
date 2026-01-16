@@ -4,7 +4,7 @@ import { CloudflareHandler } from './cloudflare-handler';
 import { FlareSolverrClient } from './flaresolverr-client';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { extractSizeFromTitle } from '@/lib/utils';
+import { extractSize, convertSizeToBytes } from '@/lib/metadata-extractor';
 
 export interface ForumSearchResult {
   title: string;
@@ -779,6 +779,9 @@ export class ForumService {
           const lastMatch = rowText.match(/Último mensaje:\s*([^\n]+)/i);
           if (lastMatch) dateText = lastMatch[1].trim();
 
+          const sizeStr = extractSize(title) || (snippet ? extractSize(snippet) : null);
+          const sizeBytes = sizeStr ? convertSizeToBytes(sizeStr) : undefined;
+          
           out.push({
             title,
             url: href,
@@ -787,7 +790,7 @@ export class ForumService {
             hasLinks: false,
             thankRequired: false,
             snippet: snippet || undefined,
-            size: extractSizeFromTitle(title) || (snippet ? extractSizeFromTitle(snippet) : undefined) || undefined,
+            size: sizeBytes,
           });
           seen.add(href);
         };
