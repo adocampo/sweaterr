@@ -4,7 +4,7 @@ import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { searchSeries } from '@/lib/services/tvdb';
 import { logger } from '@/lib/logger';
-import { extractSeason, extractEpisodes, episodeCountToNewznabList } from '@/lib/metadata-extractor';
+import { extractSeason, extractEpisodes, episodeCountToNewznabList, extractLanguages } from '@/lib/metadata-extractor';
 
 // TODO: Future enhancement - Include cleanTitle in Newznab XML response
 // Once metadata extraction stabilizes, update the <title> field to use cleanTitle
@@ -450,6 +450,9 @@ export async function GET(request: NextRequest) {
             }
         }
 
+        // Get default language from forum config
+        const forumDefaultLanguage = (forums[0] as any)?.defaultLanguage || 'es-ES';
+
         const items = rankedResults.map((result, idx) => {
             // Determine category based on detected service or search type
             let category = '7000'; // Other by default
@@ -477,15 +480,19 @@ export async function GET(request: NextRequest) {
             const guid = Buffer.from(guidData).toString('base64url');
             const pubDate = new Date().toUTCString();
 
-            const size = result.size || 100 * 1024 * 1024; // Default 100 MB if size not detected
+            const size = result.size || 200 * 1048576; // Default 200 MiB if size not detected
             // Use standard Newznab download pattern: /api/arr?t=get&id=<guid>&apikey=<apiKey>
             const enclosureUrl = `${origin}/api/arr?t=get&id=${encodeURIComponent(guid)}&apikey=${apiKey}`;
             const escapedLink = escapeXml(enclosureUrl);
 
             // Extract metadata for Newznab attributes
-            const detectedSeason = extractSeason(result.title);
+            const detectedSeason = season ? parseInt(season, 10) : extractSeason(result.title);
             const episodeData = extractEpisodes(result.title);
             const detectedEpisodes = episodeData.total ? episodeCountToNewznabList(episodeData.total) : null;
+            const { audio, subtitles } = extractLanguages(result.title);
+            
+            // Use forum default language if no audio language detected in title
+            const audioLanguages = audio.length > 0 ? audio : [forumDefaultLanguage];
 
             // Build newznab attributes
             let newznabAttrs = `            <newznab:attr name="category" value="${category}"/>
@@ -505,6 +512,16 @@ export async function GET(request: NextRequest) {
                 newznabAttrs += `
             <newznab:attr name="episodes" value="${detectedEpisodes}"/>`;
             }
+
+            // Add language information
+            if (audioLanguages.length > 0) {
+                newznabAttrs += `
+            <newznab:attr name="language" value="${audioLanguages.join(',')}"/>`;
+            }
+
+            // Mark source as direct download (not usenet/torrent)
+            newznabAttrs += `
+            <newznab:attr name="source" value="direct"/>`;
 
             const forumName = result.forum ?? result.forumName ?? 'Sweaterr';
             const escapedDescription = escapeXml(`${forumName} - ${result.url}`);
@@ -528,7 +545,7 @@ ${newznabAttrs}
     <title>Sweaterr</title>
     <description>Direct download indexer</description>
         <link>${origin}</link>
-    <language>${forums[0].defaultLanguage || 'es-ES'}</language>
+    <language>${(forums[0] as any)?.defaultLanguage || 'es-ES'}</language>
     <webMaster>admin@forumdownloader.local</webMaster>
         <atom:link rel="self" href="${escapeXml(selfLink)}" type="application/rss+xml" />
         <newznab:response offset="0" total="${rankedResults.length}" />

@@ -10,16 +10,16 @@ import { CookieJar } from 'tough-cookie';
 import * as cheerio from 'cheerio';
 import { getJarForHost, preloadJarCookies } from '@/lib/cookie-jar-store';
 import { AIService, MediaMetadata } from '@/lib/services/ai';
-import { 
-  detectSeriesByEpisodePattern,
-  detectType,
-  extractYear,
-  extractSeason,
-  extractQuality,
-  extractLanguages,
-  extractEpisodes,
-  extractCleanTitle,
-  extractSize,
+import {
+    detectSeriesByEpisodePattern,
+    detectType,
+    extractYear,
+    extractSeason,
+    extractQuality,
+    extractLanguages,
+    extractEpisodes,
+    extractCleanTitle,
+    extractSize,
 } from '@/lib/metadata-extractor';
 
 interface MetadataResult {

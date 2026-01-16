@@ -781,7 +781,7 @@ export class ForumService {
 
           const sizeStr = extractSize(title) || (snippet ? extractSize(snippet) : null);
           const sizeBytes = sizeStr ? convertSizeToBytes(sizeStr) : undefined;
-          
+
           out.push({
             title,
             url: href,
@@ -1495,7 +1495,7 @@ export class ForumService {
       const title = $(config.postTitleSelector || '.post-title, .topic-title, h1, h2').first().text().trim();
       const containerSelector = config.linksContainerSelector
         || '.post-content, .message-body, .post-body, #post_message, [id^="post_message_"]';
-      
+
       // CRITICAL FIX: Use only the FIRST matching container, not all of them.
       // When parsing a post from a thread URL, we should extract links from the first post content only,
       // not from all posts in the thread (which would include comments, replies, etc.).
