@@ -351,9 +351,19 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
 
+    // Log all form fields for debugging
+    logger.debug('sabnzbd', 'Received formData with fields:', Array.from(formData.keys()));
+
     // Common field names: "nzbfile" (file), sometimes "name".
-    const nzbFile = formData.get('nzbfile');
+    let nzbFile = formData.get('nzbfile');
+    
+    // Fallback: try other common field names
     if (!(nzbFile instanceof File)) {
+        nzbFile = formData.get('nzb') || formData.get('file') || formData.get('filename');
+    }
+    
+    if (!(nzbFile instanceof File)) {
+        logger.warn('sabnzbd', 'Missing nzbfile - available fields:', Array.from(formData.keys()));
         return jsonResponse({ status: false, error: 'Missing nzbfile' }, 400);
     }
 
