@@ -310,6 +310,7 @@ export async function POST(request: NextRequest) {
         hasApiKey: Boolean(apiKey),
         cat,
         path: request.nextUrl.pathname,
+        contentType: request.headers.get('content-type'),
     });
 
     if (output !== 'json') {
@@ -349,25 +350,46 @@ export async function POST(request: NextRequest) {
         return jsonResponse({ status: false, error: `Unsupported mode: ${mode}` }, 400);
     }
 
-    const formData = await request.formData();
+    let nzbText: string | null = null;
 
-    // Log all form fields for debugging
-    logger.debug('sabnzbd', 'Received formData with fields:', Array.from(formData.keys()));
-
-    // Common field names: "nzbfile" (file), sometimes "name".
-    let nzbFile = formData.get('nzbfile');
+    // Try to extract NZB content: first try multipart form, then raw body
+    const contentType = request.headers.get('content-type') || '';
     
-    // Fallback: try other common field names
-    if (!(nzbFile instanceof File)) {
-        nzbFile = formData.get('nzb') || formData.get('file') || formData.get('filename');
+    if (contentType.includes('multipart/form-data')) {
+        const formData = await request.formData();
+        logger.debug('sabnzbd', 'Received multipart form with fields:', Array.from(formData.keys()));
+
+        // Common field names: "nzbfile" (file), sometimes "name".
+        let nzbFile = formData.get('nzbfile');
+        
+        // Fallback: try other common field names
+        if (!(nzbFile instanceof File)) {
+            nzbFile = formData.get('nzb') || formData.get('file') || formData.get('filename');
+        }
+        
+        if (nzbFile instanceof File) {
+            nzbText = await nzbFile.text();
+        } else {
+            logger.warn('sabnzbd', 'Missing nzbfile in multipart - available fields:', Array.from(formData.keys()));
+        }
     }
-    
-    if (!(nzbFile instanceof File)) {
-        logger.warn('sabnzbd', 'Missing nzbfile - available fields:', Array.from(formData.keys()));
+
+    // Fallback: try raw body as NZB content
+    if (!nzbText) {
+        try {
+            const bodyText = await request.text();
+            if (bodyText && bodyText.includes('<?xml') && bodyText.includes('</nzb>')) {
+                nzbText = bodyText;
+                logger.debug('sabnzbd', 'Using raw body as NZB content');
+            }
+        } catch {
+            logger.debug('sabnzbd', 'Could not read raw body');
+        }
+    }
+
+    if (!nzbText) {
         return jsonResponse({ status: false, error: 'Missing nzbfile' }, 400);
     }
-
-    const nzbText = await nzbFile.text();
     const guid = extractMeta(nzbText, 'guid');
     const downloadId = extractMeta(nzbText, 'downloadId');
 
