@@ -355,39 +355,49 @@ export async function POST(request: NextRequest) {
     // Try to extract NZB content: first try multipart form, then raw body
     const contentType = request.headers.get('content-type') || '';
     
+    logger.info('sabnzbd', `POST addfile: contentType="${contentType}"`);
+
     if (contentType.includes('multipart/form-data')) {
-        const formData = await request.formData();
-        logger.debug('sabnzbd', 'Received multipart form with fields:', Array.from(formData.keys()));
+        try {
+            const formData = await request.formData();
+            logger.debug('sabnzbd', 'Received multipart form with fields:', Array.from(formData.keys()));
 
-        // Common field names: "nzbfile" (file), sometimes "name".
-        let nzbFile = formData.get('nzbfile');
-        
-        // Fallback: try other common field names
-        if (!(nzbFile instanceof File)) {
-            nzbFile = formData.get('nzb') || formData.get('file') || formData.get('filename');
+            // Common field names: "nzbfile" (file), sometimes "name".
+            let nzbFile = formData.get('nzbfile');
+            
+            // Fallback: try other common field names
+            if (!(nzbFile instanceof File)) {
+                nzbFile = formData.get('nzb') || formData.get('file') || formData.get('filename');
+            }
+            
+            if (nzbFile instanceof File) {
+                nzbText = await nzbFile.text();
+                logger.debug('sabnzbd', `Got NZB from multipart field, size: ${nzbText.length} bytes`);
+            } else {
+                logger.warn('sabnzbd', 'Missing nzbfile in multipart - available fields:', Array.from(formData.keys()));
+            }
+        } catch (e) {
+            logger.error('sabnzbd', `Error parsing multipart form: ${e}`);
         }
-        
-        if (nzbFile instanceof File) {
-            nzbText = await nzbFile.text();
-        } else {
-            logger.warn('sabnzbd', 'Missing nzbfile in multipart - available fields:', Array.from(formData.keys()));
-        }
-    }
-
-    // Fallback: try raw body as NZB content
-    if (!nzbText) {
+    } else {
+        // Raw body - could be application/x-nzb or application/octet-stream
         try {
             const bodyText = await request.text();
+            logger.info('sabnzbd', `Raw body size: ${bodyText.length} bytes, first 200 chars: ${bodyText.substring(0, 200)}`);
+            
             if (bodyText && bodyText.includes('<?xml') && bodyText.includes('</nzb>')) {
                 nzbText = bodyText;
                 logger.debug('sabnzbd', 'Using raw body as NZB content');
+            } else if (bodyText.length > 0) {
+                logger.warn('sabnzbd', 'Body received but does not look like NZB XML');
             }
-        } catch {
-            logger.debug('sabnzbd', 'Could not read raw body');
+        } catch (e) {
+            logger.error('sabnzbd', `Error reading raw body: ${e}`);
         }
     }
 
     if (!nzbText) {
+        logger.error('sabnzbd', 'Could not extract NZB from request');
         return jsonResponse({ status: false, error: 'Missing nzbfile' }, 400);
     }
     const guid = extractMeta(nzbText, 'guid');
