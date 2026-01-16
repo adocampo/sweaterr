@@ -4,13 +4,14 @@ import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { searchSeries } from '@/lib/services/tvdb';
 import { logger } from '@/lib/logger';
+import { extractSizeFromTitle } from '@/lib/utils';
 
 // Simplified metadata extraction for filtering season pack results
 function extractSeasonFromTitle(title: string): number | null {
     // Priority 1: Ordinal patterns with possible text between: "5ª 2/2 Temporada Final", "3º mitad Temporada"
     let match = title.match(/(\d{1,2})(?:ª|º)\s+.{0,20}?\b(?:temporada|temp\.?|season)\b/i);
     if (match) return parseInt(match[1], 10);
-    
+
     // Standard ordinal without text between: "5ª Temporada", "3º Season"
     match = title.match(/(\d{1,2})(?:ª|º)\s*(?:temporada|temp\.?|season)/i);
     if (match) return parseInt(match[1], 10);
@@ -169,7 +170,7 @@ export async function GET(request: NextRequest) {
     <title>Sweaterr</title>
     <description>Direct download indexer</description>
         <link>${origin}</link>
-    <language>es-es</language>
+    <language>es-ES</language>
     <webMaster>admin@sweaterr.local</webMaster>
   </channel>
 </rss>`,
@@ -368,7 +369,7 @@ export async function GET(request: NextRequest) {
                     forumId: forum.id,
                     forumName: forum.name,
                     category: cat || primaryCategory,
-                    size: 1024,
+                    size: 100 * 1024 * 1024, // 100 MB default placeholder size
                 });
             }
 
@@ -380,7 +381,7 @@ export async function GET(request: NextRequest) {
                     forumId: 'placeholder',
                     forumName: 'Sweaterr',
                     category: primaryCategory,
-                    size: 1024,
+                    size: 100 * 1024 * 1024, // 100 MB default placeholder size
                 });
             }
         }
@@ -391,15 +392,15 @@ export async function GET(request: NextRequest) {
         if (shouldSearch && isTv && season) {
             const requestedSeason = parseInt(String(season), 10);
             const preFilterCount = allResults.length;
-            
+
             filteredResults = allResults.filter(result => {
                 const detectedSeason = extractSeasonFromTitle(result.title || '');
                 const matches = detectedSeason === requestedSeason;
-                
+
                 if (!matches && detectedSeason !== null) {
                     logger.info('search', `[${service.toUpperCase()}] Filtered out: "${result.title}" (detected season ${detectedSeason}, requested ${requestedSeason})`);
                 }
-                
+
                 return matches;
             });
 
@@ -408,7 +409,7 @@ export async function GET(request: NextRequest) {
 
         // Rank results with AI if available, or apply heuristic ranking for season packs
         let rankedResults = filteredResults;
-        
+
         // For season pack searches (tvsearch with season but no episode),
         // apply scoring to prioritize exact season matches
         if (isTv && season && !ep && filteredResults.length > 0) {
@@ -490,7 +491,7 @@ export async function GET(request: NextRequest) {
 
             logger.info('search', `[${service.toUpperCase()}] Season pack scoring applied: Top result: "${rankedResults[0]?.title}" (score=${scoredResults[0]?._score.score}, reason=${scoredResults[0]?._score.reason})`);
         }
-        
+
         if (aiService && filteredResults.length > 0) {
             // TODO: Use AI to further rank results
             // For now, use heuristic ranking above
@@ -519,7 +520,7 @@ export async function GET(request: NextRequest) {
         const items = rankedResults.map((result, idx) => {
             // Determine category based on detected service or search type
             let category = '7000'; // Other by default
-            
+
             if (isTv || service === 'sonarr') {
                 category = '5000'; // TV
             } else if (service === 'radarr') {
@@ -527,7 +528,7 @@ export async function GET(request: NextRequest) {
             } else if (service === 'lidarr') {
                 category = '3000'; // Audio
             }
-            
+
             // Override with result category if explicitly set
             if (result.category && result.category !== '7000') {
                 category = result.category;
@@ -543,7 +544,7 @@ export async function GET(request: NextRequest) {
             const guid = Buffer.from(guidData).toString('base64url');
             const pubDate = new Date().toUTCString();
 
-            const size = result.size || 1024;
+            const size = result.size || 100 * 1024 * 1024; // Default 100 MB if size not detected
             // Use standard Newznab download pattern: /api/arr?t=get&id=<guid>&apikey=<apiKey>
             const enclosureUrl = `${origin}/api/arr?t=get&id=${encodeURIComponent(guid)}&apikey=${apiKey}`;
             const escapedLink = escapeXml(enclosureUrl);
@@ -593,7 +594,7 @@ ${newznabAttrs}
     <title>Sweaterr</title>
     <description>Direct download indexer</description>
         <link>${origin}</link>
-    <language>es-es</language>
+    <language>${forums[0].defaultLanguage || 'es-ES'}</language>
     <webMaster>admin@forumdownloader.local</webMaster>
         <atom:link rel="self" href="${escapeXml(selfLink)}" type="application/rss+xml" />
         <newznab:response offset="0" total="${rankedResults.length}" />

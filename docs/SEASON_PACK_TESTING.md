@@ -55,9 +55,9 @@ curl -G "http://localhost:3000/api/arr" \
 
 **Expected Behavior**:
 
-4. **API Key**: (Paste forum's `torznabApiKey` from above)
-5. Click "Test" → Should return "Indexer working"
-6. Save
+1. **API Key**: (Paste forum's `torznabApiKey` from above)
+2. Click "Test" → Should return "Indexer working"
+3. Save
 
 #### 2. Test Search in Sonarr
 
@@ -66,12 +66,14 @@ curl -G "http://localhost:3000/api/arr" \
 3. Select a specific season (e.g., Season 5)
 4. Sonarr sends request: `GET /api/arr?t=tvsearch&q=Breaking%20Bad&season=5&apikey=...`
 5. Check Sweaterr logs in terminal for:
+
    ```
    [SONARR] Starting forum search for query: "Breaking Bad" (variants: 6, isTv=true, season=5, ep=null)
    [SONARR] Searching in forum "DescargasDD" with variant: "Breaking Bad T5"
    [SONARR] Found X results in forum "DescargasDD"
    [SONARR] Season pack scoring applied: Top result: "..." (score=150, reason=...)
    ```
+
 6. Verify results show season pack matches (should have "T5", "temporada 5", "pack", "completa" in title)
 
 #### 3. Verify Auto-Selection
@@ -157,6 +159,7 @@ scoreResult(result: any, seasonNum: number): { score: number; reason: string }
 ### Issue: No season pack scoring applied
 
 **Check**:
+
 - Is `season` parameter present in request?
 - Is `ep` parameter absent?
 - Look for log: `[arr-search] [...] Season pack scoring applied:`
@@ -165,6 +168,7 @@ scoreResult(result: any, seasonNum: number): { score: number; reason: string }
 ### Issue: Wrong results returned
 
 **Check**:
+
 - Are forum results actually in Spanish format?
 - Does forum support queries like "Breaking Bad T5"?
 - Try manual forum search with "Breaking Bad T5" to verify
@@ -173,6 +177,7 @@ scoreResult(result: any, seasonNum: number): { score: number; reason: string }
 ### Issue: Search is slow
 
 **Check**:
+
 - Is it trying all 10 variants? (Log shows variants being tried)
 - Recommendation: Stop at first successful match works, so slowness might be forum latency
 - Test forum connection: `/api/config/forums/[id]/test`

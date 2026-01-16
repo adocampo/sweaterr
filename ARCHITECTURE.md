@@ -634,6 +634,360 @@ Para mejorar matching en foros hispanohablantes:
 
 - Autenticación de foros condicionada a búsqueda real: cuando `q` está vacío (p.ej. `tvsearch` mínimo enviado por *arr), el endpoint retorna placeholders sin ejecutar autenticación en los foros. Esto reduce la latencia drásticamente y evita timeouts en Sonarr al abrir la ventana de resultados.
 
+---
+
+### 8.2. Issues Conocidos y Soluciones Pendientes (Enero 2026)
+
+**Estado**: 🔄 En diagnóstico y planificación de fixes
+
+#### Problema 1: Size Field - Todos los resultados muestran 1 KB 🔴 BLOQUEADOR
+
+**Síntoma**: En Sonarr, todos los releases aparecen como 1 KB → Sonarr rechaza (bajo mínimo requerido típicamente 100 MB+)
+
+**Root Cause**: Interface `ForumSearchResult` no incluye field `size`. En Testing se extrae correctamente, pero no se pasa a Sonarr en el XML Newznab.
+
+**Solución**:
+
+1. Agregar `size?: number` a interface `ForumSearchResult`
+2. Extraer tamaño desde título: buscar patrones como "4.5 GB", "2.3 GiB", "1024 MB"
+3. En XML generation (línea 548): usar `result.size || 0` en lugar de `1024`
+4. Convertir unidades: GB×1024³, MB×1024², etc.
+
+**Archivos afectados**:
+
+- `src/lib/services/forum.ts` (interface + búsqueda)
+- `src/app/api/arr/search/route.ts` (XML generation)
+- `src/lib/utils.ts` (función extractSizeFromTitle)
+
+**Impacto**: Alto - Sonarr rechaza todas las descargas
+**Estimación**: 2-3 horas
+**Prioridad**: 🔥 BLOQUEADOR
+
+---
+
+#### Problema 2: TVDB Lookup - Red Icons en Scene Info 🔴 BLOQUEADOR
+
+**Síntoma**: Sonarr muestra iconos rojos en "Scene Info" porque TVDB lookup falla. En un caso, Sonarr pensó que el season pack [16/16] era el episodio individual "2x9".
+
+**Root Cause**: Nombre de serie enviado a TVMaze incluye temporada/episodios: "Breaking Bad T5 [16/16]" → TVMaze no encuentra con ese nombre → `tvdbId = undefined` → Sonarr no puede mapear serie → red icon, metadata fallido.
+
+**Solución**:
+
+1. En `src/lib/services/tvdb.ts` función `searchSeries()`: limpiar nombre ANTES de buscar
+2. Patrón de limpieza: remover todo después de temporada/episodio/indicadores
+3. Ejemplos:
+   - "Breaking Bad T5 [16/16]" → "Breaking Bad"
+   - "Game of Thrones 3ª Temporada" → "Game of Thrones"
+   - "The Office S05E01" → "The Office"
+4. Cachear resultados por nombre limpio (evitar re-búsquedas)
+5. Si TVDB lookup falla, loguear WARNING pero continuar (no es error fatal)
+
+**Patrón de limpieza recomendado**:
+
+```typescript
+function cleanSeriesNameForLookup(name: string): string {
+  return name
+    .replace(/\s+(T\.?\d+|T\d+|S\d+E\d+|Season\s\d+|Temporada\s\d+|\d+ª\s*Temporada|\[?\d+\/\d+\]?).*$/i, '')
+    .trim();
+}
+```
+
+**Archivos afectados**:
+
+- `src/lib/services/tvdb.ts` (cleanSeriesNameForLookup + searchSeries)
+- `src/app/api/arr/search/route.ts` (logs de debugging)
+
+**Impacto**: Alto - Sonarr no puede hacer metadata lookup correctamente
+**Estimación**: 3-4 horas
+**Prioridad**: 🔥 BLOQUEADOR
+
+---
+
+#### Problema 3: Language Field - Hardcodeado a "es-es" ⚠️ NICE-TO-HAVE
+
+**Síntoma**: XML responde siempre `<language>es-es</language>` sin usar configuración del foro
+
+**Root Cause**: Campo `forum.defaultLanguage` existe en BD pero nunca se lee en `/api/arr/search/route.ts`
+
+**Solución** (muy simple):
+
+1. En `src/app/api/arr/search/route.ts` línea 172 y 596: reemplazar
+
+   ```xml
+   <language>es-es</language>
+   ```
+
+   por:
+
+   ```xml
+   <language>${forum.defaultLanguage || 'es-es'}</language>
+   ```
+
+2. Validar que campo `defaultLanguage` existe en objeto `forum` tras query BD
+
+**Archivos afectados**:
+
+- `src/app/api/arr/search/route.ts` (2 líneas)
+
+**Impacto**: Bajo - feature, Sonarr funciona igual
+**Estimación**: 30 minutos
+**Prioridad**: 🟡 BAJA
+
+**Nota**: Para detectar idiomas múltiples en título (Dual/Cast./Ing), documentar en TODO separado.
+
+---
+
+#### Problema 4: Season Pack Filtering - UI sin filtros 🟡 MEDIA
+
+**Síntoma**: En UI testing, al seleccionar filtro "Season Pack", aparece "All results are hidden by filter"
+
+**Root Cause**: Server-side filtering por temporada **FUNCIONA correctamente** (confirmado por usuario - búsqueda devuelve solo T5). El problema es en la UI testing que no detecta/muestra el filtro "Season Pack" adecuadamente.
+
+**Actual behavior**:
+
+- API filtra correctamente por temporada
+- UI testing no soporta filtro "Season Pack" explícito
+- Si aplicas filtros manuales, oculta todos los resultados
+
+**Solución**:
+
+1. Función de detección de season pack basada en episodios detectados:
+
+   ```typescript
+   function isSeasonPack(result: TestResult): boolean {
+     if (!result.detectedEpisodes) return false;
+     const episodeCount = result.detectedEpisodes.split(',').length;
+     return episodeCount > 8; // threshold arbitrario
+   }
+   ```
+
+2. Agregar al dropdown de filtros: "All", "Season Pack", "Not Season Pack", "Custom Filters"
+3. Al filtrar por "Season Pack", aplicar lógica anterior
+4. Logs: `[testing] Season pack filter applied: X results → Y`
+
+**Archivos afectados**:
+
+- `src/components/testing/search-tester.tsx` (UI + filtering logic)
+- `src/lib/utils.ts` (función isSeasonPack si es compartida)
+
+**Impacto**: Medio - UX de testing, no afecta Sonarr en producción
+**Estimación**: 2-3 horas
+**Prioridad**: 🟡 MEDIA
+
+---
+
+### 8.3. Episodios Parciales [4/10]: Opciones de Implementación 📋
+
+**Problema Futuro**: Cuando un hilo actualiza de [4/10] → [5/10], ¿cómo sabe Sonarr qué descargar? (¿todos de nuevo? ¿solo el nuevo?)
+
+**Contexto**: Muchos foros de descarga directa no publican enlaces individuales por episodio. Todos están ocultos detrás de servicios de pastes (keeplinks.org, justpaste.it, controlc.com) o URLs genéricas que no incluyen el nombre del episodio.
+
+**Documentación de 4 opciones propuestas**:
+
+#### Opción A: JDownloader Manual + Sweaterr Metadata (KISS - RECOMENDADA ACTUALMENTE)
+
+**Flujo**:
+
+```
+1. Usuario busca en Sonarr "Breaking Bad T5"
+2. Sonarr obtiene de Sweaterr: [4/10] con 4 enlaces + metadatos
+3. Sweaterr extrae TODOS los 4 enlaces → agrega a JD Linkgrabber
+4. Usuario MANUALMENTE selecciona en JD cuáles descargar (episodios 1-4)
+5. Cuando hilo actualiza a [5/10], usuario busca de nuevo en Sonarr
+6. Sweaterr extrae 5 enlaces → usuario descarga solo #5 en JD
+```
+
+**Ventajas**:
+
+- ✅ Simple (KISS philosophy)
+- ✅ No requiere API sync compleja
+- ✅ User tiene control total
+- ✅ Funciona HOY con código actual
+
+**Desventajas**:
+
+- ❌ Manual (requiere intervención)
+- ❌ No es automático
+
+**Implementación**: Solo documentar en USER GUIDE que cuando hay [4/10], todos se agregan a JD Linkgrabber.
+
+---
+
+#### Opción B: Sonarr ↔ Sweaterr API Sync (Intermedio)
+
+**Flujo**:
+
+```
+1. Sonarr busca "Breaking Bad T5" → Sweaterr devuelve episodios=[1,2,3,4]
+2. Sonarr sabe que faltan 5-10 → marca como "Not downloaded"
+3. Usuario marca episodio 5 en Sonarr
+4. Sonarr POST /api/arr/download?series=X&season=Y&episode=5
+5. Sweaterr busca → extrae enlaces → filtra por episodio 5 → envía a JD
+```
+
+**Ventajas**:
+
+- ✅ Automático
+- ✅ Sonarr sabe estado de episodios
+- ✅ Solo descargar episodios nuevos
+
+**Desventajas**:
+
+- ❌ URLs genéricas sin nombre episodio → imposible filtrar
+  - Ejemplo: `https://pixeldrain.com/u/91bsp4Wn` no dice qué episodio es
+  - Requeriría hacer request a URL para ver nombre del archivo
+- ❌ Servicios de pastes esconden nombres: justpaste.it, controlc.com
+- ❌ Requiere refactor del endpoint search para soportar filtros episodio
+
+**Implementación**: Dejar para iteración futura.
+
+---
+
+#### Opción C: JDownloader ↔ Sweaterr 3-API Sync (COMPLEJO)
+
+**Flujo**:
+
+```
+1. Sweaterr genera webhook que JD escucha
+2. Usuario indica "voy a descargar 5 episodios"
+3. JD entra a URLs, descarga lista de archivos
+4. JD compara con lo que Sonarr pidió
+5. JD filtra y descarga solo episodios solicitados
+```
+
+**Ventajas**:
+
+- ✅ Más inteligente (JD puede ver contenido)
+
+**Desventajas**:
+
+- ❌ COMPLEJIDAD EXTREMA
+- ❌ Requiere API JD bidireccional
+- ❌ Muchos servicios tienen protección contra scraping
+- ❌ No se justifica el esfuerzo
+
+**Implementación**: No recomendado.
+
+---
+
+#### Opción D: Monitoring + IA Parser (FUTURE ENHANCEMENT)
+
+**Flujo**:
+
+```
+1. Usuario agrega hilo manualmente a Sweaterr como "fuente monitorizada"
+2. Sweaterr chequea periódicamente (cada día)
+3. Cuando detecta cambio [4/10] → [5/10], IA extrae nombres episodios
+4. Sweaterr crea evento "New Episode 5 found"
+5. Webhook a Sonarr/JD: "Breaking Bad T5E05 ready"
+6. Sonarr/JD descarga automáticamente
+```
+
+**Ventajas**:
+
+- ✅ Casi automático
+- ✅ Inteligente con IA
+
+**Desventajas**:
+
+- ❌ Muy complejo
+- ❌ IA/parsing unreliable con URLs genéricas
+- ❌ Require monitoring continuo
+- ❌ Alto uso de recursos
+
+**Implementación**: Dejar para iteración futura.
+
+---
+
+**Recomendación**: Mantener Opción A (KISS) como comportamiento por defecto. Documentar otras opciones para posible implementación futura cuando sea prioritario.
+
+**Problema resuelto**: Cuando Sonarr busca una serie con temporada específica (ej: `Breaking Bad Season 5`), el sistema anterior devolvía resultados genéricos del foro. Para foros de descarga directa que típicamente albergan "packs" de temporadas completas, era ineficiente.
+
+**Solución implementada**:
+
+**Función `buildSeasonPackVariants()`**: Cuando `tvsearch` incluye `season` pero NO `ep` (búsqueda de temporada completa), genera variantes específicas para season packs:
+
+```text
+// Prioridad 1: Season pack queries (Spanish-optimized for direct download forums)
+- "${series} T${season}" // Breaking Bad T5
+- "${series} temporada ${season}" // Breaking Bad temporada 5
+- "${series} T${season} pack" // Breaking Bad T5 pack
+- "${series} temporada ${season} completa" // Breaking Bad temporada 5 completa
+- "${series} season ${season} pack" // Breaking Bad season 5 pack (English fallback)
+- "${series} season ${season}" // Breaking Bad season 5 (English fallback)
+```
+
+**Integración en flujo de búsqueda**:
+
+1. **Detección de búsqueda por temporada**: Si `tvsearch` con `season` pero sin `ep`, activa modo season pack
+2. **Priorización de variantes**: Las variantes de season pack se intentan primero, antes que búsquedas genéricas
+3. **Orden de intentos**: Stop at first successful match (mejora velocidad y evita resultados irrelevantes)
+
+**Scoring inteligente de resultados** (cuando hay resultados de multiple variantes):
+
+```typescript
+// Scoring heurístico para season packs:
++ 100 puntos: Coincidencia exacta de temporada en título (T5, temporada 5, season 5)
++  50 puntos: Indicadores de pack (pack, completa, complete, full)
+-  30 puntos: Múltiples temporadas en el mismo resultado (penalización)
+
+// Ejemplo:
+"Breaking Bad T5 Español 1080p" → +100 (exact season match)
+"Breaking Bad T5 pack" → +100 + 50 = +150 (exact season + pack indicator)
+"Breaking Bad T1-T5" → -30 (multiple seasons detected)
+"Breaking Bad" → 0 (no season info)
+```
+
+**Beneficios**:
+
+- ✅ Resultados más relevantes: Season packs exactos se priorizan automáticamente
+- ✅ Compatible con Sonarr/Radarr: Integrarse naturalmente en búsqueda indexer
+- ✅ Mejor velocidad: Stop at first match evita búsquedas innecesarias
+- ✅ Multiidioma: Variantes en español e inglés según foro preferido
+
+**Ejemplo de flujo con Sonarr**:
+
+```
+1. Usuario añade "Breaking Bad" a Sonarr
+2. Sonarr → GET /api/arr?t=tvsearch&q=Breaking+Bad&season=5
+3. Sweaterr ejecuta buildTvVariants() → activa season pack mode
+4. Intenta variantes en orden:
+   - "Breaking Bad T5" ✅ Encuentra 3 resultados
+   - (stop, no intenta "Breaking Bad temporada 5" etc.)
+5. Aplica scoring:
+   - "Breaking Bad T5 Completa 1080p" → score 150 (rank 1)
+   - "Breaking Bad T5 pack" → score 150 (rank 2)
+   - "Breaking Bad T5" → score 100 (rank 3)
+6. Devuelve top 3 resultados en XML/RSS
+7. Sonarr muestra "Breaking Bad T5 Completa 1080p" como default
+8. Usuario selecciona → Se descarga automáticamente
+```
+
+**Logging**:
+
+```text
+[SONARR] Starting forum search for query: "Breaking Bad" (variants: 6, isTv=true, season=5, ep=null)
+[SONARR] Searching in forum "DescargasDD" with variant: "Breaking Bad T5"
+[SONARR] Found 3 results in forum "DescargasDD"
+[SONARR] Season pack scoring applied: Top result: "Breaking Bad T5 Completa 1080p" (score=150, reason=Exact season match; Season pack indicator;)
+[SONARR] Returning XML response with 3 items
+```
+
+#### Placeholders y Fallbacks
+
+**Problema**: *arr puede interpretar resultado vacío como indexer offline
+
+**Solución**: Si todas las búsquedas fallan, devolver placeholders:
+
+- Título: `[Recent] <ForumName>`
+- GUID: Base64 de URL del foro (no descargable, solo informativo)
+- Snippet: "Placeholder; run interactive search with a query for real results."
+- Evita errores en *arr mientras mantiene indexer "activo"
+
+**Optimizaciones recientes (2026-01-12)**:
+
+- Autenticación de foros condicionada a búsqueda real: cuando `q` está vacío (p.ej. `tvsearch` mínimo enviado por *arr), el endpoint retorna placeholders sin ejecutar autenticación en los foros. Esto reduce la latencia drásticamente y evita timeouts en Sonarr al abrir la ventana de resultados.
+
 #### Configuración en Sonarr/Radarr
 
 1. **Añadir indexer**:

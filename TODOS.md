@@ -1,44 +1,78 @@
 # TODOs Pendientes - Sweaterr
 
-Estado: 11 de enero de 2026
+Estado: 16 de enero de 2026
 
 ## 🔴 CRÍTICOS (Afectan UX/Functionality)
 
-### 1. **Implementación Endpoint *arr (Torznab Bridge)** 🔗 ✅
+### 1.5. **Sonarr Integration: Size, Language, TVDB Cleanup, Season Pack Filtering** ✅ **COMPLETADO**
 
-- **Severidad**: Crítica (funcionalidad core)
-- **Área**: Backend API (`src/app/api/arr/*`)
-- **Estado**: ✅ **COMPLETADO** (11 de enero 2026)
-- **Problema**: Sweaterr debe actuar como indexer Torznab para *arr (Sonarr/Radarr/Lidarr)
-- **Funcionalidad implementada**:
-  - [x] Endpoint `GET /api/arr?t=caps` que devuelve capacidades Torznab
-  - [x] Endpoint `GET /api/arr?t=search|tvsearch|movie` para búsquedas
-  - [x] *arr hace peticiones → sweaterr busca en foros → devuelve RSS/XML
-  - [x] Usuario selecciona resultado en *arr →*arr envía a sweaterr como descarga
-  - [x] Endpoint `GET /api/arr?t=get&guid=X` extrae enlaces y envía a JDownloader
-  - [x] Sweaterr crea Download record con tag *arr y metadata
-  - [x] Endpoint `POST /api/arr/notify` recibe webhooks de *arr
-  - [x] Webhooks actualizan estado de Download (Grab→downloading, Download→completed)
-  - [x] Sistema de API keys por servicio *arr (Sonarr, Radarr, Lidarr, Readarr)
-  - [x] GUID mejorado: Base64url JSON para evitar parsing de URLs con caracteres especiales
-  - [x] Variantes de búsqueda en español (T1, 1x01, Temporada 1, S01E01)
-  - [x] Placeholders para evitar errores de indexer offline
-- **Archivos creados/modificados**:
-  - `src/app/api/arr/route.ts` - Dispatcher unificado
-  - `src/app/api/arr/caps/route.ts` - Capacidades Torznab
-  - `src/app/api/arr/search/route.ts` - Búsquedas con variantes español
-  - `src/app/api/arr/grab/route.ts` - Extracción de enlaces y envío a JD
-  - `src/app/api/arr/notify/route.ts` - Webhooks y actualización de estado
-  - `src/app/api/config/arr/route.ts` - CRUD de servicios *arr
-  - `src/app/api/config/arr/[id]/route.ts` - Operaciones individuales (con await params Next.js 15)
-  - `src/components/config/arr-config.tsx` - UI de configuración
-- **Documentación**: Sección completa en ARCHITECTURE.md con guía de configuración
-- **Horas estimadas**: 8-10 horas ➡️ **Invertidas**: ~6 horas
-- **Prioridad**: 🔥 COMPLETADO
-- **Próximos pasos opcionales**:
-  - Integración IA para parsing de títulos (enriquecimiento de metadatos)
-  - Testing end-to-end con instancia real de Sonarr/Radarr
-  - Rate limiting por foro para evitar baneos
+- **Severidad**: Crítica (Bloquea uso de Sonarr)
+- **Área**: Backend API (`src/app/api/arr/search/route.ts`), Services (`src/lib/services/tvdb.ts`), Frontend (`src/components/testing/search-tester.tsx`)
+- **Estado**: ✅ **COMPLETADO** (16 de enero 2026)
+- **Problemas resueltos**: 4 issues, 2 bloqueadores, 2 mejoras - TODOS SOLUCIONADOS
+
+#### Sub-task 1.5.1: Size Field - Extraer tamaño de título ✅
+
+- **Severidad**: BLOQUEADOR ✅ RESUELTO
+- **Problema**: Sonarr rechaza releases por bajo tamaño (1 KB vs 100+ MB requerido)
+- **Solución implementada**: 
+  - [x] Crear función `extractSizeFromTitle(title: string): number | null` en `src/lib/utils.ts`
+  - [x] Agregar `size?: number` a ForumSearchResult interface en `src/lib/services/forum.ts`
+  - [x] Actualizar parseResults() para extraer size del título
+  - [x] En XML: cambiar de `1024` a `100 * 1024 * 1024` (100 MB default) y usar `result.size || 100MB`
+  - [x] Soporta conversión de unidades: B, KB, KiB, MB, MiB, GB, GiB, TB, TiB
+- **Archivos modificados**: `src/lib/utils.ts`, `src/lib/services/forum.ts`, `src/app/api/arr/search/route.ts`
+- **Tiempo invertido**: ~1.5 horas
+
+#### Sub-task 1.5.2: TVDB Cleanup - Limpiar nombres antes de buscar ✅
+
+- **Severidad**: BLOQUEADOR ✅ RESUELTO
+- **Problema**: TVDB lookup falla porque se envía "Breaking Bad T5 [16/16]" en lugar de "Breaking Bad"
+- **Solución implementada**:
+  - [x] Crear función `cleanSeriesNameForLookup(name: string): string` en `src/lib/services/tvdb.ts`
+  - [x] Aplicar limpieza ANTES de TVMaze API call en `searchSeries()`
+  - [x] Agregar caché por nombre limpio (evita re-búsquedas)
+  - [x] Logs descriptivos: `[tvdb] Cleanup: "Breaking Bad temporada 4" → "Breaking Bad"`
+  - [x] Soporta patrones: "temporada X", "season X", "T##", "S##E##", "[X/Y]", "- 1x01"
+- **Archivos modificados**: `src/lib/services/tvdb.ts`
+- **Tiempo invertido**: ~2 horas
+
+#### Sub-task 1.5.3: Language Field - Usar forum.defaultLanguage ✅
+
+- **Severidad**: NICE-TO-HAVE ✅ RESUELTO
+- **Problema**: XML hardcodeado a "es-es", ignora `forum.defaultLanguage`
+- **Solución implementada**:
+  - [x] Línea 173: `<language>es-ES</language>` (fallback para error response)
+  - [x] Línea 597: `<language>${forums[0].defaultLanguage || 'es-ES'}</language>` (usa configuración del forum)
+  - [x] Validado que campo existe en schema Prisma con default "es-ES"
+- **Archivos modificados**: `src/app/api/arr/search/route.ts`
+- **Tiempo invertido**: ~15 minutos
+
+#### Sub-task 1.5.4: Season Pack Filtering - Filtro en UI testing ✅
+
+- **Severidad**: MEDIA ✅ RESUELTO
+- **Problema**: UI testing sin filtro explícito para season packs
+- **Solución implementada**:
+  - [x] Crear función `isSeasonPack(meta): boolean` - retorna true si episodesTotal > 8
+  - [x] Agregar estado `seasonPackFilter` con opciones: "all", "season-pack", "not-season-pack"
+  - [x] Actualizar lógica de filtrado en `filteredResults` para aplicar season pack filter
+  - [x] Agregar conteo `seasonPackCount` para mostrar cantidad de cada tipo
+  - [x] UI con select dropdown para elegir filtro (solo visible si hay series)
+  - [x] Mostrar conteos: "All (15)", "Season Pack (3)", "Not Season Pack (12)"
+- **Archivos modificados**: `src/components/testing/result-viewer.tsx`
+- **Tiempo invertido**: ~1.5 horas
+
+**Summary Sub-tasks**:
+
+| Sub-task | Prioridad | Tiempo | Bloqueador | Estado |
+| --- | --- | --- | --- | --- |
+| 1.5.1 Size | 🔥 | 1.5h | SÍ | ✅ COMPLETADO |
+| 1.5.2 TVDB | 🔥 | 2h | SÍ | ✅ COMPLETADO |
+| 1.5.3 Language | 🟡 | 15m | NO | ✅ COMPLETADO |
+| 1.5.4 Season Pack UI | 🟡 | 1.5h | NO | ✅ COMPLETADO |
+| **TOTAL** | | **~5h** | **2 bloqueadores** | **✅ COMPLETADO** |
+
+**Cambios clave**:
 
 ### 1.1. **Cambiar Arquitectura *arr: API Key por Foro** ✅
 

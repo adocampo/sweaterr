@@ -4,6 +4,7 @@ import { CloudflareHandler } from './cloudflare-handler';
 import { FlareSolverrClient } from './flaresolverr-client';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { extractSizeFromTitle } from '@/lib/utils';
 
 export interface ForumSearchResult {
   title: string;
@@ -16,6 +17,7 @@ export interface ForumSearchResult {
   hasLinks?: boolean;
   thankRequired?: boolean;
   snippet?: string;
+  size?: number; // File size in bytes, extracted from title or metadata
 }
 
 export interface ForumSearchResponse {
@@ -785,6 +787,7 @@ export class ForumService {
             hasLinks: false,
             thankRequired: false,
             snippet: snippet || undefined,
+            size: extractSizeFromTitle(title) || undefined,
           });
           seen.add(href);
         };

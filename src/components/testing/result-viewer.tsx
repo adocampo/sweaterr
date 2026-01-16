@@ -62,6 +62,17 @@ interface ResultViewerProps {
     language?: 'es' | 'en';
 }
 
+/**
+ * Determine if a result is a season pack based on episode count.
+ * A season pack is defined as having more than 8 episodes in a single release.
+ * @param meta - MediaMetadata for the result
+ * @returns true if this is a season pack (episodesTotal > 8)
+ */
+function isSeasonPack(meta: MediaMetadata | undefined): boolean {
+    if (!meta || meta.type !== 'series') return false;
+    return (meta.episodesTotal ?? 0) > 8;
+}
+
 export function ResultViewer({ results, forumId, searchQuery, searchMode, totalResults, onExtractLinks, onLoadMore, onLoadAll, loadingMore, language = 'es' }: ResultViewerProps) {
     const { t } = useI18n(language);
     const [selectedPost, setSelectedPost] = useState<string | null>(null);
@@ -82,6 +93,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
     const [visibleTypes, setVisibleTypes] = useState<Set<'series' | 'movie' | 'unknown'>>(
         new Set(['series', 'movie', 'unknown'])
     );
+    const [seasonPackFilter, setSeasonPackFilter] = useState<'all' | 'season-pack' | 'not-season-pack'>('all');
     const [expandedRawTitles, setExpandedRawTitles] = useState<Set<string>>(new Set());
     const [rawTitlesByPost, setRawTitlesByPost] = useState<Record<string, string>>({});
     const { loading: bulkLoading, resolveTitles } = useBulkTitles();
@@ -109,11 +121,22 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
         setExpandedRawTitles(newSet);
     };
 
-    // Filter results based on visible types
+    // Filter results based on visible types and season pack filter
     const filteredResults = results.filter(result => {
         const meta = metadataByPost[result.url];
         if (!meta) return true; // Show if metadata not yet loaded
-        return visibleTypes.has(meta.type);
+        
+        // Filter by type
+        if (!visibleTypes.has(meta.type)) return false;
+        
+        // Filter by season pack status
+        if (seasonPackFilter !== 'all') {
+            const isPack = isSeasonPack(meta);
+            if (seasonPackFilter === 'season-pack' && !isPack) return false;
+            if (seasonPackFilter === 'not-season-pack' && isPack) return false;
+        }
+        
+        return true;
     });
 
     // Count results by type
@@ -126,6 +149,24 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
         const meta = metadataByPost[result.url];
         if (meta) {
             typeCount[meta.type]++;
+        }
+    });
+    
+    // Count season packs vs non-season-packs
+    const seasonPackCount = {
+        all: 0,
+        'season-pack': 0,
+        'not-season-pack': 0,
+    };
+    results.forEach(result => {
+        const meta = metadataByPost[result.url];
+        if (meta && meta.type === 'series') {
+            seasonPackCount.all++;
+            if (isSeasonPack(meta)) {
+                seasonPackCount['season-pack']++;
+            } else {
+                seasonPackCount['not-season-pack']++;
+            }
         }
     });
 
@@ -509,6 +550,23 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                             })}
                         </span>
                     </div>
+
+                    {/* Season Pack filter dropdown */}
+                    {seasonPackCount.all > 0 && (
+                        <div className="flex items-center gap-4 p-3 bg-muted/20 rounded-md border border-muted">
+                            <label htmlFor="season-pack-filter" className="text-sm font-medium">Filter by Season Pack:</label>
+                            <select
+                                id="season-pack-filter"
+                                value={seasonPackFilter}
+                                onChange={(e) => setSeasonPackFilter(e.target.value as any)}
+                                className="text-sm border rounded px-2 py-1 bg-background"
+                            >
+                                <option value="all">All ({seasonPackCount.all})</option>
+                                <option value="season-pack">Season Pack ({seasonPackCount['season-pack']})</option>
+                                <option value="not-season-pack">Not Season Pack ({seasonPackCount['not-season-pack']})</option>
+                            </select>
+                        </div>
+                    )}
 
                     <div className="overflow-x-auto border rounded-md">
                         <table className="min-w-full text-sm">

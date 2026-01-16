@@ -259,7 +259,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Escape XML special characters
-        const escapeXml = (value: string) => 
+        const escapeXml = (value: string) =>
             value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
         // Return a minimal valid NZB so Newznab clients can treat this as a download.
