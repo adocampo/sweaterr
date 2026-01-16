@@ -51,7 +51,7 @@ dev.out
 .eslintcache
 
 # repository meta
-.github
+#.github
 
 # docs
 
