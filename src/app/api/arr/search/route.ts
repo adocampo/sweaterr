@@ -452,6 +452,13 @@ export async function GET(request: NextRequest) {
 
         // Get default language from forum config
         const forumDefaultLanguage = (forums[0] as any)?.defaultLanguage || 'es-ES';
+        
+        // Convert locale format (es-ES) to ISO 639-1 (es) for Newznab compatibility
+        const getIso639Code = (locale: string): string => {
+            if (!locale) return 'es'; // Default to Spanish
+            const code = locale.split('-')[0].toLowerCase(); // Extract language code from es-ES → es
+            return code;
+        };
 
         const items = rankedResults.map((result, idx) => {
             // Determine category based on detected service or search type
@@ -492,7 +499,14 @@ export async function GET(request: NextRequest) {
             const { audio, subtitles } = extractLanguages(result.title);
             
             // Use forum default language if no audio language detected in title
-            const audioLanguages = audio.length > 0 ? audio : [forumDefaultLanguage];
+            // Convert to ISO 639-1 format (es, en, fr) for Newznab compatibility
+            let audioLanguages = audio.length > 0 ? audio : [forumDefaultLanguage];
+            audioLanguages = audioLanguages.map(lang => getIso639Code(lang));
+
+            // DEBUG: Log metadata for each result
+            logger.info('search', `[${service.toUpperCase()}] Item ${idx + 1}/${rankedResults.length}: "${result.title.substring(0, 80)}..." | Season: ${detectedSeason} | Episodes: ${detectedEpisodes || 'none'} | Lang: ${audioLanguages.join(',')} | Size: ${size}`);
+
+
 
             // Build newznab attributes
             let newznabAttrs = `            <newznab:attr name="category" value="${category}"/>
