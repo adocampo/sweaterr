@@ -5,73 +5,7 @@ import { AIService } from '@/lib/services/ai';
 import { searchSeries } from '@/lib/services/tvdb';
 import { logger } from '@/lib/logger';
 import { extractSizeFromTitle } from '@/lib/utils';
-
-// Simplified metadata extraction for filtering season pack results
-function extractSeasonFromTitle(title: string): number | null {
-    // Priority 1: Ordinal patterns with possible text between: "5ª 2/2 Temporada Final", "3º mitad Temporada"
-    let match = title.match(/(\d{1,2})(?:ª|º)\s+.{0,20}?\b(?:temporada|temp\.?|season)\b/i);
-    if (match) return parseInt(match[1], 10);
-
-    // Standard ordinal without text between: "5ª Temporada", "3º Season"
-    match = title.match(/(\d{1,2})(?:ª|º)\s*(?:temporada|temp\.?|season)/i);
-    if (match) return parseInt(match[1], 10);
-
-    // Reverse pattern: "Temporada 15ª", "Season 3º"
-    match = title.match(/(?:temporada|temp\.?|season)\s*(\d{1,2})(?:ª|º)?/i);
-    if (match) return parseInt(match[1], 10);
-
-    // Priority 2: T-prefixed patterns: T1, T.1, T5ª, etc
-    match = title.match(/\b[Tt]\.?(\d{1,2})/i);
-    if (match) return parseInt(match[1], 10);
-
-    // Priority 3: S-prefixed patterns: S1, Season 1, etc
-    match = title.match(/\b[Ss](?:eason)?\s*(\d{1,2})/i);
-    if (match) return parseInt(match[1], 10);
-
-    return null;
-}
-
-/**
- * Extract episode numbers from title
- * Supports patterns like: [1/13], (13), 13/13, 01,02,03, etc
- * Returns: comma-separated list "1,2,3,4,...,13" or null if not found
- * Note: Newznab spec requires comma-separated list, not ranges
- */
-function extractEpisodesFromTitle(title: string): string | null {
-    // Pattern 1: [X/Y] format (most common in forums) -> return list "1,2,...,Y"
-    let match = title.match(/\[(\d+)\/(\d+)\]/);
-    if (match) {
-        const episodeCount = parseInt(match[2], 10);
-        // Generate comma-separated list
-        return Array.from({ length: episodeCount }, (_, i) => i + 1).join(',');
-    }
-
-    // Pattern 2: (X) format -> assume single episode or use as count
-    match = title.match(/\((\d+)\)/);
-    if (match) {
-        const count = parseInt(match[1], 10);
-        // If count > 1, assume it's total episode count for the season pack
-        if (count > 1) {
-            return Array.from({ length: count }, (_, i) => i + 1).join(',');
-        }
-        return `${count}`;
-    }
-
-    // Pattern 3: X/Y format without brackets
-    match = title.match(/\s(\d+)\/(\d+)\s/);
-    if (match) {
-        const episodeCount = parseInt(match[2], 10);
-        return Array.from({ length: episodeCount }, (_, i) => i + 1).join(',');
-    }
-
-    // Pattern 4: Explicit episode list: 01,02,03,... or 1,2,3,...
-    match = title.match(/(\d{1,2}(?:[,\s]\d{1,2})+)/);
-    if (match) {
-        return match[1].replace(/\s+/g, ',');
-    }
-
-    return null;
-}
+import { extractSeason, extractEpisodes, episodeCountToNewznabList } from '@/lib/metadata-extractor';
 
 // TODO: Future enhancement - Include cleanTitle in Newznab XML response
 // Once metadata extraction stabilizes, update the <title> field to use cleanTitle
@@ -394,7 +328,7 @@ export async function GET(request: NextRequest) {
             const preFilterCount = allResults.length;
 
             filteredResults = allResults.filter(result => {
-                const detectedSeason = extractSeasonFromTitle(result.title || '');
+                const detectedSeason = extractSeason(result.title || '');
                 const matches = detectedSeason === requestedSeason;
 
                 if (!matches && detectedSeason !== null) {
@@ -550,8 +484,9 @@ export async function GET(request: NextRequest) {
             const escapedLink = escapeXml(enclosureUrl);
 
             // Extract metadata for Newznab attributes
-            const detectedSeason = extractSeasonFromTitle(result.title);
-            const detectedEpisodes = extractEpisodesFromTitle(result.title);
+            const detectedSeason = extractSeason(result.title);
+            const episodeData = extractEpisodes(result.title);
+            const detectedEpisodes = episodeData.total ? episodeCountToNewznabList(episodeData.total) : null;
 
             // Build newznab attributes
             let newznabAttrs = `            <newznab:attr name="category" value="${category}"/>
