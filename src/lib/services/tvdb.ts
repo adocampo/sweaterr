@@ -55,13 +55,11 @@ function cleanSeriesNameForLookup(name: string): string {
 
     let cleaned = name
         // Remove common season/episode patterns: "temporada X", "season X", "T##", "S##E##", etc.
-        // Also handling ordinal patterns like "5ª 1/2 Temporada" (allowing text between ordinal OR number and Temporada)
-        // Made ordinal indicator optional to handle "8 Temporada"
-        .replace(/\s+(?:(?:\d{1,2}(?:ª|º|st|nd|rd|th)?)\s+(?:.{0,25}?\s+)?)?(?:temporada|temporadas|season|seasons|serie|series|s\d+e\d+|s\d+|t\d+|cap\s*\d+|capítulo\s*\d+|chapter\s*\d+|ep\s*\d+|episodio\s*\d+).*$/i, '')
+        .replace(/\s+(temporada|temporadas|season|seasons|serie|series|s\d+e\d+|s\d+|t\d+|cap\s*\d+|capítulo\s*\d+|chapter\s*\d+|ep\s*\d+|episodio\s*\d+).*$/i, '')
         // Remove "- 1x01" or "- 01x01" style
-        .replace(/\s*[-–]\s*(?:\d{1,2}x\d{2,}|\d{1,2}-\d{2,}).*$/i, '')
-        // Remove "[X/Y]", "[X of Y]", "(X)", "[16/16]", "[01x01]" etc. BEFORE other cleanup if it appears at end
-        .replace(/\s*[\[\(](?:\d+(?:\/|\s+of\s+)\d+|\d{1,2}x\d{2,})[\]\)].*$/i, '')
+        .replace(/\s*[-–]\s*\d{1,2}x\d{2,}.*$/i, '')
+        // Remove "[X/Y]", "[X of Y]", "(X)", etc.
+        .replace(/\s*[\[\(]\d+(?:\/|\s+of\s+)?\d*[\]\)].*$/i, '')
         // Remove anything after colon if it looks like metadata
         .replace(/\s*:\s*(?:s\d+|season\d+|t\d+|temporada\d+).*$/i, '')
         .trim();

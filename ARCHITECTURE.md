@@ -98,50 +98,6 @@
 
 Cuando agregues features o fixes: **actualiza TODOS.md y ARCHITECTURE.md changelog inmediatamente**.
 
----
-
-### ⚠️ INSTRUCCIÓN CRÍTICA: REUTILIZACIÓN DE CÓDIGO - FUNCIONES DE EXTRACCIÓN DE METADATOS
-
-**ORDEN PERMANENTE DE IMPLEMENTACIÓN** (desde 16 de enero de 2026):
-
-El módulo de testing (`src/app/api/testing/metadata/route.ts`) contiene funciones de extracción de metadatos que **YA FUNCIONAN CORRECTAMENTE**. Estas funciones deben ser:
-
-1. **COPIADAS EXACTAMENTE** desde testing (sin reinterpretación)
-2. **CENTRALIZADAS** en: `src/lib/metadata-extractor.ts` (nuevo archivo)
-3. **REUTILIZADAS** por:
-   - `src/app/api/testing/metadata/route.ts` (importa desde centralizado)
-   - `src/app/api/arr/search/route.ts` (importa desde centralizado)
-   - `src/app/api/arr/grab/route.ts` (importa desde centralizado)
-   - **CUALQUIER módulo futuro** que necesite extraer/parsear metadatos
-
-**Funciones a centralizar** (en orden de prioridad):
-- `extractSeason(text: string): number | null` ✅ Funciona en testing
-- `extractEpisodes(text: string): { available?: number | null; total?: number | null }` ✅ Funciona en testing
-- `extractYear(text: string): number | null` ✅ Funciona en testing
-- `extractQuality(text: string): string | null` ✅ Funciona en testing
-- `extractLanguages(text: string): { audio: string[]; subtitles: string[] }` ✅ Funciona en testing
-- `extractCleanTitle(text: string): string` ✅ Funciona en testing
-- `detectSeriesByEpisodePattern(text: string): boolean` ✅ Funciona en testing
-- `detectType(title: string, breadcrumbs: string): 'series' | 'movie' | 'unknown'` ✅ Funciona en testing
-
-**Ubicación del módulo centralizado:**
-```
-src/lib/metadata-extractor.ts
-├── export function extractSeason()
-├── export function extractEpisodes()
-├── export function extractYear()
-├── export function extractQuality()
-├── export function extractLanguages()
-├── export function extractCleanTitle()
-├── export function detectSeriesByEpisodePattern()
-├── export function detectType()
-└── (y cualquier otra que agregues)
-```
-
-**Regla de oro**: Si una función ya existe en testing y funciona, **NUNCA DUPLICARLA**. Siempre extraerla hacia `metadata-extractor.ts` e importarla.
-
-**Por qué**: Evitar divergencia de implementaciones, sincronización de bugs, mantenimiento fragmentado.
-
 ### Contexto del Usuario
 
 - **Usuario**: malevolent
