@@ -125,6 +125,22 @@ export function extractLanguages(text: string): { audio: string[]; subtitles: st
     return { audio, subtitles };
 }
 
+/**
+ * Extract size from text as string (e.g., "2.5 GB", "1500 MB")
+ * Returns formatted string, not bytes
+ * @example extractSize("Breaking Bad 2.5GB") // "2.5 GB"
+ * @example extractSize("Movie 1500MB") // "1500 MB"
+ */
+export function extractSize(text: string): string | null {
+    // Match patterns like "2.5GB", "2,5 GB", "1500MB", etc.
+    // Use word boundaries to avoid matching partial numbers
+    const match = text.match(/\b(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b/i);
+    if (!match) return null;
+    // Normalize decimal separator to dot
+    const size = match[1].replace(',', '.');
+    return `${size} ${match[2].toUpperCase()}`;
+}
+
 export function extractEpisodes(text: string): { available?: number | null; total?: number | null } {
     // Match patterns like [13/13], [13 de 13], [ 13 / 13 ]
     const match = text.match(/\[\s*(\d{1,3})\s*(?:de|\/)\s*(\d{1,3})\s*\]/i);

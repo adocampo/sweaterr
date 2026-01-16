@@ -19,6 +19,7 @@ import {
   extractLanguages,
   extractEpisodes,
   extractCleanTitle,
+  extractSize,
 } from '@/lib/metadata-extractor';
 
 interface MetadataResult {
@@ -32,16 +33,6 @@ const MAX_SNIPPET_CHARS = 1800;
 
 function normalizeWhitespace(value: string): string {
     return value.replace(/\s+/g, ' ').trim();
-}
-
-function extractSize(text: string): string | null {
-    // Match patterns like "2.5GB", "2,5 GB", "1500MB", etc.
-    // Use word boundaries to avoid matching partial numbers
-    const match = text.match(/\b(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b/i);
-    if (!match) return null;
-    // Normalize decimal separator to dot
-    const size = match[1].replace(',', '.');
-    return `${size} ${match[2].toUpperCase()}`;
 }
 
 function buildHeuristicMetadata(params: {

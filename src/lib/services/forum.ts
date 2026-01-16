@@ -787,7 +787,7 @@ export class ForumService {
             hasLinks: false,
             thankRequired: false,
             snippet: snippet || undefined,
-            size: extractSizeFromTitle(title) || undefined,
+            size: extractSizeFromTitle(title) || (snippet ? extractSizeFromTitle(snippet) : undefined) || undefined,
           });
           seen.add(href);
         };
