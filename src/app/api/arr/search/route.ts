@@ -33,14 +33,16 @@ function extractSeasonFromTitle(title: string): number | null {
 /**
  * Extract episode numbers from title
  * Supports patterns like: [1/13], (13), 13/13, 01,02,03, etc
- * Returns: "1-13", "1,2,3", etc. or null if not found
+ * Returns: comma-separated list "1,2,3,4,...,13" or null if not found
+ * Note: Newznab spec requires comma-separated list, not ranges
  */
 function extractEpisodesFromTitle(title: string): string | null {
-    // Pattern 1: [X/Y] format (most common in forums) -> return range "1-Y"
+    // Pattern 1: [X/Y] format (most common in forums) -> return list "1,2,...,Y"
     let match = title.match(/\[(\d+)\/(\d+)\]/);
     if (match) {
         const episodeCount = parseInt(match[2], 10);
-        return `1-${episodeCount}`;
+        // Generate comma-separated list
+        return Array.from({ length: episodeCount }, (_, i) => i + 1).join(',');
     }
 
     // Pattern 2: (X) format -> assume single episode or use as count
@@ -49,7 +51,7 @@ function extractEpisodesFromTitle(title: string): string | null {
         const count = parseInt(match[1], 10);
         // If count > 1, assume it's total episode count for the season pack
         if (count > 1) {
-            return `1-${count}`;
+            return Array.from({ length: count }, (_, i) => i + 1).join(',');
         }
         return `${count}`;
     }
@@ -58,7 +60,7 @@ function extractEpisodesFromTitle(title: string): string | null {
     match = title.match(/\s(\d+)\/(\d+)\s/);
     if (match) {
         const episodeCount = parseInt(match[2], 10);
-        return `1-${episodeCount}`;
+        return Array.from({ length: episodeCount }, (_, i) => i + 1).join(',');
     }
 
     // Pattern 4: Explicit episode list: 01,02,03,... or 1,2,3,...
@@ -515,13 +517,20 @@ export async function GET(request: NextRequest) {
         }
 
         const items = rankedResults.map((result, idx) => {
-            // Extract quality hints from title
-            let category = result.category || '7000'; // Other by default
-            if (!result.category) {
-                // Determine category based on detected service
-                if (service === 'sonarr') category = '5000'; // TV
-                if (service === 'radarr') category = '2000'; // Movies
-                if (service === 'lidarr') category = '3000'; // Audio
+            // Determine category based on detected service or search type
+            let category = '7000'; // Other by default
+            
+            if (isTv || service === 'sonarr') {
+                category = '5000'; // TV
+            } else if (service === 'radarr') {
+                category = '2000'; // Movies
+            } else if (service === 'lidarr') {
+                category = '3000'; // Audio
+            }
+            
+            // Override with result category if explicitly set
+            if (result.category && result.category !== '7000') {
+                category = result.category;
             }
 
             // Encode GUID as base64 to avoid parsing issues with URLs containing special chars
