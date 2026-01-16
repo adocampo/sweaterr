@@ -577,7 +577,7 @@ export async function GET(request: NextRequest) {
             <link>${escapedLink}</link>
             <pubDate>${pubDate}</pubDate>
             <category>${category}</category>
-            <description><![CDATA[${result.forum ?? result.forumName ?? 'Sweaterr'} - ${result.url}]]></description>
+            <description><![CDATA[${result.forum ?? result.forumName ?? 'Sweaterr'} - ${escapeXml(result.url)}]]></description>
             <enclosure url="${escapedLink}" length="${size}" type="application/x-nzb"/>
 ${newznabAttrs}
         </item>`;
