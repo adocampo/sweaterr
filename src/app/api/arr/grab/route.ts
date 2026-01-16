@@ -258,6 +258,10 @@ export async function GET(request: NextRequest) {
             },
         });
 
+        // Escape XML special characters
+        const escapeXml = (value: string) => 
+            value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
         // Return a minimal valid NZB so Newznab clients can treat this as a download.
         // The actual download is handled by Sweaterr via JDownloader.
         const nzb = `<?xml version="1.0" encoding="UTF-8"?>
@@ -265,12 +269,12 @@ export async function GET(request: NextRequest) {
     <head>
         <meta type="name">Sweaterr</meta>
         <meta type="comment">Direct download queued in JDownloader by Sweaterr</meta>
-        <meta type="source">${forum.name}</meta>
-        <meta type="guid">${guid}</meta>
-        <meta type="url">${postUrl}</meta>
-        <meta type="downloadId">${download.id}</meta>
+        <meta type="source">${escapeXml(forum.name)}</meta>
+        <meta type="guid">${escapeXml(guid)}</meta>
+        <meta type="url">${escapeXml(postUrl)}</meta>
+        <meta type="downloadId">${escapeXml(download.id)}</meta>
     </head>
-    <file poster="sweaterr" date="0" subject="${packageName.replace(/[\r\n]+/g, ' ')}">
+    <file poster="sweaterr" date="0" subject="${escapeXml(packageName.replace(/[\r\n]+/g, ' '))}">
         <groups>
             <group>alt.binaries.misc</group>
         </groups>
