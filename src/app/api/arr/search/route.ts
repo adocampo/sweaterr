@@ -554,8 +554,7 @@ export async function GET(request: NextRequest) {
 
             // Build newznab attributes
             let newznabAttrs = `            <newznab:attr name="category" value="${category}"/>
-            <newznab:attr name="size" value="${size}"/>
-            <newznab:attr name="guid" value="${guid}"/>`;
+            <newznab:attr name="size" value="${size}"/>`;
 
             if (isTv && tvdbId) {
                 newznabAttrs += `
