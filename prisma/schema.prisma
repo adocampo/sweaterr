@@ -206,11 +206,10 @@ model ArrService {
   @@map("arr_services")
 }
 
-// Testing configuration (user preferences for testing features)
+// Testing configuration (reserved for future testing features)
 model TestingSettings {
   id                   String   @id @default(cuid())
   userId               String   @unique // One setting per user
-  bypassAxios          Boolean  @default(false) // When true, use FlareSolverr directly without trying Axios first
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   

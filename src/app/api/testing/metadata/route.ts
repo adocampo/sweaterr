@@ -361,21 +361,6 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check user testing settings for bypassAxios
-        const token = request.cookies.get('sweaterr-auth')?.value;
-        let bypassAxios = false;
-        if (token) {
-            try {
-                const payload = await verifyTokenEdge(token);
-                if (payload && typeof payload.id === 'string') {
-                    const settings = await db.testingSettings.findUnique({ where: { userId: payload.id } });
-                    bypassAxios = settings?.bypassAxios ?? false;
-                }
-            } catch {
-                // ignore settings errors
-            }
-        }
-
         const parsedCookies = forum.persistentCookies ? JSON.parse(forum.persistentCookies) : [];
         const cookieArr: Array<{ name: string; value: string }> = Array.isArray(parsedCookies)
             ? parsedCookies
@@ -447,35 +432,30 @@ export async function POST(request: NextRequest) {
             let html = '';
 
             try {
-                if (bypassAxios) throw new Error('Bypass enabled');
-                html = await tryAxios(postUrl);
-            } catch (axiosErr) {
                 if (!fsClient) {
-                    results.push({ url: postUrl, error: 'FlareSolverr no configurado y Axios falló' });
+                    results.push({ url: postUrl, error: 'FlareSolverr no configurado' });
                     continue;
                 }
 
-                try {
-                    if (!sessionId) {
-                        const ttlMs = forum.flaresolverrSessionTTL || 30 * 60 * 1000;
-                        sessionId = await sessionManager.getSession(forumId, host, ttlMs, fsClient);
-                    }
-                    usedFlareSolverr = true;
-                    const solution = await fsClient.request(postUrl, 'GET', undefined, sessionId);
-                    html = solution.response || '';
-
-                    if (solution.cookies && solution.cookies.length > 0) {
-                        await preloadJarCookies(jar, postUrl, solution.cookies);
-                        if (solution.userAgent) {
-                            activeUserAgent = solution.userAgent;
-                            client.defaults.headers['User-Agent'] = solution.userAgent;
-                        }
-                    }
-                } catch (solverErr) {
-                    const message = solverErr instanceof Error ? solverErr.message : String(solverErr);
-                    results.push({ url: postUrl, error: message });
-                    continue;
+                if (!sessionId) {
+                    const ttlMs = forum.flaresolverrSessionTTL || 30 * 60 * 1000;
+                    sessionId = await sessionManager.getSession(forumId, host, ttlMs, fsClient);
                 }
+                usedFlareSolverr = true;
+                const solution = await fsClient.request(postUrl, 'GET', undefined, sessionId);
+                html = solution.response || '';
+
+                if (solution.cookies && solution.cookies.length > 0) {
+                    await preloadJarCookies(jar, postUrl, solution.cookies);
+                    if (solution.userAgent) {
+                        activeUserAgent = solution.userAgent;
+                        client.defaults.headers['User-Agent'] = solution.userAgent;
+                    }
+                }
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                results.push({ url: postUrl, error: message });
+                continue;
             }
 
             if (!html) {
