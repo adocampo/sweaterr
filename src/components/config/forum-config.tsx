@@ -41,6 +41,7 @@ const forumSchema = z.object({
   searchTitleOnly: z.boolean().optional().default(true),
   cseId: z.string().optional(),
   sabnzbdCategory: z.string().optional(),
+  qbittorrentUrlBase: z.string().optional().default('/qbittorrent'),
   defaultLanguage: z.string().optional().default('es-ES'),
   thankButtonSelector: z.string().optional(),
   linksContainerSelector: z.string().optional(),
@@ -109,6 +110,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
       searchTitleOnly: true,
       cseId: '',
       sabnzbdCategory: '',
+      qbittorrentUrlBase: '/qbittorrent',
       defaultLanguage: 'es-ES',
       thankButtonSelector: '',
       linksContainerSelector: '',
@@ -315,6 +317,23 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                   </FormControl>
                   <FormDescription>
                     {t('forumForm.sabnzbdCategoryDescription')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="qbittorrentUrlBase"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('forumForm.qbittorrentUrlBase')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder="/qbittorrent" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    {t('forumForm.qbittorrentUrlBaseDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
