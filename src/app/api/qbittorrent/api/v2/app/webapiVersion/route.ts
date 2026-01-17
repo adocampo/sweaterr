@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
     const userAgent = request.headers.get('user-agent');
     const version = '2.8.3';
     
+    logger.info('api', `[qBittorrent] GET /api/v2/app/webapiVersion from ${userAgent || 'unknown'}`);
     console.log(`[qBittorrent] GET /api/v2/app/webapiVersion from ${userAgent || 'unknown'}`);
-    console.log(`[qBittorrent] Returning version: "${version}"`);
+    console.log(`[qBittorrent] Returning plain text: "${version}"`);
     
     // Return plain text only - no JSON, no charset encoding
     const response = new NextResponse(version, {
@@ -16,6 +18,6 @@ export async function GET(request: NextRequest) {
         },
     });
     
-    console.log(`[qBittorrent] Response status: ${response.status}, content-type: text/plain`);
+    logger.info('api', `[qBittorrent] webapiVersion response sent: status ${response.status}`);
     return response;
 }
