@@ -341,7 +341,9 @@ export async function GET(request: NextRequest) {
             
             // Generate simulated torrent metadata
             const torrentData = generateSimulatedTorrentData(result.url, size);
-            const magnetUri = `magnet:?xt=urn:btih:${torrentData.infohash}&dn=${encodeURIComponent(result.title)}`;
+            // Include the original forum link in the magnet URI as a custom parameter
+            // so qBittorrent API can extract it and send to JDownloader
+            const magnetUri = `magnet:?xt=urn:btih:${torrentData.infohash}&dn=${encodeURIComponent(result.title)}&xs=${encodeURIComponent(result.url)}`;
             const escapedMagnetUri = escapeXml(magnetUri);
             
             const escapedTitle = escapeXml(result.title);

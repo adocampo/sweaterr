@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { JDownloaderLocalService, JDownloaderService } from '@/lib/services/jdownloader';
 import { logger } from '@/lib/logger';
 
 /**
@@ -7,10 +8,9 @@ import { logger } from '@/lib/logger';
  * 
  * This endpoint simulates qBittorrent's torrent add API.
  * When Sonarr sends a torrent/magnet URI, we intercept it and:
- * 1. Extract the torrent file or magnet URI
- * 2. Decode the infohash/GUID to find the original forum link
- * 3. Send the link to JDownloader instead of qBittorrent
- * 4. Return a success response to keep Sonarr happy
+ * 1. Extract the original forum link from the magnet URI
+ * 2. Send the link to JDownloader
+ * 3. Return a success response to keep Sonarr happy
  */
 export async function POST(request: NextRequest) {
     try {
@@ -41,26 +41,80 @@ export async function POST(request: NextRequest) {
             return new NextResponse('Fail.', { status: 400 });
         }
 
-        // Extract the download link from the magnet URI or torrent metadata
-        // The magnet URI contains encoded metadata including the original forum link
-        // Format: magnet:?xt=urn:btih:INFOHASH&dn=TITLE&xl=SIZE...
+        // Extract the original forum link from the magnet URI
+        // Format: magnet:?xt=urn:btih:INFOHASH&dn=TITLE&xs=FORUM_URL
+        let forumUrl = '';
+        let title = '';
         
-        // For now, we'll store this as a pending download
-        // In the future, we can extract the forum link from the magnet URI metadata
+        if (magnetUri) {
+            try {
+                // Parse magnet URI parameters
+                const magnetMatch = magnetUri.match(/magnet:\?(.+)$/);
+                if (magnetMatch) {
+                    const params = new URLSearchParams(magnetMatch[1]);
+                    forumUrl = params.get('xs') || ''; // xs = external source (our custom param with forum URL)
+                    title = params.get('dn') || ''; // dn = display name (title)
+                    
+                    if (forumUrl) {
+                        forumUrl = decodeURIComponent(forumUrl);
+                    }
+                    if (title) {
+                        title = decodeURIComponent(title);
+                    }
+                }
+            } catch (error) {
+                logger.warn('qbittorrent', `Failed to parse magnet URI: ${error}`);
+            }
+        }
 
-        logger.info('qbittorrent', `Processing torrent: magnet=${magnetUri ? magnetUri.substring(0, 80) + '...' : 'none'}`);
+        logger.info('qbittorrent', `Processing torrent: title="${title}", forumUrl="${forumUrl}"`);
 
-        // TODO: Extract the original forum link from the magnet URI
-        // For now, just log and acknowledge the request to Sonarr
+        // If we have a forum URL, send it to JDownloader
+        if (forumUrl) {
+            try {
+                const jdConfig = await db.jDownloaderConfig.findFirst({ where: { enabled: true } });
+                
+                if (!jdConfig) {
+                    logger.warn('qbittorrent', 'No JDownloader config found');
+                    // Continue anyway - log the link for manual processing
+                } else {
+                    let success = false;
+                    
+                    if (jdConfig.mode === 'local') {
+                        const jdService = new JDownloaderLocalService(
+                            jdConfig.localHost || 'localhost',
+                            jdConfig.localPort || 3128
+                        );
+                        success = await jdService.addLinks([forumUrl], category || 'Sonarr');
+                    } else {
+                        const jdService = new JDownloaderService(
+                            jdConfig.email || '',
+                            jdConfig.password || '',
+                            jdConfig.deviceName || ''
+                        );
+                        success = await jdService.addLinks([forumUrl], category || 'Sonarr');
+                    }
+                    
+                    if (success) {
+                        logger.info('qbittorrent', `Successfully sent link to JDownloader: ${forumUrl}`);
+                    } else {
+                        logger.warn('qbittorrent', `Failed to send link to JDownloader: ${forumUrl}`);
+                    }
+                }
+            } catch (error) {
+                logger.error('qbittorrent', `Failed to send link to JDownloader: ${error}`);
+                // Continue anyway - don't block the response to Sonarr
+            }
+        }
         
         // Create a record in the database for tracking
         try {
             await db.download.create({
                 data: {
-                    title: magnetUri ? magnetUri.substring(0, 100) : 'Torrent from Sonarr',
-                    sourceUrl: magnetUri || '',
+                    title: title || (magnetUri ? magnetUri.substring(0, 100) : 'Torrent from Sonarr'),
+                    sourceUrl: forumUrl || magnetUri || '',
                     forumName: 'Sweaterr qBittorrent API',
-                    status: 'pending', // Will be processed by JDownloader integration
+                    status: forumUrl ? 'downloading' : 'pending', // downloading if sent to JD, pending if no URL
                     arrType: 'sonarr', // Track this came from Sonarr
                     grabId: magnetUri ? Buffer.from(magnetUri).toString('base64url').substring(0, 50) : 'unknown',
                     category: category || 'tv-sonarr',
