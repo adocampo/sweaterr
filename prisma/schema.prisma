@@ -55,6 +55,9 @@ model Forum {
   // Protocol type for this forum (simulated torrent, direct download, or usenet)
   protocol String @default("torrent") // torrent | direct | usenet - determines XML format
   
+  // qBittorrent API base URL for Sonarr/Radarr (e.g., "/qbittorrent", "/sweaterr-client")
+  qbittorrentUrlBase String? @default("/qbittorrent") // Base URL for qBittorrent API endpoints
+  
   // Default language for forum audio (e.g., "es-ES", "en-US")
   defaultLanguage String @default("es-ES") // Language of audio content in this forum
   

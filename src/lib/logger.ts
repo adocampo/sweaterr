@@ -31,7 +31,8 @@ export type LogModule =
   | 'metadata'
   | 'arr_caps'
   | 'arr_grab'
-  | 'arr-notify';
+  | 'arr-notify'
+  | 'qbittorrent';
 
 class Logger {
   private readonly maxLogLinesToKeep = 1000;
