@@ -16,8 +16,9 @@ function detectArrService(userAgent: string | null): string {
     return 'unknown';
 }
 
-// GET /api/arr/grab - Download link grab endpoint (Newznab-compatible)
+// GET /api/arr/grab - Download link grab endpoint (Torznab-compatible)
 // Uses forum's API key (torznabApiKey field) for validation
+// Simulates torrent download but actually extracts direct links and sends to JDownloader
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -258,31 +259,35 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        // Return a minimal valid NZB so Newznab clients can treat this as a download.
-        // The actual download is handled by Sweaterr via JDownloader.
-        const nzb = `<?xml version="1.0" encoding="UTF-8"?>
-<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
-    <head>
-        <meta type="name">Sweaterr</meta>
-        <meta type="comment">Direct download queued in JDownloader by Sweaterr</meta>
-        <meta type="source">${forum.name}</meta>
-        <meta type="guid">${guid}</meta>
-        <meta type="url">${postUrl}</meta>
-        <meta type="downloadId">${download.id}</meta>
-    </head>
-    <file poster="sweaterr" date="0" subject="${packageName.replace(/[\r\n]+/g, ' ')}">
-        <groups>
-            <group>alt.binaries.misc</group>
-        </groups>
-        <segments>
-            <segment bytes="0" number="1">sweaterr@local</segment>
-        </segments>
-    </file>
-</nzb>`;
+        // Return a minimal valid torrent file so Torznab clients can treat this as a download.
+        // The actual download is handled by Sweaterr via JDownloader (direct links).
+        // We simulate a torrent response with a magnet URI that redirects back to tracking
+        const infohash = Buffer.from(guid).toString('hex').substring(0, 40).padEnd(40, '0');
+        const magnetUri = `magnet:?xt=urn:btih:${infohash}&dn=${encodeURIComponent(packageName)}&tr=udp://tracker.sweaterr.local:6969`;
+        
+        const torrentXml = `<?xml version="1.0" encoding="UTF-8"?>
+<torrent xmlns="http://sweaterr.local/torrent">
+    <info>
+        <name>Sweaterr</name>
+        <comment>Direct download queued in JDownloader by Sweaterr</comment>
+        <source>${forum.name}</source>
+        <guid>${guid}</guid>
+        <url>${postUrl}</url>
+        <downloadId>${download.id}</downloadId>
+        <magnetUri>${magnetUri}</magnetUri>
+        <infohash>${infohash}</infohash>
+    </info>
+    <files>
+        <file name="${packageName.replace(/[\r\n]+/g, ' ')}" size="0"/>
+    </files>
+</torrent>`;
 
-        return new NextResponse(nzb, {
+        return new NextResponse(torrentXml, {
             status: 200,
-            headers: { 'Content-Type': 'application/x-nzb' },
+            headers: { 
+                'Content-Type': 'application/x-bittorrent',
+                'Content-Disposition': `attachment; filename="${packageName.replace(/[^a-zA-Z0-9]/g, '_')}.torrent"`,
+            },
         });
     } catch (error) {
         logger.error('arr_grab', 'Error in grab endpoint', error);

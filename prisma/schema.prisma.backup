@@ -49,20 +49,14 @@ model Forum {
   searchTitleOnly      Boolean  @default(true) // When true, send titleonly=1 in native search
   searchInChildForums  Boolean  @default(false) // Search in child forums/subforums (childforums=1)
   
-  // Torznab API key for *arr integration (auto-generated per forum)
+  // Torznab/Newznab API key for *arr integration (auto-generated per forum)
   torznabApiKey String  @unique // Format: fdd-xxxxxxxxxxxxxxxxxxxxxxxx
-  
-  // Protocol type for this forum (simulated torrent, direct download, or usenet)
-  protocol String @default("torrent") // torrent | direct | usenet - determines XML format
+
+  // Download client (SABnzbd-compatible) category advertised to *arr
+  sabnzbdCategory String? // e.g. "tv-sonarr" or "movies-radarr"
   
   // Default language for forum audio (e.g., "es-ES", "en-US")
   defaultLanguage String @default("es-ES") // Language of audio content in this forum
-  
-  // Torrent metadata selectors (optional, for extracting real values from posts)
-  seedersSelector String? // CSS selector or regex pattern for seeders count
-  peersSelector   String? // CSS selector or regex pattern for peers/leechers count
-  infohashSelector String? // CSS selector or regex pattern for infohash (40 hex chars)
-  magnetUriSelector String? // CSS selector or regex pattern for magnet: URI
   
   // Configuration for parsing
   thankButtonSelector    String? // CSS selector for thank button

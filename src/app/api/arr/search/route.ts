@@ -35,8 +35,9 @@ function detectArrService(userAgent: string | null): string {
     return 'unknown';
 }
 
-// GET /api/arr/search - Newznab search endpoint
+// GET /api/arr/search - Torznab search endpoint (simulated torrent indexer)
 // Uses forum's API key (torznabApiKey field) for validation
+// Returns Torznab-formatted XML with simulated seeders/peers/infohash/magneturl
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
         if (forums.length === 0) {
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
   <channel>
     <title>Sweaterr</title>
     <description>Direct download indexer</description>
@@ -294,8 +295,22 @@ export async function GET(request: NextRequest) {
             // For now, keep original order
         }
 
-        // Convert to Newznab XML format
+        // Convert to Torznab XML format (simulated torrent with seeders/peers/infohash/magneturi)
         const escapeXml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        // Generate simulated torrent values (deterministic based on URL for consistency)
+        const generateSimulatedTorrentData = (url: string, size: number) => {
+            const hashInput = url + size.toString();
+            let hash = 0;
+            for (let i = 0; i < hashInput.length; i++) {
+                hash = ((hash << 5) - hash) + hashInput.charCodeAt(i);
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            const seeders = Math.abs(hash % 100) + 50; // 50-149 seeders
+            const peers = Math.abs((hash >> 8) % 50) + 10; // 10-59 peers
+            const infohash = Math.abs(hash).toString(16).padStart(40, '0').substring(0, 40);
+            return { seeders, peers, infohash };
+        };
 
         const selfLink = `${origin}${request.nextUrl.pathname}${request.nextUrl.search}`;
 
@@ -319,35 +334,47 @@ export async function GET(request: NextRequest) {
             const guid = Buffer.from(guidData).toString('base64url');
             const pubDate = new Date().toUTCString();
 
-            const size = result.size || 1024;
-            // Use standard Newznab download pattern: /api/arr?t=get&id=<guid>&apikey=<apiKey>
+            const size = result.size || 200 * 1048576; // Default 200 MiB if size not detected
+            // Use standard Torznab download pattern: /api/arr?t=get&id=<guid>&apikey=<apiKey>
             const enclosureUrl = `${origin}/api/arr?t=get&id=${encodeURIComponent(guid)}&apikey=${apiKey}`;
             const escapedLink = escapeXml(enclosureUrl);
+            
+            // Generate simulated torrent metadata
+            const torrentData = generateSimulatedTorrentData(result.url, size);
+            const magnetUri = `magnet:?xt=urn:btih:${torrentData.infohash}&dn=${encodeURIComponent(result.title)}`;
+            const escapedMagnetUri = escapeXml(magnetUri);
+            
+            const escapedTitle = escapeXml(result.title);
+            const escapedDescription = escapeXml(`${result.forum ?? result.forumName ?? 'Sweaterr'} - ${result.url}`);
 
             return `    <item>
-            <title><![CDATA[${result.title}]]></title>
+            <title>${escapedTitle}</title>
             <guid isPermaLink="false">${guid}</guid>
             <link>${escapedLink}</link>
             <pubDate>${pubDate}</pubDate>
             <category>${category}</category>
-            <description><![CDATA[${result.forum ?? result.forumName ?? 'Sweaterr'} - ${result.url}]]></description>
-            <enclosure url="${escapedLink}" length="${size}" type="application/x-nzb"/>
-            <newznab:attr name="category" value="${category}"/>
-            <newznab:attr name="size" value="${size}"/>
-            <newznab:attr name="guid" value="${guid}"/>
+            <description>${escapedDescription}</description>
+            <enclosure url="${escapedLink}" length="${size}" type="application/x-bittorrent"/>
+            <torznab:attr name="category" value="${category}"/>
+            <torznab:attr name="size" value="${size}"/>
+            <torznab:attr name="seeders" value="${torrentData.seeders}"/>
+            <torznab:attr name="peers" value="${torrentData.peers}"/>
+            <torznab:attr name="infohash" value="${torrentData.infohash}"/>
+            <torznab:attr name="magneturl" value="${escapedMagnetUri}"/>
+            <torznab:attr name="grabs" value="${Math.floor(torrentData.seeders * 2.5)}"/>
         </item>`;
         }).join('\n');
 
         const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
   <channel>
     <title>Sweaterr</title>
-    <description>Direct download indexer</description>
+    <description>Direct download torrent indexer</description>
         <link>${origin}</link>
     <language>es-es</language>
-    <webMaster>admin@forumdownloader.local</webMaster>
+    <webMaster>admin@sweaterr.local</webMaster>
         <atom:link rel="self" href="${escapeXml(selfLink)}" type="application/rss+xml" />
-        <newznab:response offset="0" total="${rankedResults.length}" />
+        <torznab:response offset="0" total="${rankedResults.length}" />
 ${items}
   </channel>
 </rss>`;

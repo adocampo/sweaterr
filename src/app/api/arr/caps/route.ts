@@ -27,7 +27,7 @@ function detectArrService(userAgent: string | null): string {
   return 'unknown';
 }
 
-// GET /api/arr/caps - Newznab/Torznab capabilities endpoint
+// GET /api/arr/caps - Torznab capabilities endpoint (simulated torrent indexer)
 // Validates API key against forum's torznabApiKey
 export async function GET(request: NextRequest) {
   try {
@@ -70,12 +70,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return Newznab/Torznab capabilities
+    // Return Torznab capabilities (simulated torrent indexer)
     // For now, return TV categories (future: analyze forum to determine type)
     // TODO: Detect forum type (Series/Películas/Música/Libros) and return appropriate categories
     const capsXml = `<?xml version="1.0" encoding="UTF-8"?>
 <caps>
-  <server version="1.0" title="Sweaterr - ${forum.name}" strapline="Direct download indexer" email="" url="${origin}" image="" type="nzb" />
+  <server version="1.0" title="Sweaterr - ${forum.name}" strapline="Direct download torrent indexer" email="" url="${origin}" image="" type="torrent" />
   <limits max="100" default="100"/>
   <registration available="no" open="no"/>
   <searching>
