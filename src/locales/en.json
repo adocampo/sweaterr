@@ -160,8 +160,6 @@
     "cseIdDescription": "Identifier of your CSE engine if the forum uses Google CSE",
     "sabnzbdCategory": "Category (SABnzbd)",
     "sabnzbdCategoryDescription": "Category advertised to *arr when using Sweaterr as the Download Client (e.g. tv-sonarr)",
-    "qbittorrentUrlBase": "qBittorrent URL Base",
-    "qbittorrentUrlBaseDescription": "Base path for the simulated qBittorrent API (e.g. /qbittorrent). Use this in Sonarr as the torrent client's 'URL Base'.",
     "defaultLanguage": "Default Language",
     "defaultLanguageDescription": "Default audio language for results from this forum",
     "searchPath": "Search Path",

@@ -65,7 +65,6 @@ export async function POST(request: NextRequest) {
         searchTitleOnly: validatedData.searchTitleOnly ?? true,
         cseId: validatedData.cseId,
         sabnzbdCategory: validatedData.sabnzbdCategory,
-        qbittorrentUrlBase: validatedData.qbittorrentUrlBase || '/qbittorrent',
         thankButtonSelector: validatedData.thankButtonSelector,
         linksContainerSelector: validatedData.linksContainerSelector,
         postTitleSelector: validatedData.postTitleSelector,
