@@ -307,7 +307,7 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                                                             )}
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent className="bg-popover text-popover-foreground">
+                                                    <TooltipContent>
                                                         <p className="text-xs">Torznab URL</p>
                                                     </TooltipContent>
                                                 </Tooltip>
@@ -332,7 +332,7 @@ export function ForumsTable({ forums, onEdit, onDelete, language = 'es' }: Forum
                                                             )}
                                                         </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent className="bg-popover text-popover-foreground">
+                                                    <TooltipContent>
                                                         <p className="text-xs">API Key: {forum.torznabApiKey?.substring(0, 15)}...</p>
                                                     </TooltipContent>
                                                 </Tooltip>
