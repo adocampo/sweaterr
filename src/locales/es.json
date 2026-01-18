@@ -156,8 +156,6 @@
     "searchModeDescription": "Usa Google (site:) si el foro redirige a un buscador externo",
     "cseId": "Google CSE ID (cx)",
     "cseIdDescription": "Identificador de tu motor CSE si el foro usa Google CSE",
-    "sabnzbdCategory": "Categoría (SABnzbd)",
-    "sabnzbdCategoryDescription": "Categoría anunciada al *arr cuando usas Sweaterr como Download Client (ej: tv-sonarr)",
     "defaultLanguage": "Idioma por defecto",
     "defaultLanguageDescription": "Idioma de audio predeterminado para los resultados de este foro",
     "searchPath": "Ruta de Búsqueda",

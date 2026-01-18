@@ -40,7 +40,6 @@ const forumSchema = z.object({
   searchInChildForums: z.boolean().optional().default(false),
   searchTitleOnly: z.boolean().optional().default(true),
   cseId: z.string().optional(),
-  sabnzbdCategory: z.string().optional(),
   defaultLanguage: z.string().optional().default('es-ES'),
   thankButtonSelector: z.string().optional(),
   linksContainerSelector: z.string().optional(),
@@ -108,7 +107,6 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
       searchInChildForums: false,
       searchTitleOnly: true,
       cseId: '',
-      sabnzbdCategory: '',
       defaultLanguage: 'es-ES',
       thankButtonSelector: '',
       linksContainerSelector: '',
@@ -298,23 +296,6 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                   </FormControl>
                   <FormDescription>
                     {t('forumForm.searchModeDescription')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="sabnzbdCategory"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('forumForm.sabnzbdCategory')}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="tv-sonarr" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    {t('forumForm.sabnzbdCategoryDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

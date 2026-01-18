@@ -11,7 +11,7 @@ const forumConfigSchema = z.object({
   searchInChildForums: z.boolean().optional(),
   searchTitleOnly: z.boolean().optional(),
   cseId: z.string().optional(),
-  sabnzbdCategory: z.string().optional(),
+
   thankButtonSelector: z.string().optional(),
   linksContainerSelector: z.string().optional(),
   postTitleSelector: z.string().optional(),
@@ -64,7 +64,6 @@ export async function POST(request: NextRequest) {
         searchInChildForums: validatedData.searchInChildForums ?? false,
         searchTitleOnly: validatedData.searchTitleOnly ?? true,
         cseId: validatedData.cseId,
-        sabnzbdCategory: validatedData.sabnzbdCategory,
         thankButtonSelector: validatedData.thankButtonSelector,
         linksContainerSelector: validatedData.linksContainerSelector,
         postTitleSelector: validatedData.postTitleSelector,

@@ -158,8 +158,6 @@
     "searchModeDescription": "Use Google (site:) if the forum redirects to an external search engine",
     "cseId": "Google CSE ID (cx)",
     "cseIdDescription": "Identifier of your CSE engine if the forum uses Google CSE",
-    "sabnzbdCategory": "Category (SABnzbd)",
-    "sabnzbdCategoryDescription": "Category advertised to *arr when using Sweaterr as the Download Client (e.g. tv-sonarr)",
     "defaultLanguage": "Default Language",
     "defaultLanguageDescription": "Default audio language for results from this forum",
     "searchPath": "Search Path",
