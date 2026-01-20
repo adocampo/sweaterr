@@ -409,8 +409,11 @@ export async function GET(request: NextRequest) {
             const detectedSeason = resultIsSeasonPack ? extractSeason(result.title) : null;
             
             // Log season pack detection for first result only
-            if (idx === 0 && resultIsSeasonPack) {
-                logger.info('search', `[${service.toUpperCase()}] Season pack detected: "${result.title}" (Season ${detectedSeason})`);
+            if (idx === 0) {
+                logger.info('search', `[${service.toUpperCase()}] First result: isSeasonPack=${resultIsSeasonPack}, detectedSeason=${detectedSeason}, title="${result.title}"`);
+                if (resultIsSeasonPack) {
+                    logger.info('search', `[${service.toUpperCase()}] Season pack detected: Season ${detectedSeason}`);
+                }
             }
 
             return `    <item>
@@ -425,7 +428,9 @@ export async function GET(request: NextRequest) {
             <torznab:attr name="size" value="${size}"/>
             <torznab:attr name="seeders" value="${torrentData.seeders}"/>
             <torznab:attr name="peers" value="${torrentData.peers}"/>
-            <torznab:attr name="infohash" value="${torrentData.infohash}"/>${tvdbId ? `\n            <torznab:attr name="tvdbid" value="${tvdbId}"/>` : ''}${resultIsSeasonPack && detectedSeason ? `\n            <torznab:attr name="season" value="${detectedSeason}"/>` : ''}
+            <torznab:attr name="infohash" value="${torrentData.infohash}"/>
+${tvdbId ? `            <torznab:attr name="tvdbid" value="${tvdbId}"/>` : ''}${resultIsSeasonPack && detectedSeason ? `
+            <torznab:attr name="season" value="${detectedSeason}"/>` : ''}
             <torznab:attr name="magneturl" value="${escapedMagnetUri}"/>
             <torznab:attr name="grabs" value="${Math.floor(torrentData.seeders * 2.5)}"/>
         </item>`;
