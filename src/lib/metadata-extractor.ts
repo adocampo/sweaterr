@@ -276,16 +276,15 @@ export function episodeCountToNewznabList(count: number): string {
 }
 
 /**
- * Get TVDB ID by searching the public TVDB API
- * Returns TVDB ID or null if not found
- * Uses simple name matching without authentication
+ * Get TVDB ID by searching TVmaze API (public, no auth required)
+ * TVmaze includes TVDB ID in its externals field
  */
 export async function getTvdbId(seriesName: string): Promise<number | null> {
     if (!seriesName || seriesName.length === 0) return null;
     
     try {
-        // Use TVDB public search (no auth required for basic search)
-        const searchUrl = `https://www.thetvdb.com/api/v4/search?query=${encodeURIComponent(seriesName)}&type=series`;
+        // Use TVmaze API (public, no auth required)
+        const searchUrl = `https://api.tvmaze.com/search/shows?q=${encodeURIComponent(seriesName)}`;
         
         // Create abort controller with timeout
         const controller = new AbortController();
@@ -307,10 +306,12 @@ export async function getTvdbId(seriesName: string): Promise<number | null> {
             
             const data = await response.json() as any;
             
-            // Return first match's ID (data structure varies, handle both old and new API)
-            if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-                const firstResult = data.data[0];
-                return firstResult.tvdb_id || firstResult.id || null;
+            // TVmaze returns array of {score, show} objects
+            if (Array.isArray(data) && data.length > 0) {
+                const firstResult = data[0];
+                if (firstResult.show && firstResult.show.externals && firstResult.show.externals.thetvdb) {
+                    return firstResult.show.externals.thetvdb;
+                }
             }
             
             return null;
