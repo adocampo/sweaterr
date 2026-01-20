@@ -46,6 +46,7 @@ interface MetadataResult {
     url: string;
     rawTitle?: string;  // Original forum post title for verification
     metadata?: MediaMetadata;
+    isSeasonPack?: boolean; // True if [X/Y] where X == Y
     error?: string;
 }
 
@@ -74,6 +75,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
     const [sendErrors, setSendErrors] = useState<Record<string, string | null>>({});
     const [sendSuccess, setSendSuccess] = useState<Record<string, boolean>>({});
     const [metadataByPost, setMetadataByPost] = useState<Record<string, MediaMetadata>>({});
+    const [seasonPacksByPost, setSeasonPacksByPost] = useState<Record<string, boolean>>({});
     const [metadataErrors, setMetadataErrors] = useState<Record<string, string>>({});
     const [metadataLoading, setMetadataLoading] = useState(false);
     const [metadataTime, setMetadataTime] = useState<number | null>(null);
@@ -326,6 +328,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
         let cancelled = false;
         const run = async () => {
             setMetadataByPost({});
+            setSeasonPacksByPost({});
             setMetadataErrors({});
             if (!forumId || results.length === 0) {
                 setMetadataLoading(false);
@@ -365,14 +368,17 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
 
                 if (data.success && data.data?.results) {
                     const metaMap: Record<string, MediaMetadata> = {};
+                    const seasonPackMap: Record<string, boolean> = {};
                     const errorMap: Record<string, string> = {};
                     const rawTitleMap: Record<string, string> = {};
                     (data.data.results as MetadataResult[]).forEach((item) => {
                         if (item.metadata) metaMap[item.url] = item.metadata;
+                        if (item.isSeasonPack !== undefined) seasonPackMap[item.url] = item.isSeasonPack;
                         if (item.error) errorMap[item.url] = item.error;
                         if (item.rawTitle) rawTitleMap[item.url] = item.rawTitle;
                     });
                     setMetadataByPost(metaMap);
+                    setSeasonPacksByPost(seasonPackMap);
                     setMetadataErrors(errorMap);
                     setRawTitlesByPost(rawTitleMap);
                     setMetadataTime(metaElapsed);
@@ -519,6 +525,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                     <th className="px-3 py-2">{t('testing.tableYear')}</th>
                                     <th className="px-3 py-2">{t('testing.tableSeason')}</th>
                                     <th className="px-3 py-2">{t('testing.tableEpisodes')}</th>
+                                    <th className="px-3 py-2">{t('testing.tableSeasonPack')}</th>
                                     <th className="px-3 py-2">{t('testing.tableQuality')}</th>
                                     <th className="px-3 py-2">{t('testing.tableAudioSubs')}</th>
                                     <th className="px-3 py-2">{t('testing.tableGenre')}</th>
@@ -530,6 +537,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                 {filteredResults.map((result, index) => {
                                     const postLinks = extractedByPost[result.url] || [];
                                     const meta = metadataByPost[result.url];
+                                    const isSeasonPack = seasonPacksByPost[result.url];
                                     const rawTitle = rawTitlesByPost[result.url];
                                     const isExpanded = expandedRawTitles.has(result.url);
                                     const displayTitle = meta?.cleanTitle || meta?.title || titles[result.url] || result.title;
@@ -603,6 +611,15 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                 <td className="px-3 py-2 align-top">{yearLabel}</td>
                                                 <td className="px-3 py-2 align-top">{seasonLabel}</td>
                                                 <td className="px-3 py-2 align-top">{episodesLabel}</td>
+                                                <td className="px-3 py-2 align-top text-center">
+                                                    {isSeasonPack !== undefined ? (
+                                                        <span className={isSeasonPack ? "text-green-600 font-bold" : "text-gray-400"}>
+                                                            {isSeasonPack ? "✓" : "✗"}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
+                                                </td>
                                                 <td className="px-3 py-2 align-top">{qualityLabel}</td>
                                                 <td className="px-3 py-2 align-top">
                                                     <div className="space-y-1">

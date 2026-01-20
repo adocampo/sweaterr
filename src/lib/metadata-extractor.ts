@@ -201,6 +201,16 @@ export function extractEpisodes(text: string): { available?: number | null; tota
     return {};
 }
 
+/**
+ * Detects if a title represents a complete season pack
+ * Logic: If [X/Y] exists and X == Y, it's a complete season
+ */
+export function isSeasonPack(text: string): boolean {
+    const episodes = extractEpisodes(text);
+    if (!episodes.available || !episodes.total) return false;
+    return episodes.available === episodes.total;
+}
+
 // Extract clean title by removing metadata (year, season, episodes, quality, size, languages, etc)
 export function extractCleanTitle(text: string): string {
     let clean = text;

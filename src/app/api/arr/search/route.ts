@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { logger } from '@/lib/logger';
-import { detectType, extractSeason, extractSize, convertSizeToBytes, extractCleanTitle, getTvdbId } from '@/lib/metadata-extractor';
+import { detectType, extractSeason, extractSize, convertSizeToBytes, extractCleanTitle, getTvdbId, isSeasonPack } from '@/lib/metadata-extractor';
 
 function getPublicOrigin(request: NextRequest): string {
     const forwardedProto = (request.headers.get('x-forwarded-proto') || '').split(',')[0]?.trim();
@@ -307,10 +307,15 @@ export async function GET(request: NextRequest) {
                 
                 filteredResults = filteredResults.filter(result => {
                     const detectedSeason = extractSeason(result.title);
+                    const resultIsSeasonPack = isSeasonPack(result.title);
+                    
                     // Include result if:
-                    // 1. Season matches exactly, OR
-                    // 2. Cannot detect season (keep ambiguous results)
-                    return detectedSeason === null || detectedSeason === requestedSeason;
+                    // 1. It's a season pack for the requested season, OR
+                    // 2. Season matches exactly, OR
+                    // 3. Cannot detect season (keep ambiguous results)
+                    return (resultIsSeasonPack && detectedSeason === requestedSeason) || 
+                           detectedSeason === null || 
+                           detectedSeason === requestedSeason;
                 });
                 
                 const afterSeasonFilter = filteredResults.length;
@@ -398,6 +403,10 @@ export async function GET(request: NextRequest) {
             
             const escapedTitle = escapeXml(result.title);
             const escapedDescription = escapeXml(`${result.forum ?? result.forumName ?? 'Sweaterr'} - ${result.url}`);
+            
+            // Detect if this is a season pack
+            const resultIsSeasonPack = isSeasonPack(result.title);
+            const detectedSeason = resultIsSeasonPack ? extractSeason(result.title) : null;
 
             return `    <item>
             <title>${escapedTitle}</title>
@@ -411,7 +420,7 @@ export async function GET(request: NextRequest) {
             <torznab:attr name="size" value="${size}"/>
             <torznab:attr name="seeders" value="${torrentData.seeders}"/>
             <torznab:attr name="peers" value="${torrentData.peers}"/>
-            <torznab:attr name="infohash" value="${torrentData.infohash}"/>${tvdbId ? `\n            <torznab:attr name="tvdbid" value="${tvdbId}"/>` : ''}
+            <torznab:attr name="infohash" value="${torrentData.infohash}"/>${tvdbId ? `\n            <torznab:attr name="tvdbid" value="${tvdbId}"/>` : ''}${resultIsSeasonPack && detectedSeason ? `\n            <torznab:attr name="season" value="${detectedSeason}"/>` : ''}
             <torznab:attr name="magneturl" value="${escapedMagnetUri}"/>
             <torznab:attr name="grabs" value="${Math.floor(torrentData.seeders * 2.5)}"/>
         </item>`;

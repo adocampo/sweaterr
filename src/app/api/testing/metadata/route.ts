@@ -10,11 +10,13 @@ import { CookieJar } from 'tough-cookie';
 import * as cheerio from 'cheerio';
 import { getJarForHost, preloadJarCookies } from '@/lib/cookie-jar-store';
 import { AIService, MediaMetadata } from '@/lib/services/ai';
+import { isSeasonPack } from '@/lib/metadata-extractor';
 
 interface MetadataResult {
     url: string;
     rawTitle?: string;  // Original forum post title for verification
     metadata?: MediaMetadata;
+    isSeasonPack?: boolean; // True if [X/Y] where X == Y
     error?: string;
 }
 
@@ -326,7 +328,8 @@ export async function POST(request: NextRequest) {
                 }
 
                 const merged = mergeMetadata(heuristic, aiMetadata);
-                results.push({ url: url || '', rawTitle: title, metadata: merged });
+                const seasonPack = isSeasonPack(title);
+                results.push({ url: url || '', rawTitle: title, metadata: merged, isSeasonPack: seasonPack });
             }
 
             const totalErrors = results.filter((r) => r.error).length;
@@ -496,7 +499,8 @@ export async function POST(request: NextRequest) {
             }
 
             const merged = mergeMetadata(heuristic, aiMetadata);
-            results.push({ url: postUrl, rawTitle, metadata: merged });
+            const seasonPack = isSeasonPack(rawTitle);
+            results.push({ url: postUrl, rawTitle, metadata: merged, isSeasonPack: seasonPack });
         }
 
         // Persist cookies if we used FlareSolverr
