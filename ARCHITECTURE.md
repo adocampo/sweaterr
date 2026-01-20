@@ -4,7 +4,7 @@
 
 ## 📅 FECHAS RELEVANTES
 
-**Última actualización**: 13 de enero de 2026  
+**Última actualización**: 20 de enero de 2026  
 **Inicio del proyecto**: Diciembre 2025  
 **Estado del proyecto**: En desarrollo activo  
 **Versión actual**: 1.3.1
@@ -805,6 +805,114 @@ DEEPSEEK_API_KEY="..."
 ---
 
 ## 📝 CHANGELOG
+
+### 2026-01-20 (FEATURE: Torznab search filtering by season and content type with metadata-extractor module)
+
+**Estado**: ✅ COMPLETADO
+
+**Rama**: `feature/search-season-filtering` → MERGED a master
+
+**Problema**: Búsquedas en Sonarr para "Breaking Bad Season 5" retornaban resultados de TODAS las temporadas en lugar de filtrar por temporada específica.
+
+**Síntomas**:
+
+- ❌ Sonarr solicita Season 5 → Sweaterr retorna 50+ resultados de todas las temporadas
+- ❌ Resultados "Desconocido" (no-serie) aparecer en TV searches junto a series válidas
+- ❌ Tamaños siempre defaulteaban a 200MB incluso cuando estaban disponibles en títulos
+- ❌ Código duplicado: extractSeason, extractSize, detectType replicados en múltiples archivos
+
+**Root causes**:
+
+1. **Sin filtrado de temporada**: El endpoint `/api/arr/search` ignoraba parámetro `season` de Sonarr
+2. **Sin detección de tipo**: Resultados "unknown" (no-serie) no se filtraban en TV searches
+3. **Extracción de tamaño incompleta**: Solo usaba `result.size` que siempre era undefined
+4. **Falta de módulo centralizado**: Metadata extraction functions estaban duplicadas/inconsistentes
+
+**Solución implementada (4 commits)**:
+
+**Commit 66a1cda - Filtrado por temporada en backend**:
+
+- Agregada función `extractSeason(title)` para detectar temporada en múltiples formatos:
+  - Ordinales: `5ª`, `3º`
+  - Prefijos T: `T5`, `T.5`, `T05`
+  - Palabras completas: `Temporada 5`, `Season 3`
+  - Prefijo S: `S05`, `S5`
+- Filtrado de resultados: Solo pasan resultados con `season === requestedSeason` O sin temporada detectada
+- Logs de filtrado: `Season filter (S5): 50 results → 5 results (removed 45)`
+
+**Commit 0c590df - Filtrado por tipo + extracción de tamaño**:
+
+- Agregada función `detectType(title, breadcrumbs)` reutilizada de testing:
+  - ✅ Series: patrones `[X/Y]` O indicadores claros (Temporada X, T1, S01)
+  - ✅ Movies: palabras clave (película, movie, film, cinema)
+  - ⚠️ Unknown: todo lo demás
+- Filtrado de tipo en TV searches: Solo `type === 'series'` pasan
+- Agregada función `extractSizeFromTitle(title)` que parsea patrones `\d+\s*(GB|MB)`
+- Conversión a bytes: `extractSize()` retorna string → `convertSizeToBytes()` retorna number
+- Logs de filtrado: `Type filter (series only): X → Y results`
+
+**Commit 66bf060 - Refactor a módulo centralizado**:
+
+- Importado `src/lib/metadata-extractor.ts` de rama `feat/sonarr-season-pack-search`
+- Módulo centralizado con funciones validadas y documentadas:
+  - `detectType(title, breadcrumbs)`: 'series' | 'movie' | 'unknown'
+  - `extractSeason(text)`: number | null (con soporte ordinal/T/S prefixes)
+  - `extractSize(text)`: string | null (retorna "2.5 GB")
+  - `convertSizeToBytes(sizeString)`: number (2.5 GB → 2684354560 bytes)
+  - `extractQuality`, `extractLanguages`, `extractEpisodes`, `extractCleanTitle`
+- Eliminado código duplicado en search route (80+ líneas)
+- Una única fuente de verdad para metadata extraction
+
+**Archivos modificados**:
+
+- `src/app/api/arr/search/route.ts`:
+  - Importa: `detectType`, `extractSeason`, `extractSize`, `convertSizeToBytes`
+  - Filtrado por tipo (series only en TV search)
+  - Filtrado por temporada basado en parámetro `season` de Sonarr
+  - Extracción de tamaño real usando `extractSize()` + `convertSizeToBytes()`
+  
+- `src/lib/metadata-extractor.ts`: **NUEVO** - Módulo centralizado
+  - Funciones copy-paste verificadas de testing/metadata/route.ts
+  - Documentación: "SOURCE OF TRUTH for metadata parsing"
+  - Regla: No crear duplicados, importar desde este módulo
+
+**Flujo mejorado**:
+
+```text
+Sonarr: Solicita "Breaking Bad Season 5"
+  ↓
+Sweaterr POST /api/arr/search?t=tvsearch&q=Breaking%20Bad&season=5
+  ↓
+1. Busca en foros: obtiene 50 resultados (todas temporadas)
+  ↓
+2. Filtrado por TIPO: removeUnknown → 45 válidos (solo series)
+  ↓
+3. Filtrado por TEMPORADA: season match o unknown → 5 resultados (T5 + ambiguos)
+  ↓
+4. Extracción de TAMAÑO: 
+   - "Breaking Bad T5 5GB BluRay" → extractSize() → "5 GB" → convertSizeToBytes() → 5368709120
+   - "Breaking Bad T5 1.5GB" → "1.5 GB" → 1610612736
+  ↓
+5. Envío a Sonarr: XML con 5 resultados, tamaños reales, solo series
+```
+
+**Testing**:
+
+1. ✅ Sonarr TV search: Season 4 filtra correctamente
+2. ✅ Solo resultados de T4 y ambiguos (sin T específica)
+3. ✅ Sin resultados "Desconocido" (tipo=unknown)
+4. ✅ Tamaños reales: 5GB, 2.5GB, 1500MB (no defaults 200MB)
+5. ✅ Logs muestran filtrados: "Type filter: 50 → 45" y "Season filter: 45 → 5"
+
+**Resultado**:
+
+- ✅ Búsquedas de temporada específica en Sonarr ahora funcionan correctamente
+- ✅ Filtrado de contenido "unknown" evita ruido en resultados
+- ✅ Extracción de tamaño real desde títulos en lugar de defaults
+- ✅ Código mantenible: una única fuente de verdad en metadata-extractor.ts
+- ✅ Fácil sincronización entre testing y search endpoints
+
+---
 
 ### 2026-01-15 (FIXED: Prevented full page re-renders during download updates via React Context isolation)
 
