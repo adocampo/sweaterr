@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { logger } from '@/lib/logger';
-import { detectType, extractSeason, extractSize, convertSizeToBytes, extractCleanTitle, getTvdbId, isSeasonPack } from '@/lib/metadata-extractor';
+import { detectType, extractSeason, extractSize, convertSizeToBytes, extractCleanTitle, getTvdbId, isSeasonPack, extractEpisodes } from '@/lib/metadata-extractor';
 
 function getPublicOrigin(request: NextRequest): string {
     const forwardedProto = (request.headers.get('x-forwarded-proto') || '').split(',')[0]?.trim();
@@ -408,11 +408,20 @@ export async function GET(request: NextRequest) {
             const resultIsSeasonPack = isSeasonPack(result.title);
             const detectedSeason = resultIsSeasonPack ? extractSeason(result.title) : null;
             
+            // Extract episode range from title for season packs (e.g., [13/13] → episodes 1-13)
+            let tvRangeNums: string | null = null;
+            if (resultIsSeasonPack) {
+                const episodesData = extractEpisodes(result.title);
+                if (episodesData.total) {
+                    tvRangeNums = `1-${episodesData.total}`;
+                }
+            }
+            
             // Log season pack detection for first result only
             if (idx === 0) {
                 logger.info('search', `[${service.toUpperCase()}] First result: isSeasonPack=${resultIsSeasonPack}, detectedSeason=${detectedSeason}, title="${result.title}"`);
                 if (resultIsSeasonPack) {
-                    logger.info('search', `[${service.toUpperCase()}] Season pack detected: Season ${detectedSeason}`);
+                    logger.info('search', `[${service.toUpperCase()}] Season pack detected: Season ${detectedSeason}, episodes: ${tvRangeNums}`);
                 }
             }
 
@@ -430,7 +439,8 @@ export async function GET(request: NextRequest) {
             <torznab:attr name="peers" value="${torrentData.peers}"/>
             <torznab:attr name="infohash" value="${torrentData.infohash}"/>
 ${tvdbId ? `            <torznab:attr name="tvdbid" value="${tvdbId}"/>
-` : ''}${resultIsSeasonPack && detectedSeason ? `            <torznab:attr name="season" value="${detectedSeason}"/>
+` : ''}${resultIsSeasonPack && detectedSeason ? `            <torznab:attr name="tvseason" value="${detectedSeason}"/>
+` : ''}${tvRangeNums ? `            <torznab:attr name="tvragenums" value="${tvRangeNums}"/>
 ` : ''}            <torznab:attr name="magneturl" value="${escapedMagnetUri}"/>
             <torznab:attr name="grabs" value="${Math.floor(torrentData.seeders * 2.5)}"/>
         </item>`;
