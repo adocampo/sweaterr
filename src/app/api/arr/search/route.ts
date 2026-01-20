@@ -330,9 +330,13 @@ export async function GET(request: NextRequest) {
         if (t === 'tvsearch' && rankedResults.length > 0) {
             try {
                 const firstResultCleanTitle = extractCleanTitle(rankedResults[0].title);
-                if (firstResultCleanTitle) {
-                    tvdbId = await getTvdbId(firstResultCleanTitle);
+                logger.info('search', `[${service.toUpperCase()}] First result title: "${rankedResults[0].title}" → clean: "${firstResultCleanTitle}"`);
+                
+                if (firstResultCleanTitle && firstResultCleanTitle.trim().length > 0) {
+                    tvdbId = await getTvdbId(firstResultCleanTitle.trim());
                     logger.info('search', `[${service.toUpperCase()}] TVDB lookup for "${firstResultCleanTitle}": ${tvdbId ? `Found ID ${tvdbId}` : 'Not found'}`);
+                } else {
+                    logger.warn('search', `[${service.toUpperCase()}] Could not extract clean title from first result`);
                 }
             } catch (err) {
                 logger.warn('search', `[${service.toUpperCase()}] Failed to get TVDB ID: ${err instanceof Error ? err.message : String(err)}`);

@@ -286,24 +286,37 @@ export async function getTvdbId(seriesName: string): Promise<number | null> {
     try {
         // Use TVDB public search (no auth required for basic search)
         const searchUrl = `https://www.thetvdb.com/api/v4/search?query=${encodeURIComponent(seriesName)}&type=series`;
-        const response = await fetch(searchUrl, {
-            headers: {
-                'Accept': 'application/json',
-            },
-            signal: AbortSignal.timeout(5000), // 5 second timeout
-        });
         
-        if (!response.ok) return null;
+        // Create abort controller with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const data = await response.json() as any;
-        
-        // Return first match's ID (data structure varies, handle both old and new API)
-        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-            const firstResult = data.data[0];
-            return firstResult.tvdb_id || firstResult.id || null;
+        try {
+            const response = await fetch(searchUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                },
+                signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                return null;
+            }
+            
+            const data = await response.json() as any;
+            
+            // Return first match's ID (data structure varies, handle both old and new API)
+            if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+                const firstResult = data.data[0];
+                return firstResult.tvdb_id || firstResult.id || null;
+            }
+            
+            return null;
+        } finally {
+            clearTimeout(timeoutId);
         }
-        
-        return null;
     } catch (err) {
         // Silently fail - TVDB ID is nice to have but not critical
         return null;
