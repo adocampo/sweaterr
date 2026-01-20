@@ -274,3 +274,38 @@ export function episodeCountToNewznabList(count: number): string {
     if (count < 1 || count > 300) return '';
     return Array.from({ length: count }, (_, i) => i + 1).join(',');
 }
+
+/**
+ * Get TVDB ID by searching the public TVDB API
+ * Returns TVDB ID or null if not found
+ * Uses simple name matching without authentication
+ */
+export async function getTvdbId(seriesName: string): Promise<number | null> {
+    if (!seriesName || seriesName.length === 0) return null;
+    
+    try {
+        // Use TVDB public search (no auth required for basic search)
+        const searchUrl = `https://www.thetvdb.com/api/v4/search?query=${encodeURIComponent(seriesName)}&type=series`;
+        const response = await fetch(searchUrl, {
+            headers: {
+                'Accept': 'application/json',
+            },
+            signal: AbortSignal.timeout(5000), // 5 second timeout
+        });
+        
+        if (!response.ok) return null;
+        
+        const data = await response.json() as any;
+        
+        // Return first match's ID (data structure varies, handle both old and new API)
+        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+            const firstResult = data.data[0];
+            return firstResult.tvdb_id || firstResult.id || null;
+        }
+        
+        return null;
+    } catch (err) {
+        // Silently fail - TVDB ID is nice to have but not critical
+        return null;
+    }
+}

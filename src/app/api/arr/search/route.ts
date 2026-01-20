@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { logger } from '@/lib/logger';
-import { detectType, extractSeason, extractSize, convertSizeToBytes } from '@/lib/metadata-extractor';
+import { detectType, extractSeason, extractSize, convertSizeToBytes, extractCleanTitle, getTvdbId } from '@/lib/metadata-extractor';
 
 function getPublicOrigin(request: NextRequest): string {
     const forwardedProto = (request.headers.get('x-forwarded-proto') || '').split(',')[0]?.trim();
@@ -325,6 +325,20 @@ export async function GET(request: NextRequest) {
             // For now, keep original order
         }
 
+        // Get TVDB ID from first result's clean title (only for TV searches)
+        let tvdbId: number | null = null;
+        if (t === 'tvsearch' && rankedResults.length > 0) {
+            try {
+                const firstResultCleanTitle = extractCleanTitle(rankedResults[0].title);
+                if (firstResultCleanTitle) {
+                    tvdbId = await getTvdbId(firstResultCleanTitle);
+                    logger.info('search', `[${service.toUpperCase()}] TVDB lookup for "${firstResultCleanTitle}": ${tvdbId ? `Found ID ${tvdbId}` : 'Not found'}`);
+                }
+            } catch (err) {
+                logger.warn('search', `[${service.toUpperCase()}] Failed to get TVDB ID: ${err instanceof Error ? err.message : String(err)}`);
+            }
+        }
+
         // Convert to Torznab XML format (simulated torrent with seeders/peers/infohash/magneturi)
         const escapeXml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         
@@ -393,7 +407,7 @@ export async function GET(request: NextRequest) {
             <torznab:attr name="size" value="${size}"/>
             <torznab:attr name="seeders" value="${torrentData.seeders}"/>
             <torznab:attr name="peers" value="${torrentData.peers}"/>
-            <torznab:attr name="infohash" value="${torrentData.infohash}"/>
+            <torznab:attr name="infohash" value="${torrentData.infohash}"/>${tvdbId ? `\n            <torznab:attr name="tvdbid" value="${tvdbId}"/>` : ''}
             <torznab:attr name="magneturl" value="${escapedMagnetUri}"/>
             <torznab:attr name="grabs" value="${Math.floor(torrentData.seeders * 2.5)}"/>
         </item>`;

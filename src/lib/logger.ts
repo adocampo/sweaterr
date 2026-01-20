@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
-// Use __dirname to get the directory of this file, then go up to project root
-const projectRoot = path.resolve(__dirname, '../../..');
+// Use process.cwd() to get the project root directory (where package.json is)
+const projectRoot = process.cwd();
 const logsDir = path.join(projectRoot, 'logs');
 
 // Create logs directory if it doesn't exist (only on server)
