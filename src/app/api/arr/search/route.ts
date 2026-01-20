@@ -3,80 +3,7 @@ import { db } from '@/lib/db';
 import { ForumService } from '@/lib/services/forum';
 import { AIService } from '@/lib/services/ai';
 import { logger } from '@/lib/logger';
-
-// Helper: Detect if text contains [X/Y] episode pattern (indicates series)
-function detectSeriesByEpisodePattern(text: string): boolean {
-    return /\[\s*(\d{1,3})\s*(?:de|\/)\s*(\d{1,3})\s*\]/i.test(text);
-}
-
-// Helper: Detect content type (series, movie, or unknown)
-function detectType(title: string): 'series' | 'movie' | 'unknown' {
-    // STRICT: If there's an episode pattern, it's definitely a series
-    if (detectSeriesByEpisodePattern(title)) {
-        return 'series';
-    }
-    
-    // Only detect as series if there are CLEAR season-related indicators in the TITLE
-    const hasSeasonIndicators = 
-        /\btemporada\s+\d+\b/i.test(title) ||
-        /\d+(?:ª|º)\s+.{0,20}?\btemporada\b/i.test(title) ||
-        /\d+(?:ª|º)\s*temporada\b/i.test(title) ||
-        /\b[Tt]\s*\d{1,2}\b/.test(title) ||
-        /\bseason\s+\d+\b/i.test(title) ||
-        /\bs\d{1,2}\b/i.test(title) ||
-        /\bserial\b/i.test(title);
-    
-    if (hasSeasonIndicators) {
-        return 'series';
-    }
-    
-    // Check for movie keywords
-    const lowerTitle = title.toLowerCase();
-    const movieKeywords = ['película', 'movie', 'film', 'cinema'];
-    if (movieKeywords.some(keyword => lowerTitle.includes(keyword))) {
-        return 'movie';
-    }
-    
-    return 'unknown';
-}
-
-// Helper: Extract season number from title text
-function extractSeasonFromTitle(title: string): number | null {
-    // Priority 1: Ordinal patterns: "5ª", "3º"
-    let match = title.match(/(\d{1,2})(?:ª|º)/i);
-    if (match) return parseInt(match[1], 10);
-    
-    // Priority 2: T-prefixed: T1, T.1, T01
-    match = title.match(/\b[Tt]\.?(\d{1,2})\b/i);
-    if (match) return parseInt(match[1], 10);
-    
-    // Priority 3: Full word: "Temporada 5", "Season 3"
-    match = title.match(/(?:temporada|season)\s+(\d{1,2})/i);
-    if (match) return parseInt(match[1], 10);
-    
-    // Priority 4: S-prefixed: S01, S1
-    match = title.match(/\b[Ss](\d{1,2})\b/i);
-    if (match) return parseInt(match[1], 10);
-    
-    return null;
-}
-
-// Helper: Extract size from title text
-function extractSizeFromTitle(text: string): number {
-    // Match patterns like "2.5GB", "2,5 GB", "1500MB", etc.
-    const match = text.match(/\b(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b/i);
-    if (!match) return 200 * 1048576; // Default 200 MiB
-    
-    const value = parseFloat(match[1].replace(',', '.'));
-    const unit = match[2].toUpperCase();
-    
-    // Convert to bytes
-    if (unit === 'GB' || unit === 'GIB') {
-        return Math.round(value * 1024 * 1048576); // GB to bytes
-    } else {
-        return Math.round(value * 1048576); // MB to bytes
-    }
-}
+import { detectType, extractSeason, extractSize, convertSizeToBytes } from '@/lib/metadata-extractor';
 
 function getPublicOrigin(request: NextRequest): string {
     const forwardedProto = (request.headers.get('x-forwarded-proto') || '').split(',')[0]?.trim();
@@ -365,7 +292,7 @@ export async function GET(request: NextRequest) {
             
             // First, filter by content type (only series for TV searches)
             filteredResults = allResults.filter(result => {
-                const contentType = detectType(result.title);
+                const contentType = detectType(result.title, '');
                 // Only include series for TV searches, exclude 'unknown' and 'movie'
                 return contentType === 'series';
             });
@@ -379,7 +306,7 @@ export async function GET(request: NextRequest) {
                 const beforeSeasonFilter = filteredResults.length;
                 
                 filteredResults = filteredResults.filter(result => {
-                    const detectedSeason = extractSeasonFromTitle(result.title);
+                    const detectedSeason = extractSeason(result.title);
                     // Include result if:
                     // 1. Season matches exactly, OR
                     // 2. Cannot detect season (keep ambiguous results)
@@ -438,7 +365,8 @@ export async function GET(request: NextRequest) {
             const pubDate = new Date().toUTCString();
 
             // Extract size from title, fallback to result.size or default
-            const size = result.size || extractSizeFromTitle(result.title);
+            const sizeString = result.size ? String(result.size) : extractSize(result.title);
+            const size = sizeString ? convertSizeToBytes(sizeString) : 200 * 1048576; // Default 200 MiB
             // Use standard Torznab download pattern: /api/arr?t=get&id=<guid>&apikey=<apiKey>
             const enclosureUrl = `${origin}/api/arr?t=get&id=${encodeURIComponent(guid)}&apikey=${apiKey}`;
             const escapedLink = escapeXml(enclosureUrl);
