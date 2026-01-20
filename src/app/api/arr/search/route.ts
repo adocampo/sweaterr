@@ -396,17 +396,30 @@ export async function GET(request: NextRequest) {
             
             // Generate simulated torrent metadata
             const torrentData = generateSimulatedTorrentData(result.url, size);
-            // Include the original forum link in the magnet URI as a custom parameter
-            // so qBittorrent API can extract it and send to JDownloader
-            const magnetUri = `magnet:?xt=urn:btih:${torrentData.infohash}&dn=${encodeURIComponent(result.title)}&xs=${encodeURIComponent(result.url)}`;
-            const escapedMagnetUri = escapeXml(magnetUri);
-            
-            const escapedTitle = escapeXml(result.title);
-            const escapedDescription = escapeXml(`${result.forum ?? result.forumName ?? 'Sweaterr'} - ${result.url}`);
-            
             // Detect if this is a season pack
             const resultIsSeasonPack = isSeasonPack(result.title);
             const detectedSeason = resultIsSeasonPack ? extractSeason(result.title) : null;
+
+            // Sonarr scene parsing is much happier with S## than with Spanish T#.
+            // For season packs, normalize the first season token to S##.
+            let displayTitle = result.title;
+            if (t === 'tvsearch' && resultIsSeasonPack && detectedSeason) {
+                const sPad = String(detectedSeason).padStart(2, '0');
+                if (!/\bS\d{1,2}\b/i.test(displayTitle)) {
+                    const replaced = displayTitle.replace(/\b[Tt]\s*\d{1,2}\b/, `S${sPad}`);
+                    displayTitle = replaced === displayTitle
+                        ? `${extractCleanTitle(result.title)} S${sPad} ${displayTitle}`
+                        : replaced;
+                }
+            }
+
+            // Include the original forum link in the magnet URI as a custom parameter
+            // so qBittorrent API can extract it and send to JDownloader
+            const magnetUri = `magnet:?xt=urn:btih:${torrentData.infohash}&dn=${encodeURIComponent(displayTitle)}&xs=${encodeURIComponent(result.url)}`;
+            const escapedMagnetUri = escapeXml(magnetUri);
+
+            const escapedTitle = escapeXml(displayTitle);
+            const escapedDescription = escapeXml(`${result.forum ?? result.forumName ?? 'Sweaterr'} - ${result.url}`);
             
             // Extract episode range from title for season packs (e.g., [13/13] → episodes 1-13)
             let tvRangeNums: string | null = null;
@@ -439,8 +452,7 @@ export async function GET(request: NextRequest) {
             <torznab:attr name="peers" value="${torrentData.peers}"/>
             <torznab:attr name="infohash" value="${torrentData.infohash}"/>
 ${tvdbId ? `            <torznab:attr name="tvdbid" value="${tvdbId}"/>
-` : ''}${resultIsSeasonPack && detectedSeason ? `            <torznab:attr name="tvseason" value="${detectedSeason}"/>
-` : ''}${tvRangeNums ? `            <torznab:attr name="tvragenums" value="${tvRangeNums}"/>
+` : ''}${resultIsSeasonPack && detectedSeason ? `            <torznab:attr name="season" value="${detectedSeason}"/>
 ` : ''}            <torznab:attr name="magneturl" value="${escapedMagnetUri}"/>
             <torznab:attr name="grabs" value="${Math.floor(torrentData.seeders * 2.5)}"/>
         </item>`;
@@ -449,7 +461,7 @@ ${tvdbId ? `            <torznab:attr name="tvdbid" value="${tvdbId}"/>
         // Log first item's XML for debugging
         if (rankedResults.length > 0) {
             const firstItem = items.split('\n    <item>')[1]?.split('</item>')[0] || '';
-            if (firstItem.includes('season')) {
+            if (firstItem.includes('name="season"')) {
                 logger.info('search', `[${service.toUpperCase()}] First item XML includes season attribute ✓`);
             } else {
                 logger.warn('search', `[${service.toUpperCase()}] First item XML does NOT include season attribute`);
