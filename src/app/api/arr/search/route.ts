@@ -407,6 +407,11 @@ export async function GET(request: NextRequest) {
             // Detect if this is a season pack
             const resultIsSeasonPack = isSeasonPack(result.title);
             const detectedSeason = resultIsSeasonPack ? extractSeason(result.title) : null;
+            
+            // Log season pack detection for first result only
+            if (idx === 0 && resultIsSeasonPack) {
+                logger.info('search', `[${service.toUpperCase()}] Season pack detected: "${result.title}" (Season ${detectedSeason})`);
+            }
 
             return `    <item>
             <title>${escapedTitle}</title>
