@@ -429,12 +429,22 @@ export async function GET(request: NextRequest) {
             <torznab:attr name="seeders" value="${torrentData.seeders}"/>
             <torznab:attr name="peers" value="${torrentData.peers}"/>
             <torznab:attr name="infohash" value="${torrentData.infohash}"/>
-${tvdbId ? `            <torznab:attr name="tvdbid" value="${tvdbId}"/>` : ''}${resultIsSeasonPack && detectedSeason ? `
-            <torznab:attr name="season" value="${detectedSeason}"/>` : ''}
-            <torznab:attr name="magneturl" value="${escapedMagnetUri}"/>
+${tvdbId ? `            <torznab:attr name="tvdbid" value="${tvdbId}"/>
+` : ''}${resultIsSeasonPack && detectedSeason ? `            <torznab:attr name="season" value="${detectedSeason}"/>
+` : ''}            <torznab:attr name="magneturl" value="${escapedMagnetUri}"/>
             <torznab:attr name="grabs" value="${Math.floor(torrentData.seeders * 2.5)}"/>
         </item>`;
         }).join('\n');
+
+        // Log first item's XML for debugging
+        if (rankedResults.length > 0) {
+            const firstItem = items.split('\n    <item>')[1]?.split('</item>')[0] || '';
+            if (firstItem.includes('season')) {
+                logger.info('search', `[${service.toUpperCase()}] First item XML includes season attribute ✓`);
+            } else {
+                logger.warn('search', `[${service.toUpperCase()}] First item XML does NOT include season attribute`);
+            }
+        }
 
         const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
