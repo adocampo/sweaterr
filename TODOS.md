@@ -39,6 +39,8 @@ Estado: 11 de enero de 2026
   - Integración IA para parsing de títulos (enriquecimiento de metadatos)
   - Testing end-to-end con instancia real de Sonarr/Radarr
   - Rate limiting por foro para evitar baneos
+  - Fallback de búsqueda por "Alternate Titles" para mejorar matching según idioma del foro
+  - Validar y cerrar empaquetado Docker (imagen + compose) para despliegue reproducible
 
 ### 1.1. **Cambiar Arquitectura *arr: API Key por Foro** ✅
 

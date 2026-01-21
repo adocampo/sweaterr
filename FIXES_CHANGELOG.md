@@ -121,21 +121,21 @@ Efectos típicos:
 
 **Archivo**: `src/lib/services/forum.ts`
 
-### 11. **Sonarr: `t=get` debe devolver una descarga (NZB) + thanks gate + envío a JDownloader** (CRÍTICO)
+### 11. **Sonarr: `t=get` debe devolver un `.torrent` real + compatibilidad con Download Client** (CRÍTICO)
 
 **Problema**:
 
-- El endpoint `t=get` no seguía el orden correcto: si los enlaces estaban ocultos tras “Gracias”, primero comprobaba `links.length` y fallaba antes de pulsar el botón.
-- Además, devolvía una respuesta de éxito tipo XML que algunos clientes Newznab/Torznab no interpretan como una descarga.
+- Sonarr descargaba el resultado pero al añadirlo al cliente mostraba **"Invalid torrent file specified"**.
+- La causa era que el endpoint de grab devolvía una respuesta no-torrent (XML/NZB), mientras Sonarr valida y espera un `.torrent` real (bencoded).
 
 **Corrección**:
 
-- ✅ Flujo correcto: parse → si `thankRequired` y no hay enlaces → click “Gracias” → re-parse → extraer enlaces.
-- ✅ Envío automático a JDownloader con `autostart=true`.
-- ✅ En modo cloud, best-effort para mover paquetes desde LinkGrabber a Downloads y arrancar el controlador de descargas.
-- ✅ Respuesta: devuelve un **NZB mínimo válido** con `Content-Type: application/x-nzb` para compatibilidad con Sonarr/Radarr.
+- ✅ `/api/arr/grab` devuelve ahora un `.torrent` real (bencoded) con `Content-Type: application/x-bittorrent`.
+- ✅ Se embebe un payload en `comment` como `sweaterr:<base64url(JSON)>` para transportar contexto.
+- ✅ Se añade un *qBittorrent-compatible facade* (`/api/qbittorrent/api/v2/*`) para que Sonarr gestione Activity/control.
+- ✅ Compatibilidad: `torrents/add` acepta multipart field `torrents` (plural) y múltiples ficheros (comportamiento de qBittorrent Web API).
 
-**Archivos**: `src/app/api/arr/grab/route.ts`, `src/lib/services/forum.ts`, `src/lib/services/jdownloader.ts`
+**Archivos**: `src/app/api/arr/grab/route.ts`, `src/app/api/qbittorrent/api/v2/torrents/add/route.ts`, `src/app/api/qbittorrent/api/v2/torrents/info/route.ts`, `src/lib/bencode.ts`
 
 ### 12. **Modo `google_site` deshabilitado por defecto (feature flag)**
 

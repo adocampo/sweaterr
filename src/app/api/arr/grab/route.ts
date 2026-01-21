@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { JDownloaderLocalService, JDownloaderService } from '@/lib/services/jdownloader';
 import { logger } from '@/lib/logger';
-import { extractLinksFromPost } from '@/lib/services/link-extractor';
+import { bencodeEncode, bufferToBase64Url } from '@/lib/bencode';
+import crypto from 'node:crypto';
 
 function detectArrService(userAgent: string | null): string {
     if (!userAgent) return 'unknown';
@@ -18,7 +18,7 @@ function detectArrService(userAgent: string | null): string {
 
 // GET /api/arr/grab - Download link grab endpoint (Torznab-compatible)
 // Uses forum's API key (torznabApiKey field) for validation
-// Simulates torrent download but actually extracts direct links and sends to JDownloader
+// Returns a real .torrent (bencoded) so Sonarr can pass it to a download client.
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -96,195 +96,63 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get forum and JDownloader config
+        // Load forum (for validation + metadata)
         const forum = await db.forum.findUnique({
             where: { id: forumId },
             include: { credentials: true },
         });
 
-        const jdConfig = await db.jDownloaderConfig.findFirst({ where: { enabled: true } });
-
-        if (!forum || !jdConfig) {
+        if (!forum) {
             return new NextResponse(
                 `<?xml version="1.0" encoding="UTF-8"?>
-<error code="300" description="Forum or JDownloader not configured"/>`,
+<error code="300" description="Forum not configured"/>`,
                 {
                     status: 500,
                     headers: { 'Content-Type': 'application/xml' },
                 }
             );
         }
-
-        logger.info('arr_grab', `Grab requested for forum=${forum.name}, postUrl=${postUrl}, arrType=${arrType}`);
-
-        // Use EXACT SAME function as testing /api/extract-links endpoint
-        const extractResult = await extractLinksFromPost(
-            postUrl,
-            forum.baseUrl,
-            forum.credentials?.username,
-            forum.credentials?.password,
-            process.env.FLARESOLVERR_URL,
-            forumId,
-            {
-                thankButtonSelector: forum.thankButtonSelector || undefined,
-                linksContainerSelector: forum.linksContainerSelector || undefined,
-            }
-        );
-
-        if (!extractResult.success) {
-            logger.warn('arr_grab', `Link extraction failed: ${extractResult.error}`);
-            return new NextResponse(
-                `<?xml version="1.0" encoding="UTF-8"?>
-<error code="300" description="Failed to extract links: ${extractResult.error}"/>`,
-                {
-                    status: 404,
-                    headers: { 'Content-Type': 'application/xml' },
-                }
-            );
-        }
-
-        const links = extractResult.links || [];
-
-        if (links.length === 0) {
-            logger.warn('arr_grab', 'No download links found in post');
-            return new NextResponse(
-                `<?xml version="1.0" encoding="UTF-8"?>
-<error code="300" description="No download links found"/>`,
-                {
-                    status: 404,
-                    headers: { 'Content-Type': 'application/xml' },
-                }
-            );
-        }
-
-        logger.info('arr_grab', `Extracted ${links.length} links from post`);
-
-        // Initialize JDownloader service
-        const jdMode = (jdConfig.mode || 'local').toLowerCase();
-        const jdLocal = jdMode === 'local'
-            ? new JDownloaderLocalService(jdConfig.localHost || 'localhost', jdConfig.localPort || 3128)
-            : null;
-        const jdRemote = jdMode === 'cloud'
-            ? new JDownloaderService(jdConfig.email, jdConfig.password, jdConfig.deviceName)
-            : null;
 
         // Get package name (use title from GUID, fallback to forum name)
         const packageName = title || forum.name || 'Download';
 
-        logger.info('arr_grab', 'Sending links to JDownloader', {
-            forumId: forum.id,
+        logger.info('arr_grab', `Grab requested (torrent) forum=${forum.name}, postUrl=${postUrl}, arrType=${arrType}`);
+
+        // Build a real .torrent file (bencoded). We include a Sweaterr payload in the comment
+        // so our qBittorrent-compatible endpoint can extract it later.
+        const payload = {
+            v: 1,
+            guid,
+            forumId,
             forumName: forum.name,
             postUrl,
-            linksCount: links.length,
-            sampleLinks: links.slice(0, 5),
-            hosts: Array.from(
-                new Set(
-                    links
-                        .map((l) => {
-                            try {
-                                return new URL(l).host;
-                            } catch {
-                                return null;
-                            }
-                        })
-                        .filter(Boolean) as string[]
-                )
-            ).slice(0, 20),
-        });
+            category: category || undefined,
+            title: packageName,
+            arrType,
+        };
 
-        // Send links to JDownloader and start downloads automatically
-        let jdSuccess = false;
-        if (jdLocal) {
-            jdSuccess = await jdLocal.addLinks(links, packageName, true, false);
-        } else if (jdRemote) {
-            const jdAuthSuccess = await jdRemote.authenticate();
-            if (!jdAuthSuccess) {
-                logger.error('arr_grab', 'JDownloader authentication failed');
-                return new NextResponse(
-                    `<?xml version="1.0" encoding="UTF-8"?>
-<error code="300" description="JDownloader authentication failed"/>`,
-                    {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/xml' },
-                    }
-                );
-            }
+        const payloadB64Url = bufferToBase64Url(Buffer.from(JSON.stringify(payload), 'utf8'));
+        const pieceLength = 16384;
+        const pieces = crypto.createHash('sha1').update(Buffer.from(guid, 'utf8')).digest();
 
-            jdSuccess = await jdRemote.addLinks(links, packageName, true, false);
-
-            if (jdSuccess) {
-                // Best-effort: move the created package from LinkGrabber to Downloads
-                // and ensure the download controller is running.
-                await jdRemote.moveLinkGrabberPackagesToDownloadsByName(packageName);
-                await jdRemote.startDownloadController();
-            }
-        } else {
-            logger.error('arr_grab', 'JDownloader not configured');
-            return new NextResponse(
-                `<?xml version="1.0" encoding="UTF-8"?>
-<error code="300" description="JDownloader not configured"/>`,
-                {
-                    status: 500,
-                    headers: { 'Content-Type': 'application/xml' },
-                }
-            );
-        }
-
-        if (!jdSuccess) {
-            logger.error('arr_grab', 'Failed to add links to JDownloader');
-            return new NextResponse(
-                `<?xml version="1.0" encoding="UTF-8"?>
-<error code="300" description="Failed to add links to JDownloader"/>`,
-                {
-                    status: 500,
-                    headers: { 'Content-Type': 'application/xml' },
-                }
-            );
-        }
-
-        logger.info('arr_grab', 'Links successfully added to JDownloader');
-
-        // Create download record with ARR context
-        const download = await db.download.create({
-            data: {
-                title: packageName,
-                sourceUrl: postUrl,
-                forumName: forum.name,
-                status: 'queued',
-                progress: 0,
-                arrType,
-                grabId: guid,
-                category: category || undefined,
-                releaseTitle: packageName,
+        const torrent = {
+            announce: 'udp://tracker.sweaterr.local:6969',
+            'created by': 'Sweaterr',
+            'creation date': Math.floor(Date.now() / 1000),
+            comment: `sweaterr:${payloadB64Url}`,
+            info: {
+                name: packageName.replace(/[\r\n]+/g, ' ').slice(0, 250),
+                'piece length': pieceLength,
+                pieces,
+                length: 1,
             },
-        });
+        };
 
-        // Return a minimal valid torrent file so Torznab clients can treat this as a download.
-        // The actual download is handled by Sweaterr via JDownloader (direct links).
-        // We simulate a torrent response with a magnet URI that redirects back to tracking
-        const infohash = Buffer.from(guid).toString('hex').substring(0, 40).padEnd(40, '0');
-        const magnetUri = `magnet:?xt=urn:btih:${infohash}&dn=${encodeURIComponent(packageName)}&tr=udp://tracker.sweaterr.local:6969`;
-        
-        const torrentXml = `<?xml version="1.0" encoding="UTF-8"?>
-<torrent xmlns="http://sweaterr.local/torrent">
-    <info>
-        <name>Sweaterr</name>
-        <comment>Direct download queued in JDownloader by Sweaterr</comment>
-        <source>${forum.name}</source>
-        <guid>${guid}</guid>
-        <url>${postUrl}</url>
-        <downloadId>${download.id}</downloadId>
-        <magnetUri>${magnetUri}</magnetUri>
-        <infohash>${infohash}</infohash>
-    </info>
-    <files>
-        <file name="${packageName.replace(/[\r\n]+/g, ' ')}" size="0"/>
-    </files>
-</torrent>`;
+        const torrentBuffer = bencodeEncode(torrent as any);
 
-        return new NextResponse(torrentXml, {
+        return new NextResponse(new Uint8Array(torrentBuffer), {
             status: 200,
-            headers: { 
+            headers: {
                 'Content-Type': 'application/x-bittorrent',
                 'Content-Disposition': `attachment; filename="${packageName.replace(/[^a-zA-Z0-9]/g, '_')}.torrent"`,
             },
