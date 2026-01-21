@@ -21,8 +21,14 @@ RUN npx prisma generate
 # Build application
 RUN npm run build
 
+# Add Prisma CLI for migrations
+RUN npm install -g prisma
+
+# Copy Prisma schema
+COPY prisma ./prisma
+
 # Set environment variables
-ENV NODE_ENV=production
+ENV NODE_ENV=dev
 # Force Next.js to bind on all interfaces and avoid DNS lookup on random hostnames
 ENV HOSTNAME=0.0.0.0
 ENV HOST=0.0.0.0
@@ -39,5 +45,16 @@ RUN mkdir -p /app/data
 # Expose port
 EXPOSE 3000
 
-# Start application
-CMD ["npm", "start"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
+
+# Create startup script
+RUN echo '#!/bin/sh\n\
+    echo "Running Prisma migrations..."\n\
+    npx prisma migrate deploy || npx prisma db push\n\
+    echo "Starting application..."\n\
+    exec npm start' > /app/start.sh && chmod +x /app/start.sh
+
+# Start the application
+CMD ["/app/start.sh"]

@@ -813,7 +813,7 @@ DATABASE_URL="file:./dev.db"
 
 # Autenticación
 JWT_SECRET="your-secret-key-change-in-production"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
 
 # FlareSolverr (CRÍTICO)
 FLARESOLVERR_URL="http://192.168.1.100:8191"
@@ -1334,7 +1334,7 @@ Nueva categoría de logging `[extract-shared]` para rastrear la ejecución:
 
 - 🐛 **Problema**: En entornos Docker/otra máquina, Sonarr podía intentar descargar el NZB contra `http://localhost:3000/...` (generado por el RSS), fallando el grab aunque el test de indexer fuese correcto.
 - ✅ **Solución**:
-  - Las rutas `caps` y `search` generan la URL pública desde la request (soporte `x-forwarded-host` / `x-forwarded-proto`) en vez de depender de `NEXT_PUBLIC_APP_URL` con fallback a `localhost`.
+  - Las rutas `caps` y `search` generan la URL pública desde la request (soporte `x-forwarded-host` / `x-forwarded-proto`)
   - El botón “Copy URL” usa `window.location.origin` para copiar siempre una URL alcanzable desde donde se está accediendo a la UI.
   - El endpoint `t=get` (grab) guarda `arrType` detectándolo desde `User-Agent` y evita una referencia inválida.
 - 📝 **Archivos modificados**: `src/app/api/arr/caps/route.ts`, `src/app/api/arr/search/route.ts`, `src/app/api/arr/grab/route.ts`, `src/components/config/forums-table.tsx`, `src/lib/logger.ts`, `docs/ARR_DEBUG.md`, `README.md`, `FIXES_CHANGELOG.md`.
