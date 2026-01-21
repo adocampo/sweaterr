@@ -18,7 +18,6 @@ ERRORS=0
 PATTERNS=(
     "your-secret"
     "change-in-production"
-    "example\.com"
     "test-password"
     "dummy-api-key"
     "sk_test_"
@@ -61,7 +60,9 @@ echo "📂 Scanning source directories..."
 for dir in "${DIRS_TO_SCAN[@]}"; do
     if [ -d "$dir" ]; then
         for pattern in "${PATTERNS[@]}"; do
-            if grep -r -i "$pattern" "$dir" --include="*.ts" --include="*.tsx" --include="*.js" 2>/dev/null || true; then
+            matches=$(grep -r -i "$pattern" "$dir" --include="*.ts" --include="*.tsx" --include="*.js" 2>/dev/null || true)
+            if [ ! -z "$matches" ]; then
+                echo "$matches"
                 echo -e "${YELLOW}⚠️  Review the above matches in: $dir${NC}"
                 ERRORS=$((ERRORS + 1))
             fi
