@@ -258,8 +258,7 @@ POST /api/arr/notify
 ### Variables de Entorno
 
 - `DATABASE_URL`: URL de la base de datos SQLite
-- `NEXTAUTH_SECRET`: Secreto para NextAuth.js
-- `NEXTAUTH_URL`: URL pública de la aplicación
+- `JWT_SECRET`: Secreto para la firma de tokens JWT (generado aleatoriamente)
 - `LOG_LEVEL`: Nivel de logging (debug, info, warn, error)
 - `FLARESOLVERR_URL`: URL del servicio FlareSolverr (recomendado). Si está presente, se usará para resolver Cloudflare con sesiones persistentes.
 - `MYJD_APPKEY` (opcional): App Key para MyJDownloader. Por defecto se usa `myjd_webextension_firefox`. Útil para pruebas con claves alternativas (ej. `DEMOAPIAPP`).

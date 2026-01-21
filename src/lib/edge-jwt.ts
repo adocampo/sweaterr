@@ -10,7 +10,11 @@ export interface EdgeDecodedToken {
 
 export async function verifyTokenEdge(token: string): Promise<EdgeDecodedToken | null> {
     try {
-        const secretString = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+        const secretString = process.env.JWT_SECRET;
+        if (!secretString) {
+            console.error('[EdgeAuth] JWT_SECRET environment variable is not set');
+            return null;
+        }
         const secret = new TextEncoder().encode(secretString);
         const { payload } = await jwtVerify(token, secret);
         return payload as EdgeDecodedToken;

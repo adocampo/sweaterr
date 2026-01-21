@@ -23,12 +23,15 @@ RUN npm run build
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV DATABASE_URL="file:/app/data/app.db"
-ENV NEXTAUTH_SECRET="your-secret-key-change-in-production"
 # Force Next.js to bind on all interfaces and avoid DNS lookup on random hostnames
 ENV HOSTNAME=0.0.0.0
 ENV HOST=0.0.0.0
 ENV PORT=3000
+
+# Important: Configure these at runtime via docker-compose.yml or kubernetes secrets:
+# - DATABASE_URL (required)
+# - JWT_SECRET (required for authentication)
+# - FLARESOLVERR_URL (required)
 
 # Create data directory
 RUN mkdir -p /app/data

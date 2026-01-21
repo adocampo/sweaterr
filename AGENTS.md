@@ -63,7 +63,7 @@ To set up the development environment, ensure you have Node.js 18+ installed. Th
 
    ```env
    DATABASE_URL="file:./dev.db"
-   NEXTAUTH_SECRET="your-secret-key-in-development"
+
    FLARESOLVERR_URL="http://your-flaresolverr-ip:8191" # Critical for Cloudflare bypass
    ```
 
