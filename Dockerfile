@@ -12,20 +12,14 @@ COPY package*.json ./
 # Install dependencies and explicitly remove the z-ai-web-dev-sdk
 RUN npm install && npm uninstall z-ai-web-dev-sdk || true
 
-# Copy source code
+# Copy source code EARLY to include prisma schema
 COPY . .
 
 # Generate Prisma client
 RUN npx prisma generate
 
-# Build application
-RUN npm run build
-
-# Add Prisma CLI for migrations
-RUN npm install -g prisma
-
-# Copy Prisma schema
-COPY prisma ./prisma
+# Build application (require JWT_SECRET for Next.js build, can be any value)
+RUN JWT_SECRET="build-time-secret-not-used-in-runtime" npm run build
 
 # Set environment variables
 ENV NODE_ENV=dev
