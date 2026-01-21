@@ -229,6 +229,18 @@ Importante: la URL debe ser accesible desde el host/container de Sonarr (evita `
 
 ### Como Client
 
+#### Download Client (qBittorrent-compatible)
+
+Sweaterr expone un API compatible con qBittorrent para que Sonarr/Radarr puedan **controlar** la descarga desde *Activity*.
+
+- En Sonarr/Radarr: **Settings → Download Clients → Add → qBittorrent**
+- Host: `http://<host>:3000/api/qbittorrent`
+- Username/Password: cualquiera (se aceptan por compatibilidad)
+
+Importante: la URL debe ser accesible desde el host/container de Sonarr.
+
+#### Notificaciones (opcional)
+
 Notifica automáticamente a Sonarr/Radarr cuando una descarga se completa:
 
 ```http

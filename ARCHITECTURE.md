@@ -127,6 +127,35 @@ Cuando agregues features o fixes: **actualiza TODOS.md y ARCHITECTURE.md changel
 
 ## 🎯 CARACTERÍSTICAS DE LA APLICACIÓN
 
+---
+
+## ISSUES
+
+### 2026-01-21 - Sonarr muestra "Invalid torrent file specified" y no controla Activity
+
+**Síntoma**:
+
+- Sonarr al hacer grab mostraba error "Invalid torrent file specified".
+- Aun así, Sweaterr enviaba links a JDownloader y la descarga arrancaba, pero Sonarr no podía gestionarla en **Activity**.
+
+**Causa raíz**:
+
+- El endpoint de descarga Torznab (`/api/arr/grab`) devolvía XML con `Content-Type: application/x-bittorrent`.
+- Sonarr espera un fichero `.torrent` real (bencoded) y lo valida.
+
+**Fix aplicado**:
+
+- `/api/arr/grab` devuelve ahora un `.torrent` real (bencoded) con `comment = sweaterr:<base64url(JSON payload)>`.
+- Se refuerza la integración mediante un *qBittorrent-compatible facade* bajo `/api/qbittorrent/api/v2/*`.
+  - `torrents/add` acepta `.torrent` o magnet, extrae el payload y dispara extracción de links + envío a JDownloader.
+  - Ajuste de compatibilidad: `torrents/add` acepta también el field multipart `torrents` (plural) y múltiples ficheros, ya que algunas instalaciones de Sonarr envían el torrent con ese nombre (comportamiento compatible con la Web API de qBittorrent).
+  - `torrents/info` devuelve items para que Sonarr no se quede sin Activity (incluye placeholders cuando Sonarr consulta hashes concretos).
+  - Ajuste de compatibilidad: `torrents/info` no filtra por `arrType` del registro, porque el `User-Agent` puede no detectarse como `sonarr` en todas las instalaciones y eso hacía que Sonarr viera 0 items.
+
+**Motivo del diseño**:
+
+- Mantener compatibilidad con el flujo estándar de Sonarr (indexer Torznab + download client qBittorrent) aunque el backend real sea descarga directa vía JDownloader.
+
 ### Stack Tecnológico
 
 ```text
