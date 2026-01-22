@@ -118,17 +118,30 @@ function HomeContent() {
       try {
         const res = await fetch('/api/auth/me');
         const data = await res.json();
-        if (mounted && data?.success) {
-          setCurrentUser(data.user);
-          if (data.user?.language) {
-            setUserLanguage(data.user.language as 'es' | 'en');
-          }
-          if (data.user?.theme) {
-            setTheme(data.user.theme as 'light' | 'dark' | 'system');
+        if (mounted) {
+          if (data?.success && data.user) {
+            setCurrentUser(data.user);
+            if (data.user?.language) {
+              setUserLanguage(data.user.language as 'es' | 'en');
+            }
+            if (data.user?.theme) {
+              setTheme(data.user.theme as 'light' | 'dark' | 'system');
+            }
+          } else {
+            // User not authenticated, redirect to login
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login';
+              return;
+            }
           }
         }
       } catch (err) {
         console.error('Failed to load current user', err);
+        // On error, redirect to login
+        if (mounted && typeof window !== 'undefined') {
+          window.location.href = '/login';
+          return;
+        }
       } finally {
         if (mounted) setLoadingUser(false);
       }

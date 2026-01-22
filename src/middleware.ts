@@ -20,11 +20,13 @@ export async function middleware(request: NextRequest) {
 
     // List of public routes that don't require authentication
     const publicRoutes = [
+        '/',           // Root path - handled by client-side redirect in page.tsx
         '/login',
         '/setup',
         '/api/auth/setup',
         '/api/auth/login',
         '/api/auth/reset-password', // Emergency password reset
+        '/api/auth/me', // Check authentication status
         '/api/arr', // All *arr APIs are public
         '/api/qbittorrent', // qBittorrent-compatible API for Sonarr/Radarr integration
         '/api/sabnzbd', // SABnzbd-compatible API for *arr download client integration
@@ -63,7 +65,10 @@ export async function middleware(request: NextRequest) {
     // If no token, redirect to login
     if (!token) {
         // console.log('[Middleware] No token found, redirecting to /login');
-        return NextResponse.redirect(new URL('/login', request.url));
+        const response = NextResponse.redirect(new URL('/login', request.url), {
+            status: 302,
+        });
+        return response;
     }
 
     // Verify token in Edge runtime using jose
@@ -71,7 +76,9 @@ export async function middleware(request: NextRequest) {
     if (!decoded) {
         // console.log('[Middleware] Token verification failed, redirecting to /login');
         // Token expired or invalid, redirect to login
-        const response = NextResponse.redirect(new URL('/login', request.url));
+        const response = NextResponse.redirect(new URL('/login', request.url), {
+            status: 302,
+        });
         response.cookies.delete('sweaterr-auth');
         return response;
     }
