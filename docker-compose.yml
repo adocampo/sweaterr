@@ -58,5 +58,4 @@ services:
   #     - sweaterr
   #   restart: unless-stopped
 
-volumes:
-  # Removed sweaterr-db volume - using bind mount instead for local access
+# volumes: (not needed - using bind mounts instead)
