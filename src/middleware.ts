@@ -16,12 +16,6 @@ function extractToken(
 }
 
 export async function middleware(request: NextRequest) {
-    // **TEMPORARY**: Skip ALL middleware in production to debug the blank page issue
-    // This is a known issue with Next.js 15 middleware and Docker response streaming
-    if (process.env.NODE_ENV === 'production') {
-        return NextResponse.next();
-    }
-
     const { pathname } = request.nextUrl;
 
     // List of public routes that don't require authentication

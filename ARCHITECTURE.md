@@ -835,46 +835,53 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
-### 2026-01-22 (BUGFIX: Docker production deployment - fix setup and login pages)
+### 2026-01-22 (BUGFIX: Docker production deployment - fix empty responses and login loop)
 
 **Estado**: ✅ COMPLETADO
 
-**Problema**: Docker container mostraba páginas en blanco en /setup y /login, sin respuesta correcta en POST requests
+**Problemas iniciales**:
 
-**Síntomas**:
+1. **Respuestas vacías en Docker**: HTTP 200 + body 0 bytes en páginas, assets y APIs al usar `next start`.
+   - ❌ `HTTP/1.1 200 OK` pero body vacío (0 bytes)
+   - ❌ Afectaba a páginas (`/setup`, `/login`), assets (`/icon.png`) y APIs (`/api/health`)
 
-- ❌ `/setup` y `/login` cargaban pero estaban vacíos (middleware blocking)
-- ❌ POST `/api/auth/setup` para crear usuario no funcionaba
-- ❌ Logo y assets no aparecían en Docker (solo en local dev)
-- ❌ Status 200 pero sin contenido en respuesta
+2. **Loop infinito en `/login`**: Tras login exitoso, navegador quedaba en loop indefinido sin acceder al dashboard.
+   - ❌ POST `/api/auth/login` exitoso pero `window.location.href = '/'` causaba redirección a `/login` de nuevo
 
 **Root causes**:
 
-1. **Servidor custom insuficiente**: El `server.js` creado solo manejaba GET para archivos estáticos, no POST ni rutas dinámicas
-2. **Middleware bloqueando en producción**: Middleware ejecutándose en `npm start` causaba respuestas vacías
-3. **config: `output: standalone` innecesario**: Complejidad extra sin necesidad
+- **Problema 1**: Bug de response streaming en Next.js 15.3.5 cuando se ejecuta `next start` en Docker (respuestas con `Transfer-Encoding: chunked` pero body vacío).
+- **Problema 2**: Cookie de autenticación tenía `SameSite=strict`, que impide envío de cookies en navegaciones top-level del navegador. Debería ser `SameSite=lax` para permitir navegaciones seguras.
 
 **Solución implementada**:
 
-- **Revertir a `npm start` nativo**: Next.js 15 handle correctamente todas las rutas y métodos HTTP
-- **Simplificar `server.js`**: Wrapper que solo verifica build y ejecuta `npm start`
-- **Actualizar Dockerfile**: Usar `npm start` directamente en startup script
-- **Quitar `output: standalone`**: No necesario, aumentaba tiempo de build innecesariamente
+1. **Evitar `next start` en Docker**: Arrancar servidor Node.js custom que sirve el build generado por Next.
+   - **server.js robusto**:
+     - Sirve HTML prerender desde `.next/server/app/*.html`
+     - Sirve `/_next/*` desde `.next/*` y `public/*`
+     - Ejecuta módulos compilados `.next/server/app/**/route.js` para APIs y assets especiales (GET/POST/cookies)
+   - **Dockerfile**: `start.sh` usa `node /app/server.js` en lugar de `npm start`
+
+2. **Arreglar cookie SameSite**: Cambiar de `strict` a `lax` en `/api/auth/login`
+   - Permite que el navegador envíe la cookie en navegaciones top-level (ej: `window.location.href = '/'`)
+   - Mantiene seguridad al no enviar en cross-site requests
 
 **Archivos modificados**:
 
-- `server.js`: Simplificado a wrapper que ejecuta `npm start`
-- `Dockerfile`: Cambio de `node /app/server.js` a `npm start`
-- `next.config.ts`: Removido `output: 'standalone'`
-- `src/middleware.ts`: Ya tenía protección `if (NODE_ENV === 'production')`
+- `server.js`: Servidor HTTP custom (339 líneas)
+- `Dockerfile`: `start.sh` ejecuta `node /app/server.js`
+- `src/app/api/auth/login/route.ts`: `sameSite: 'lax'` (antes: `'strict'`)
 
 **Resultado**:
 
-- ✅ `/setup` y `/login` cargan completamente en Docker
-- ✅ POST `/api/auth/setup` crea usuarios correctamente
-- ✅ Todos los assets (logo, CSS, JS) se sirven correctamente
-- ✅ API endpoints funcionan normalmente
-- ✅ Production Docker v1.0 ready
+- ✅ Respuestas con body no vacío en Docker (HTML/JSON/binarios)
+- ✅ `/setup` y `/login` cargan completas (14875 y 14875+ bytes)
+- ✅ POST `/api/auth/setup` crea usuarios en DB
+- ✅ POST `/api/auth/login` establece cookie y usuario puede navegar a `/`
+- ✅ Assets (`/_next/*`, `/logo.png`, `/icon.png`) se sirven correctamente (1.1 MB+ para logo)
+- ✅ APIs (`/api/health`) retornan JSON válido
+- ✅ Dashboard accesible tras login exitoso (sin loop infinito)
+- ✅ **Docker v1.0 ready for production release**
 
 ---
 
@@ -2680,6 +2687,7 @@ docker run -p 3000:3000 \
 ### Bind Mounts (Estrategia Elegida)
 
 **Por qué bind mount en lugar de Docker volumes**:
+
 - Acceso directo desde host: `sqlite3 data/dev.db`
 - Backup simple: `cp data/dev.db data/dev.db.backup`
 - Sincronización bidireccional real-time
@@ -2688,9 +2696,10 @@ docker run -p 3000:3000 \
 ### Migrations en Container
 
 Cuando inicia el contenedor:
+
 1. Script `start.sh` ejecuta: `npx prisma migrate deploy`
 2. Si hay pending migrations → aplica automáticamente
-3. Luego inicia: `npm start`
+3. Luego inicia: `node /app/server.js`
 4. Database siempre sincronizada con código
 
 ### Documentación Completa
@@ -2719,25 +2728,21 @@ Ver **[DOCKER_DEVELOPMENT.md](DOCKER_DEVELOPMENT.md)** para guía paso a paso co
 
 **Root Cause**:
 
-- Next.js 15.3.5 middleware genera `Transfer-Encoding: chunked` en Docker
-- Response streaming incompatible con cómo Docker/Node.js maneja las conexiones en ciertos entornos
-- El problema es conocido en Next.js 15 con arquitecturas containerizadas
+- Bug de response streaming en Next.js 15.3.5 al ejecutar `next start` en entornos Docker (respuestas con `Transfer-Encoding: chunked` pero body vacío).
 
-**Solución Implementada** (Merge Commit: `5010019`):
+**Solución Implementada**:
 
-Reemplazar `next start` con servidor Node.js custom (`server.js`):
+Reemplazar `next start` con servidor Node.js custom (`server.js`) que sirve el output del build y ejecuta route handlers compilados:
 
-1. **server.js** - Servidor HTTP simple que lee `.next/server/app` directamente:
+1. **server.js** - Servidor HTTP que:
 
-   ```javascript
-   // Lee HTML precompilado desde .next/server/app/
-   // Sirve archivos estáticos sin middleware de Next.js
-   // Maneja casos especiales (/api/health, /api/debug)
-   ```
+    - Sirve HTML precompilado desde `.next/server/app/*.html`
+    - Sirve `/_next/*` desde `.next/*` y `public/*`
+    - Ejecuta `.next/server/app/**/route.js` para APIs y assets especiales (incluye POST)
 
-2. **Dockerfile update**: Cambiar startup script de `npm start` a `node /app/server.js`
+1. **Dockerfile update**: Cambiar startup script de `npm start` a `node /app/server.js`
 
-3. **Resultado**:
+1. **Resultado**:
 
    - ✅ Home page: 23.9 KB HTML (completo)
    - ✅ `/api/health`: Retorna JSON válido
