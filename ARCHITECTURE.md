@@ -883,6 +883,13 @@ DEEPSEEK_API_KEY="..."
 - ✅ Dashboard accesible tras login exitoso (sin loop infinito)
 - ✅ **Docker v1.0 ready for production release**
 
+**Post-fix (JWT_SECRET consistency)**:
+
+- Problema: Login fallaba con "Token verification error: invalid signature"
+- Causa: `docker-compose.yml` usaba `JWT_SECRET=${JWT_SECRET:-change-this-in-production}` como default, pero los tokens estaban siendo firmados con una secret diferente
+- Solución: Establecer una JWT_SECRET fuerte como default: `9AdHkDEXVy22H++TyS8VvKaX12NssGXDw8HxZtRjl7w=`
+- Resultado: Login funciona correctamente, tokens se firman y verifican con la misma secret
+
 ---
 
 ### 2026-01-20 (FEATURE: Torznab search filtering by season and content type with metadata-extractor module)
