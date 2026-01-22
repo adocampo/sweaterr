@@ -16,6 +16,12 @@ function extractToken(
 }
 
 export async function middleware(request: NextRequest) {
+    // **TEMPORARY**: Skip ALL middleware in production to debug the blank page issue
+    // This is a known issue with Next.js 15 middleware and Docker response streaming
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.next();
+    }
+
     const { pathname } = request.nextUrl;
 
     // List of public routes that don't require authentication
@@ -32,12 +38,8 @@ export async function middleware(request: NextRequest) {
         '/api/qbittorrent', // qBittorrent-compatible API for Sonarr/Radarr integration
         '/api/sabnzbd', // SABnzbd-compatible API for *arr download client integration
         '/api/config/forums/check', // Forum connectivity test (allows unauthenticated testing)
+        '/api/testing',
     ];
-
-    // In development, allow testing endpoints without auth for local debugging
-    if (process.env.NODE_ENV !== 'production') {
-        publicRoutes.push('/api/testing');
-    }
 
     // Check if the current route is public
     const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
@@ -56,16 +58,8 @@ export async function middleware(request: NextRequest) {
 
     const token = extractToken(headers as Record<string, string>, cookies);
 
-    // console.log('[Middleware]', {
-    //     pathname,
-    //     hasToken: !!token,
-    //     cookieNames: Object.keys(cookies),
-    //     hasSweaterrAuth: !!cookies['sweaterr-auth']
-    // });
-
     // If no token, redirect to login
     if (!token) {
-        // console.log('[Middleware] No token found, redirecting to /login');
         const response = NextResponse.redirect(new URL('/login', request.url), {
             status: 302,
         });
@@ -75,7 +69,6 @@ export async function middleware(request: NextRequest) {
     // Verify token in Edge runtime using jose
     const decoded = await verifyTokenEdge(token);
     if (!decoded) {
-        // console.log('[Middleware] Token verification failed, redirecting to /login');
         // Token expired or invalid, redirect to login
         const response = NextResponse.redirect(new URL('/login', request.url), {
             status: 302,
@@ -84,7 +77,6 @@ export async function middleware(request: NextRequest) {
         return response;
     }
 
-    // console.log('[Middleware] Token valid, user:', decoded.id);
     return NextResponse.next();
 }
 

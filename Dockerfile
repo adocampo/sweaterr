@@ -22,7 +22,7 @@ RUN npx prisma generate
 RUN JWT_SECRET="build-time-secret-not-used-in-runtime" npm run build
 
 # Set environment variables
-ENV NODE_ENV=dev
+ENV NODE_ENV=production
 # Force Next.js to bind on all interfaces and avoid DNS lookup on random hostnames
 ENV HOSTNAME=0.0.0.0
 ENV HOST=0.0.0.0
