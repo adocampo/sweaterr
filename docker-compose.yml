@@ -1,19 +1,21 @@
-version: '3.8'
-
 services:
   sweaterr:
     build:
       context: .
       dockerfile: Dockerfile
+    image: sweaterr:latest
     container_name: sweaterr
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/dev.db
-      - FLARESOLVERR_URL=${FLARESOLVERR_URL:-http://flaresolverr:8191}
-      - JWT_SECRET=${JWT_SECRET:-9AdHkDEXVy22H++TyS8VvKaX12NssGXDw8HxZtRjl7w=}
+      - FLARESOLVERR_URL=http://192.168.1.100:8191
+      # Optional: set JWT_SECRET here as JWT_SECRET=... if you want to manage it manually.
+      # If not provided, the server auto-generates and persists one under ./data/.jwt_secret
     volumes:
+      
+      - /etc/localtime:/etc/localtime:ro
       # Database persistence (bind mount - maps to local directory)
       - ./data:/app/data
       # Prisma schema (read-only)
@@ -28,7 +30,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     # Optional: uncomment to enable development with FlareSolverr
     # depends_on:
     #   - flaresolverr

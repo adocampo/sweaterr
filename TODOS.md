@@ -4,6 +4,26 @@ Estado: 11 de enero de 2026
 
 ## 🔴 CRÍTICOS (Afectan UX/Functionality)
 
+### 0. **Docker Compose: Imagen con nombre genérico y healthcheck robusto** ✅
+
+- **Severidad**: Media (UX/infraestructura)
+- **Área**: Docker (`docker-compose.yml`, `Dockerfile`)
+- **Estado**: ✅ **COMPLETADO** (22 de enero 2026)
+- **Problemas corregidos**:
+  1. Docker Compose generaba nombre de imagen `sweaterr-sweaterr` (patrón `{dir}-{service}`) → Cambiar a `sweaterr:latest`
+  2. Healthcheck fallaba con "Connection refused" en primeros 40s (Prisma migrations + build startup tardan más) → Aumentar `start_period` a 60s
+  3. Warning: "Docker Compose requires buildx plugin" al ejecutar `docker-compose build` → Documentado en TODOS.md como FYI (no es error crítico, solo warning)
+- **Cambios**:
+  - `docker-compose.yml`: Agregar `image: sweaterr:latest` en servicio sweaterr
+  - `docker-compose.yml`: Aumentar `start_period: 60s` en healthcheck
+  - Documentación en este TODO para futuras builds
+- **Resultado**:
+  - ✅ Imagen se llama `sweaterr:latest` en lugar de `sweaterr-sweaterr`
+  - ✅ Healthcheck acepta arrancada lenta sin "unhealthy" falso
+  - ✅ Warning buildx es opcional (informativo, no bloquea)
+- **Horas invertidas**: ~0.5 horas
+- **Prioridad**: ✅ COMPLETADO
+
 ### 1. **Implementación Endpoint *arr (Torznab Bridge)** 🔗 ✅
 
 - **Severidad**: Crítica (funcionalidad core)

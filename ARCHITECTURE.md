@@ -835,7 +835,7 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
-### 2026-01-22 (BUGFIX: Docker production deployment - fix empty responses and login loop)
+### 2026-01-22 (BUGFIX: Docker production - thenable route modules + FlareSolverr integration)
 
 **Estado**: ✅ COMPLETADO
 
@@ -886,9 +886,58 @@ DEEPSEEK_API_KEY="..."
 **Post-fix (JWT_SECRET consistency)**:
 
 - Problema: Login fallaba con "Token verification error: invalid signature"
-- Causa: `docker-compose.yml` usaba `JWT_SECRET=${JWT_SECRET:-change-this-in-production}` como default, pero los tokens estaban siendo firmados con una secret diferente
-- Solución: Establecer una JWT_SECRET fuerte como default: `9AdHkDEXVy22H++TyS8VvKaX12NssGXDw8HxZtRjl7w=`
-- Resultado: Login funciona correctamente, tokens se firman y verifican con la misma secret
+- Causa: Inconsistencia de `JWT_SECRET` entre reinicios/instancias (y/o cookies antiguas) hacía que los tokens se firmaran y verificaran con secrets distintas
+- Nota: Hubo un fix intermedio de validación (poner una secret fija para confirmar el diagnóstico), pero se sustituyó por el enfoque definitivo del Post-fix 2 (más seguro y distribuible)
+- Resultado final: El sistema ya no depende de una secret compartida por defecto; se genera automáticamente y se persiste en el volumen
+
+**Post-fix 2 (Docker auth stability: no rebuild, no shared secret, HTTP/HTTPS compatibility)**:
+
+- Problema: En navegador, el login parecía “funcionar” pero volvía a `/login` y en logs aparecía `invalid signature`.
+- Causas:
+  - Se estaba usando una `JWT_SECRET` fija por defecto en `docker-compose.yml` (mala práctica para distribución: todas las instalaciones compartirían la misma secret).
+  - El servidor custom fuerza `NODE_ENV=production`, lo que hacía que la cookie se marcara como `Secure` incluso si el usuario accedía por `http://...` (los navegadores no envían cookies `Secure` en HTTP).
+  - Si existía una cookie previa no-secure, el navegador podía seguir enviando esa cookie antigua y el backend registraba `invalid signature`.
+- Solución:
+  - `server.js` genera automáticamente `JWT_SECRET` si no existe y la persiste en el volumen (`./data/.jwt_secret`) para mantenerla estable entre reinicios.
+  - `docker-compose.yml` deja de incluir una secret por defecto compartida y pasa `JWT_SECRET` solo si el usuario la define.
+  - `/api/auth/login` y `/api/auth/logout` calculan `secure` según `x-forwarded-proto=https` (o URL https) en lugar de basarse en `NODE_ENV`.
+- Resultado:
+  - ✅ No hace falta rebuild para configurar JWT.
+  - ✅ Instalaciones distribuidas no comparten secret por defecto.
+  - ✅ Login funciona tanto detrás de HTTPS (reverse proxy) como en HTTP local.
+
+  **Post-fix 3 (Docker UI: logo/images not showing)**:
+
+  - Problema: En Docker, el logo y otras imágenes renderizadas con `next/image` no se mostraban en el navegador.
+  - Causa: El servidor custom evita `next start` y no implementa el endpoint dinámico de optimización `/_next/image`, por lo que `next/image` recibía 404.
+  - Solución: Desactivar la optimización de imágenes en `next.config.ts` (`images.unoptimized = true`) para que `next/image` sirva directamente los assets de `public/`.
+  - Resultado: ✅ Logo e imágenes se muestran correctamente en Docker.
+
+  **Post-fix 4 (Docker API: POST endpoints returning 405 Method Not Allowed)**:
+
+  - Problema: Acciones como “Probar conexión” (foros) y búsquedas devolvían `405 Method Not Allowed` en producción Docker, aunque en dev funcionaban.
+  - Causa: En producción, los `.next/server/app/**/route.js` están empaquetados por webpack y `require(route.js)` puede devolver un **thenable** (loader) en lugar del objeto de exports real. El server custom trataba ese valor como si fuese directamente el módulo y, por tanto, no veía `POST/GET` → `Allow` vacío → 405.
+  - Solución: Resolver el export compilado (`await Promise.resolve(require(route.js))`) y cachear los exports resueltos antes de buscar handlers.
+  - Resultado: ✅ Endpoints `POST /api/...` vuelven a funcionar bajo el server custom.
+
+  **Post-fix 5 (FlareSolverr integration in Docker)**:
+
+  - Problema: Botón "Probar conexión" (con credenciales) devolvía "Autenticación fallida"; solo funcionaba sin credenciales (test de URL).
+  - Root cause: `ForumService.authenticate()` llama a `CloudflareHandler.loginToForum(..., process.env.FLARESOLVERR_URL)`. Si `FLARESOLVERR_URL` no estaba configurada en Docker, fallaba silenciosamente.
+  - Solución implementada: Documentar en `docker-compose.yml` cómo configurar FlareSolverr (externo a 192.168.1.100:8191 o interno mediante servicio).
+  - Resultado:
+    - ✅ "Probar conexión" funciona con credenciales válidas (requiere FLARESOLVERR_URL válida)
+    - ✅ Búsquedas autenticadas funcionan en Docker
+    - ✅ Documentado en compose.yml
+
+  **Post-fix 6 (Docker Compose: imagen profesional y healthcheck robusto)**:
+
+  - Problema 1: Nombre de imagen `sweaterr-sweaterr` (patrón auto `{dir}-{service}`).
+  - Problema 2: Healthcheck marcaba "unhealthy" en primeros 60s (Prisma migrations + build startup).
+  - Solución:
+    - Agregar `image: sweaterr:latest` en docker-compose.yml
+    - Aumentar `start_period: 60s` en healthcheck
+  - Resultado: ✅ Imagen `sweaterr:latest`, healthcheck tolerante
 
 ---
 

@@ -20,6 +20,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { URL } = require('url');
+const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -27,9 +28,92 @@ const HOST = process.env.HOST || '0.0.0.0';
 // Ensure production mode for route handlers
 process.env.NODE_ENV = 'production';
 
+function resolveDataDir() {
+  const databaseUrl = (process.env.DATABASE_URL || '').trim();
+  const filePrefix = 'file:';
+  if (databaseUrl.startsWith(filePrefix)) {
+    const dbPath = databaseUrl.slice(filePrefix.length);
+    if (dbPath) return path.dirname(dbPath);
+  }
+
+  // Fallbacks: prefer bind-mounted ./data (Docker) if present.
+  const localDataDir = path.join(__dirname, 'data');
+  if (fs.existsSync(localDataDir)) return localDataDir;
+  return __dirname;
+}
+
+function fingerprintSecret(secret) {
+  return crypto.createHash('sha256').update(secret).digest('hex').slice(0, 12);
+}
+
+function ensureJwtSecret() {
+  const current = (process.env.JWT_SECRET || '').trim();
+  if (current) {
+    console.log('[Auth] JWT_SECRET set (fingerprint):', fingerprintSecret(current));
+    return;
+  }
+
+  const dataDir = resolveDataDir();
+  const secretFile = path.join(dataDir, '.jwt_secret');
+
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (e) {
+    console.warn('[Auth] Could not ensure data directory exists:', dataDir, e);
+  }
+
+  try {
+    if (fs.existsSync(secretFile)) {
+      const fromFile = fs.readFileSync(secretFile, 'utf8').trim();
+      if (fromFile) {
+        process.env.JWT_SECRET = fromFile;
+        console.log('[Auth] JWT_SECRET loaded from volume (fingerprint):', fingerprintSecret(fromFile));
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('[Auth] Could not read JWT secret file:', secretFile, e);
+  }
+
+  const generated = crypto.randomBytes(48).toString('base64');
+  process.env.JWT_SECRET = generated;
+
+  try {
+    fs.writeFileSync(secretFile, `${generated}\n`, { encoding: 'utf8', mode: 0o600 });
+    console.log('[Auth] JWT_SECRET generated and persisted (fingerprint):', fingerprintSecret(generated));
+  } catch (e) {
+    console.warn('[Auth] JWT_SECRET generated but could not be persisted. Tokens will break on restart.', e);
+  }
+}
+
+ensureJwtSecret();
+
 const NEXT_DIR = path.join(__dirname, '.next');
 const NEXT_APP_DIR = path.join(NEXT_DIR, 'server', 'app');
 const PUBLIC_DIR = path.join(__dirname, 'public');
+
+const routeExportsCache = new Map();
+
+async function loadCompiledRouteExports(filePath) {
+  if (routeExportsCache.has(filePath)) return routeExportsCache.get(filePath);
+
+  let loaded;
+  try {
+    loaded = require(filePath);
+  } catch (e) {
+    throw e;
+  }
+
+  // Next.js compiled app-route bundles can export a thenable (webpack runtime loader).
+  // Resolve it once and cache the resolved exports object.
+  const resolvedPromise = Promise.resolve(loaded).catch((e) => {
+    routeExportsCache.delete(filePath);
+    throw e;
+  });
+
+  routeExportsCache.set(filePath, resolvedPromise);
+  return resolvedPromise;
+}
 
 function fileExists(filePath) {
   try {
@@ -202,18 +286,39 @@ async function executeCompiledRoute(req, res, routeInfo, baseUrl) {
 
   let mod;
   try {
-    mod = require(routeInfo.filePath);
+    mod = await loadCompiledRouteExports(routeInfo.filePath);
   } catch (e) {
     console.error('[server] Failed to require route module:', routeInfo.filePath, e);
     sendBuffer(res, 500, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Failed to load route module\n');
     return;
   }
 
-  const userland = mod?.routeModule?.userland;
-  const handler = userland?.[method];
+  const HTTP_METHODS = ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE'];
+  const candidateUserlands = [];
+  if (mod?.routeModule?.userland && typeof mod.routeModule.userland === 'object') candidateUserlands.push(mod.routeModule.userland);
+  if (mod?.userland && typeof mod.userland === 'object') candidateUserlands.push(mod.userland);
+  if (mod?.default && typeof mod.default === 'object') candidateUserlands.push(mod.default);
+  if (mod && typeof mod === 'object') candidateUserlands.push(mod);
+
+  let userland = null;
+  let handler = null;
+  for (const candidate of candidateUserlands) {
+    const maybeHandler = candidate?.[method];
+    if (typeof maybeHandler === 'function') {
+      userland = candidate;
+      handler = maybeHandler;
+      break;
+    }
+  }
 
   if (typeof handler !== 'function') {
-    const allowed = userland ? Object.keys(userland).filter((k) => typeof userland[k] === 'function') : [];
+    const allowed = [];
+    for (const candidate of candidateUserlands) {
+      for (const m of HTTP_METHODS) {
+        if (typeof candidate?.[m] === 'function' && !allowed.includes(m)) allowed.push(m);
+      }
+    }
+
     res.statusCode = 405;
     res.setHeader('Allow', allowed.join(', '));
     sendBuffer(res, 405, { 'Content-Type': 'application/json; charset=utf-8' }, JSON.stringify({ success: false, error: 'Method Not Allowed' }));
