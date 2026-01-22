@@ -27,6 +27,7 @@ export async function middleware(request: NextRequest) {
         '/api/auth/login',
         '/api/auth/reset-password', // Emergency password reset
         '/api/auth/me', // Check authentication status
+        '/api/health', // Health check endpoint
         '/api/arr', // All *arr APIs are public
         '/api/qbittorrent', // qBittorrent-compatible API for Sonarr/Radarr integration
         '/api/sabnzbd', // SABnzbd-compatible API for *arr download client integration
