@@ -12,7 +12,7 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/dev.db
       - FLARESOLVERR_URL=${FLARESOLVERR_URL:-http://flaresolverr:8191}
-      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - JWT_SECRET=${JWT_SECRET:-9AdHkDEXVy22H++TyS8VvKaX12NssGXDw8HxZtRjl7w=}
     volumes:
       # Database persistence (bind mount - maps to local directory)
       - ./data:/app/data
