@@ -10,9 +10,17 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/data/app.db
+      - DATABASE_URL=file:/app/data/dev.db
+      - FLARESOLVERR_URL=${FLARESOLVERR_URL:-http://flaresolverr:8191}
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
     volumes:
-      - sweaterr-data:/app/data
+      # Database persistence
+      - ./prisma:/app/prisma:ro
+      - sweaterr-db:/app/data
+      # Optional: mount entire app for development with live reload
+      # - .:/app
+      # - /app/node_modules
+      # - /app/.next
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
@@ -20,11 +28,25 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # Optional: uncomment to enable development with FlareSolverr
+    # depends_on:
+    #   - flaresolverr
+
+  # Optional: FlareSolverr for Cloudflare bypass (uncomment to use)
+  # flaresolverr:
+  #   image: flaresolverr/flaresolverr:latest
+  #   container_name: flaresolverr
+  #   environment:
+  #     - LOG_LEVEL=info
+  #     - CAPTCHA_SOLVER=hcaptcha-solver
+  #   ports:
+  #     - "8191:8191"
+  #   restart: unless-stopped
 
   # Optional: Add a reverse proxy (nginx or traefik)
   # nginx:
   #   image: nginx:alpine
-  #   container_name: forum-downloader-nginx
+  #   container_name: sweaterr-nginx
   #   ports:
   #     - "80:80"
   #     - "443:443"
@@ -32,9 +54,9 @@ services:
   #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
   #     - ./ssl:/etc/nginx/ssl:ro
   #   depends_on:
-  #     - forum-downloader
+  #     - sweaterr
   #   restart: unless-stopped
 
 volumes:
-  sweaterr-data:
+  sweaterr-db:
     driver: local
