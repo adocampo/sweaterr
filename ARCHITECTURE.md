@@ -2576,3 +2576,85 @@ Estos no tienen solución viable con el stack actual; si aparece una, mover a IS
 - Verificar si hay race conditions en actualización de userLanguage
 - Considerar usar Context/Provider más robusto para i18n si es necesario
 - Revisar componentes que dependen del language prop vs useI18n hook
+
+---
+
+## 🐳 Docker & Deployment
+
+### Configuración de Docker Compose
+
+**Archivo**: `docker-compose.yml`
+
+El proyecto incluye Docker Compose para ejecución containerizada con:
+
+- **Imagen base**: `node:20-bookworm-slim` (~400MB)
+- **Volúmenes** (bind mounts):
+  - `./data:/app/data` - Base de datos SQLite persiste localmente
+  - `./prisma:/app/prisma:ro` - Schema de Prisma (read-only)
+
+- **Variables de entorno**:
+  - `JWT_SECRET`: Secret para tokens JWT (obligatorio)
+  - `FLARESOLVERR_URL`: URL del servicio FlareSolverr
+  - `DATABASE_URL`: Automático → file:/app/data/dev.db
+
+### Tres Formas de Ejecutar Sweaterr
+
+#### 1. **Local Development** (Recomendado para desarrollo)
+
+```bash
+npm install
+export JWT_SECRET=$(openssl rand -base64 32)
+export DATABASE_URL="file:./prisma/dev.db"
+export FLARESOLVERR_URL="http://192.168.1.100:8191"
+npx prisma migrate dev
+npm run dev
+```
+
+**Ventajas**: Hot-reload instantáneo, debugging directo, acceso completo a archivos.
+
+#### 2. **Docker Compose** (Recomendado para testing production)
+
+```bash
+mkdir -p data
+export JWT_SECRET=$(openssl rand -base64 32)
+export FLARESOLVERR_URL="http://192.168.1.100:8191"
+docker-compose up -d
+```
+
+**Características**: Database persiste en `./data/dev.db`, reproducible en cualquier máquina, production-ready.
+
+#### 3. **Docker CLI** (Control manual)
+
+```bash
+docker build -t sweaterr:latest .
+mkdir -p data
+docker run -p 3000:3000 \
+  -e JWT_SECRET=$(openssl rand -base64 32) \
+  -v $(pwd)/data:/app/data \
+  sweaterr:latest
+```
+
+### Bind Mounts (Estrategia Elegida)
+
+**Por qué bind mount en lugar de Docker volumes**:
+- Acceso directo desde host: `sqlite3 data/dev.db`
+- Backup simple: `cp data/dev.db data/dev.db.backup`
+- Sincronización bidireccional real-time
+- Debugging más fácil
+
+### Migrations en Container
+
+Cuando inicia el contenedor:
+1. Script `start.sh` ejecuta: `npx prisma migrate deploy`
+2. Si hay pending migrations → aplica automáticamente
+3. Luego inicia: `npm start`
+4. Database siempre sincronizada con código
+
+### Documentación Completa
+
+Ver **[DOCKER_DEVELOPMENT.md](DOCKER_DEVELOPMENT.md)** para guía paso a paso con:
+- Setup detallado para cada método
+- Comandos útiles de Docker/Docker Compose
+- Database backup y restauración
+- Troubleshooting avanzado
+- Comparativa de performance

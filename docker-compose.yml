@@ -14,9 +14,10 @@ services:
       - FLARESOLVERR_URL=${FLARESOLVERR_URL:-http://flaresolverr:8191}
       - JWT_SECRET=${JWT_SECRET:-change-this-in-production}
     volumes:
-      # Database persistence
+      # Database persistence (bind mount - maps to local directory)
+      - ./data:/app/data
+      # Prisma schema (read-only)
       - ./prisma:/app/prisma:ro
-      - sweaterr-db:/app/data
       # Optional: mount entire app for development with live reload
       # - .:/app
       # - /app/node_modules
@@ -58,5 +59,4 @@ services:
   #   restart: unless-stopped
 
 volumes:
-  sweaterr-db:
-    driver: local
+  # Removed sweaterr-db volume - using bind mount instead for local access
