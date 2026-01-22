@@ -48,7 +48,7 @@ RUN echo '#!/bin/sh\n\
     echo "Running Prisma migrations..."\n\
     npx prisma migrate deploy || npx prisma db push\n\
     echo "Starting application..."\n\
-    exec node /app/server.js' > /app/start.sh && chmod +x /app/start.sh
+    exec npm start' > /app/start.sh && chmod +x /app/start.sh
 
 # Start the application
 CMD ["/app/start.sh"]

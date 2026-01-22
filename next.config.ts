@@ -5,10 +5,10 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // 禁用 Next.js 热重载，由 nodemon 处理重编译
+  // Disable Next.js hot reload, handled by nodemon
   reactStrictMode: false,
   eslint: {
-    // 构建时忽略ESLint错误
+    // Ignore ESLint errors during build
     ignoreDuringBuilds: true,
   },
   logging: {
