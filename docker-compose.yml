@@ -11,14 +11,13 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/data/dev.db
       - FLARESOLVERR_URL=http://192.168.1.100:8191
+      - TZ=Europe/Madrid
       # Optional: set JWT_SECRET here as JWT_SECRET=... if you want to manage it manually.
       # If not provided, the server auto-generates and persists one under ./data/.jwt_secret
     volumes:
-      
-      - /etc/localtime:/etc/localtime:ro
       # Database persistence (bind mount - maps to local directory)
       - ./data:/app/data
-      # Prisma schema (read-only)
+      # Prisma schema (read-only) - REQUIRED for migrations at startup
       - ./prisma:/app/prisma:ro
       # Optional: mount entire app for development with live reload
       # - .:/app

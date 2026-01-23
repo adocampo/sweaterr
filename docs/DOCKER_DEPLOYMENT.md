@@ -118,7 +118,7 @@ docker push your-username/sweaterr:latest
 
 ## 📋 Volumes
 
-The default Docker setup creates a persistent volume for data:
+The default Docker setup creates a persistent volume for data, and requires mounting the Prisma schema:
 
 ```yaml
 volumes:
@@ -126,12 +126,15 @@ volumes:
     driver: local
 ```
 
-To use a specific host path instead:
+To use specific host paths (recommended for production):
 
 ```yaml
 volumes:
-  - /path/to/sweaterr/data:/app/data
+  - /path/to/sweaterr/data:/app/data           # Data: read-write
+  - /path/to/sweaterr/prisma:/app/prisma:ro    # Prisma schema: read-only (REQUIRED for migrations)
 ```
+
+**Important**: The `./prisma:/app/prisma:ro` volume is **required** because `start.sh` executes `npx prisma migrate deploy` at startup, which needs access to the schema file.
 
 ## 🏥 Health Check
 
