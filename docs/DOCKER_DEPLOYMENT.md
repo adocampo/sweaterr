@@ -7,16 +7,18 @@ Before deploying Sweaterr using Docker, ensure you have generated secure values 
 ### Required Environment Variables
 
 ```bash
-# Generate secure secrets (use a password generator or openssl)
-openssl rand -base64 32  # For JWT_SECRET
+# Generate secure secrets (recommended for production)
+openssl rand -base64 32  # JWT_SECRET (optional if you use the auto-generated volume secret)
 
 # Set these in your docker-compose.yml or deployment configuration:
 
 # Database Configuration
 DATABASE_URL="file:/app/data/app.db"  # or PostgreSQL URL for production
 
-# Authentication Secrets (MUST BE CHANGED FROM DEFAULTS)
-JWT_SECRET="<your-secure-random-string>"
+# Authentication Secrets
+# - Optional: If NOT set, Docker autogenera y persiste en /app/data/.jwt_secret
+# - Recomendado en producción para instalaciones reproducibles
+JWT_SECRET="<your-secure-random-string>"  # opcional (si omites, se genera y persiste en /app/data/.jwt_secret)
 
 # FlareSolverr URL (must be accessible from the container)
 FLARESOLVERR_URL="http://flaresolverr:8191"
@@ -46,13 +48,14 @@ JDOWNLOADER_PORT=3129
 
 ### Using Docker Compose (Recommended)
 
-The `docker-compose.yml` file is pre-configured with sensible defaults. You need to provide:
+The `docker-compose.yml` file is pre-configured with sensible defaults.
 
-1. **Set environment variables** in `docker-compose.yml`:
+1. **Optionally set environment variables** in `docker-compose.yml`:
 
 ```yaml
 environment:
-  - JWT_SECRET=<your-generated-secret>
+  # Optional: omit to auto-generate and persist in /app/data/.jwt_secret
+  - # JWT_SECRET=<your-generated-secret>  # opcional: si se omite, se genera y persiste en /app/data/.jwt_secret
   - DATABASE_URL=file:/app/data/app.db
   - FLARESOLVERR_URL=http://flaresolverr:8191
 ```
@@ -81,8 +84,11 @@ docker run -d \
   -p 3000:3000 \
   -v sweaterr-data:/app/data \
   -e DATABASE_URL="file:/app/data/app.db" \
-  -e JWT_SECRET="<your-secret>" \
+  # Optional: omit to auto-generate and persist in /app/data/.jwt_secret
+  # -e JWT_SECRET="<your-secret>" \
   -e FLARESOLVERR_URL="http://host.docker.internal:8191" \
+  # Optional timezone (more human than binding /etc/localtime)
+  -e TZ="Europe/Madrid" \
   sweaterr:latest
 ```
 
@@ -104,7 +110,7 @@ docker push your-username/sweaterr:latest
 ## 🔒 Security Checklist
 
 - ✅ Remove all hardcoded secrets from the codebase
-- ✅ Secrets are only configured at runtime via environment variables
+- ✅ Secrets are only configured at runtime via environment variables (o autogeneradas en volumen)
 - ✅ Database credentials are isolated in DATABASE_URL
 - ✅ JWT and NEXTAUTH secrets are randomly generated (not default values)
 - ✅ No sensitive data in Docker image layers

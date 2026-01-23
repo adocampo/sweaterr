@@ -3,8 +3,8 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# Install additional packages
-RUN apt-get update && apt-get install -y --no-install-recommends wget openssl
+# Install additional packages (tzdata for TZ support via environment variable)
+RUN apt-get update && apt-get install -y --no-install-recommends wget openssl tzdata
 
 # Copy package files
 COPY package*.json ./
@@ -43,12 +43,15 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
 
-# Create startup script
+# Create startup script (respects TZ env by configuring /etc/localtime)
 RUN echo '#!/bin/sh\n\
-    echo "Running Prisma migrations..."\n\
-    npx prisma migrate deploy || npx prisma db push\n\
-    echo "Starting application..."\n\
-    exec node /app/server.js' > /app/start.sh && chmod +x /app/start.sh
+        if [ -n "$TZ" ] && [ -f "/usr/share/zoneinfo/$TZ" ]; then\n\
+            ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo "$TZ" > /etc/timezone;\n\
+        fi\n\
+        echo "Running Prisma migrations..."\n\
+        npx prisma migrate deploy || npx prisma db push\n\
+        echo "Starting application..."\n\
+        exec node /app/server.js' > /app/start.sh && chmod +x /app/start.sh
 
 # Start the application
 CMD ["/app/start.sh"]

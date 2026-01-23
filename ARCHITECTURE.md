@@ -937,6 +937,7 @@ DEEPSEEK_API_KEY="..."
   - Solución:
     - Agregar `image: sweaterr:latest` en docker-compose.yml
     - Aumentar `start_period: 60s` en healthcheck
+    - Añadir soporte de zona horaria vía env `TZ` (sin bind de /etc/localtime)
   - Resultado: ✅ Imagen `sweaterr:latest`, healthcheck tolerante
 
 ---
