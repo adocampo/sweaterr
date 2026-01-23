@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  images: {
+    // Our custom production server bypasses `next start` (Next.js 15 Docker streaming bug)
+    // and does not implement the on-the-fly image optimizer route (`/_next/image`).
+    // Disabling optimization makes `next/image` serve public assets directly.
+    unoptimized: true,
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

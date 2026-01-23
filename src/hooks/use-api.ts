@@ -12,7 +12,9 @@ export function useForums() {
   const fetchForums = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/config/forums');
+      const response = await fetch('/api/config/forums', {
+        credentials: 'include',
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -34,6 +36,7 @@ export function useForums() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(forumData),
       });
 
@@ -58,6 +61,7 @@ export function useForums() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(forumData),
       });
 
@@ -79,6 +83,7 @@ export function useForums() {
     try {
       const response = await fetch(`/api/config/forums/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -107,6 +112,7 @@ export function useForums() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(forumData),
       });
 
@@ -152,7 +158,9 @@ export function useJDownloaderConfig() {
   const fetchConfig = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/config/jdownloader');
+      const response = await fetch('/api/config/jdownloader', {
+        credentials: 'include',
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -174,6 +182,7 @@ export function useJDownloaderConfig() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(configData),
       });
 
@@ -197,6 +206,7 @@ export function useJDownloaderConfig() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(configData),
       });
 
@@ -211,6 +221,7 @@ export function useJDownloaderConfig() {
     try {
       const response = await fetch('/api/config/jdownloader', {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -249,7 +260,9 @@ export function useAIConfig() {
   const fetchConfig = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/config/ai');
+      const response = await fetch('/api/config/ai', {
+        credentials: 'include',
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -271,6 +284,7 @@ export function useAIConfig() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(configData),
       });
 
@@ -294,6 +308,7 @@ export function useAIConfig() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(configData),
       });
 
@@ -308,6 +323,7 @@ export function useAIConfig() {
     try {
       const response = await fetch('/api/config/ai', {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -346,7 +362,9 @@ export function useDownloads() {
   const fetchDownloads = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/downloads');
+      const response = await fetch('/api/downloads', {
+        credentials: 'include',
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -363,7 +381,9 @@ export function useDownloads() {
 
   const updateStatus = async () => {
     try {
-      const response = await fetch('/api/downloads/status');
+      const response = await fetch('/api/downloads/status', {
+        credentials: 'include',
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -381,6 +401,7 @@ export function useDownloads() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ postUrl, forumId }),
       });
 
@@ -426,7 +447,9 @@ export function useArrServices() {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/config/arr');
+      const res = await fetch('/api/config/arr', {
+        credentials: 'include',
+      });
       const data = await res.json();
       if (data.success) setServices(data.data);
       else setError(data.error || 'Failed to fetch services');
@@ -441,6 +464,7 @@ export function useArrServices() {
     const res = await fetch('/api/config/arr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -450,7 +474,10 @@ export function useArrServices() {
   };
 
   const deleteService = async (id: string) => {
-    const res = await fetch(`/api/config/arr/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/config/arr/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Failed to delete');
     await fetchServices();
@@ -460,6 +487,7 @@ export function useArrServices() {
     const res = await fetch(`/api/config/arr/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ enabled }),
     });
     const data = await res.json();
@@ -491,6 +519,7 @@ export function useSearch() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ query, forumId }),
       });
 
@@ -528,7 +557,9 @@ export function useJDownloaders() {
   const fetchInstances = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/config/jdownloader');
+      const response = await fetch('/api/config/jdownloader', {
+        credentials: 'include',
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -548,6 +579,7 @@ export function useJDownloaders() {
       const response = await fetch('/api/config/jdownloader', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(configData),
       });
 
@@ -568,6 +600,7 @@ export function useJDownloaders() {
     try {
       const response = await fetch(`/api/config/jdownloader?id=${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -588,6 +621,7 @@ export function useJDownloaders() {
       const response = await fetch(`/api/config/jdownloader?id=${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ enabled }),
       });
 
@@ -610,6 +644,7 @@ export function useJDownloaders() {
       const response = await fetch('/api/config/jdownloader/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(configData),
       });
 
@@ -645,7 +680,9 @@ export function useAIModels() {
   const fetchModels = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/config/ai/list');
+      const response = await fetch('/api/config/ai/list', {
+        credentials: 'include',
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -665,6 +702,7 @@ export function useAIModels() {
       const response = await fetch('/api/config/ai/list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(configData),
       });
 
@@ -685,6 +723,7 @@ export function useAIModels() {
     try {
       const response = await fetch(`/api/config/ai/list/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -704,6 +743,7 @@ export function useAIModels() {
       const response = await fetch(`/api/config/ai/list/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ enabled }),
       });
 
@@ -724,6 +764,7 @@ export function useAIModels() {
       const response = await fetch('/api/config/ai/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(configData),
       });
 
@@ -760,6 +801,7 @@ export function useBulkTitles() {
       const response = await fetch('/api/testing/titles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ forumId, postUrls }),
       });
 

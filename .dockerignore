@@ -14,9 +14,14 @@ build/
 # Development
 dev.db
 dev.db-journal
+.jwt_secret
 .env.local
 .env.*.local
 *.log
+
+# Runtime data (must never be included in build context)
+data/
+logs/
 
 # Git
 .git/

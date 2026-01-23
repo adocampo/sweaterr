@@ -1,0 +1,42 @@
+services:
+  sweaterr:
+    # Replace with the published image name/tag you distribute.
+    image: ghcr.io/your-org/sweaterr:latest
+    container_name: sweaterr
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: file:/app/data/dev.db
+      # If you run the bundled FlareSolverr service below, keep this as-is.
+      # If you use an external FlareSolverr, replace with its URL.
+      FLARESOLVERR_URL: http://flaresolverr:8191
+      # JWT_SECRET is intentionally omitted:
+      # - Sweaterr auto-generates and persists it in /app/data/.jwt_secret
+      # - This avoids shared defaults and avoids rebuilds.
+    volumes:
+      - sweaterr-data:/app/data
+    depends_on:
+      - flaresolverr
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional but recommended for Cloudflare-protected forums.
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: info
+    # Expose only if you want to access it from outside Docker.
+    # ports:
+    #   - "8191:8191"
+
+volumes:
+  sweaterr-data:
+    driver: local

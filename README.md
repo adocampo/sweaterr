@@ -47,7 +47,7 @@ Aplicación web para integrar foros de descarga directa con Sonarr/Radarr/Lidarr
 3. **Levantar con Docker Compose**:
 
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 4. **Acceder a la aplicación**:
@@ -150,6 +150,13 @@ La aplicación automáticamente:
 - Usa Google para buscar dentro del foro
 - Se autentica para poder ver y hacer clic en el botón "Gracias"
 - Extrae los enlaces de descarga
+
+## Variables de entorno
+
+- `FLARESOLVERR_URL`: URL de FlareSolverr (por defecto `http://flaresolverr:8191` en Docker Compose).
+- `JWT_SECRET` (opcional en Docker): Secret para firmar/verificar JWT.
+   Si NO se define, en Docker se auto-genera y se persiste en `./data/.jwt_secret` (no requiere rebuild).
+   Si se cambia, las cookies antiguas dejarán de ser válidas y habrá que volver a iniciar sesión.
 
 ## Uso
 

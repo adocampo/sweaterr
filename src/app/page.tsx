@@ -116,7 +116,9 @@ function HomeContent() {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/auth/me', {
+          credentials: 'include',
+        });
         const data = await res.json();
         if (mounted) {
           if (data?.success && data.user) {

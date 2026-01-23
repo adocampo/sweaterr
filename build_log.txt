@@ -1,0 +1,117 @@
+
+> sweaterr@1.0.0 build
+> next build
+
+   ▲ Next.js 15.3.5
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ⚠ nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config
+ ✓ Compiled successfully in 3.0s
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+[SessionManager] Created new global instance
+[SessionManager] Created new global instance
+[SessionManager] Created new global instance
+[SessionManager] Created new global instance
+[SessionManager] Created new global instance
+[SessionManager] Created new global instance
+[SessionManager] Created new global instance
+[SessionManager] Created new global instance
+   Generating static pages (0/73) ...
+   Generating static pages (18/73) 
+   Generating static pages (36/73) 
+   Generating static pages (54/73) 
+[SessionManager] Created new global instance
+ ✓ Generating static pages (73/73)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                             Size  First Load JS
+┌ ○ /                                                 114 kB         248 kB
+├ ○ /_not-found                                        982 B         102 kB
+├ ƒ /api                                               321 B         102 kB
+├ ƒ /api/arr                                           321 B         102 kB
+├ ƒ /api/arr/caps                                      321 B         102 kB
+├ ƒ /api/arr/grab                                      321 B         102 kB
+├ ƒ /api/arr/indexer                                   321 B         102 kB
+├ ƒ /api/arr/notify                                    321 B         102 kB
+├ ƒ /api/arr/search                                    321 B         102 kB
+├ ƒ /api/auth/login                                    321 B         102 kB
+├ ƒ /api/auth/logout                                   321 B         102 kB
+├ ƒ /api/auth/me                                       321 B         102 kB
+├ ƒ /api/auth/reset-password                           321 B         102 kB
+├ ƒ /api/auth/setup                                    321 B         102 kB
+├ ƒ /api/auth/users                                    321 B         102 kB
+├ ƒ /api/auth/users/[id]                               321 B         102 kB
+├ ƒ /api/check/jd-packages                             321 B         102 kB
+├ ƒ /api/check/myjd-addlinks                           321 B         102 kB
+├ ƒ /api/check/myjd-auth                               321 B         102 kB
+├ ƒ /api/config/ai                                     321 B         102 kB
+├ ƒ /api/config/ai/check                               321 B         102 kB
+├ ƒ /api/config/ai/list                                321 B         102 kB
+├ ƒ /api/config/ai/list/[id]                           321 B         102 kB
+├ ƒ /api/config/arr                                    321 B         102 kB
+├ ƒ /api/config/arr/[id]                               321 B         102 kB
+├ ƒ /api/config/forums                                 321 B         102 kB
+├ ƒ /api/config/forums/[id]                            321 B         102 kB
+├ ƒ /api/config/forums/[id]/refresh-cookies            321 B         102 kB
+├ ƒ /api/config/forums/[id]/session                    321 B         102 kB
+├ ƒ /api/config/forums/check                           321 B         102 kB
+├ ƒ /api/config/jdownloader                            321 B         102 kB
+├ ƒ /api/config/jdownloader/check                      321 B         102 kB
+├ ƒ /api/config/jdownloader/check-api                  321 B         102 kB
+├ ƒ /api/config/jdownloader/check-credentials          321 B         102 kB
+├ ƒ /api/config/jdownloader/debug-auth                 321 B         102 kB
+├ ƒ /api/config/jdownloader/debug-auth-cryptojs        321 B         102 kB
+├ ƒ /api/config/jdownloader/debug-hmac                 321 B         102 kB
+├ ƒ /api/config/jdownloader/list                       321 B         102 kB
+├ ƒ /api/config/jdownloader/list/[id]                  321 B         102 kB
+├ ƒ /api/debug                                         321 B         102 kB
+├ ƒ /api/downloads                                     321 B         102 kB
+├ ƒ /api/downloads/create                              321 B         102 kB
+├ ƒ /api/downloads/extract                             321 B         102 kB
+├ ƒ /api/downloads/extract-after                       321 B         102 kB
+├ ƒ /api/downloads/path                                321 B         102 kB
+├ ƒ /api/downloads/pause                               321 B         102 kB
+├ ƒ /api/downloads/resume                              321 B         102 kB
+├ ƒ /api/downloads/status                              321 B         102 kB
+├ ƒ /api/downloads/stop                                321 B         102 kB
+├ ƒ /api/extract-links                                 321 B         102 kB
+├ ƒ /api/health                                        321 B         102 kB
+├ ƒ /api/qbittorrent                                   321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/app/preferences            321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/app/version                321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/app/webapiVersion          321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/auth/login                 321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/auth/logout                321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/torrents/add               321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/torrents/categories        321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/torrents/createCategory    321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/torrents/delete            321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/torrents/info              321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/torrents/pause             321 B         102 kB
+├ ƒ /api/qbittorrent/api/v2/torrents/resume            321 B         102 kB
+├ ƒ /api/sabnzbd/api                                   321 B         102 kB
+├ ƒ /api/sabnzbd/api/api                               321 B         102 kB
+├ ƒ /api/search                                        321 B         102 kB
+├ ƒ /api/testing/debug-search                          321 B         102 kB
+├ ƒ /api/testing/extract-links                         321 B         102 kB
+├ ƒ /api/testing/jdownloader/add-links                 321 B         102 kB
+├ ƒ /api/testing/metadata                              321 B         102 kB
+├ ƒ /api/testing/search                                321 B         102 kB
+├ ƒ /api/testing/title                                 321 B         102 kB
+├ ƒ /api/testing/titles                                321 B         102 kB
+├ ○ /icon.png                                            0 B            0 B
+├ ○ /login                                           1.54 kB         130 kB
+└ ○ /setup                                            2.7 kB         125 kB
++ First Load JS shared by all                         101 kB
+  ├ chunks/1684-840ca1a4c3d94144.js                  46.1 kB
+  ├ chunks/4bd1b696-72f7bb50ba523a96.js              53.2 kB
+  └ other shared chunks (total)                      1.93 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

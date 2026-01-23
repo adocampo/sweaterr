@@ -89,3 +89,6 @@ prompt
 cookies.txt
 
 server.log
+
+# docker
+/data

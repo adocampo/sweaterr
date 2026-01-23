@@ -36,9 +36,13 @@ export async function POST(request: NextRequest) {
             token: result.token,
         });
 
+        const forwardedProto = request.headers.get('x-forwarded-proto');
+        const isHttps = forwardedProto === 'https' || request.nextUrl.protocol === 'https:';
+
         response.cookies.set('sweaterr-auth', result.token!, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            // Do not set Secure on plain HTTP, otherwise browsers won't send the cookie.
+            secure: isHttps,
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60, // 7 days
             path: '/',
