@@ -15,10 +15,10 @@ services:
       # Optional: set JWT_SECRET here as JWT_SECRET=... if you want to manage it manually.
       # If not provided, the server auto-generates and persists one under ./data/.jwt_secret
     volumes:
-      # Database persistence (bind mount - maps to local directory)
-      - ./data:/app/data
-      # Prisma schema (read-only) - REQUIRED for migrations at startup
-      - ./prisma:/app/prisma:ro
+      # Database persistence (named volume)
+      - sweaterr-data:/app/data
+      # Prisma schema (named volume, read-only) - persisted for migration safety
+      - sweaterr-prisma:/app/prisma:ro
       # Optional: mount entire app for development with live reload
       # - .:/app
       # - /app/node_modules
@@ -59,4 +59,9 @@ services:
   #     - sweaterr
   #   restart: unless-stopped
 
-# volumes: (not needed - using bind mounts instead)
+# Persistent volumes
+volumes:
+  sweaterr-data:
+    driver: local
+  sweaterr-prisma:
+    driver: local
