@@ -3,8 +3,17 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
+# Build args for UID/GID mapping (default: 1000)
+ARG UID=1000
+ARG GID=1000
+
 # Install additional packages (tzdata for TZ support via environment variable)
 RUN apt-get update && apt-get install -y --no-install-recommends wget openssl tzdata
+
+# Create non-root user with custom UID/GID
+# Use different GID if 1000 already exists, to avoid conflicts
+RUN groupadd -g ${GID} sweaterr 2>/dev/null || groupadd sweaterr && \
+    useradd -m -u ${UID} -g sweaterr sweaterr 2>/dev/null || useradd -m -g sweaterr sweaterr || true
 
 # Copy package files
 COPY package*.json ./
@@ -12,7 +21,7 @@ COPY package*.json ./
 # Install dependencies and explicitly remove the z-ai-web-dev-sdk
 RUN npm install && npm uninstall z-ai-web-dev-sdk || true
 
-# Copy source code EARLY to include prisma schema
+# Copy source code EARLY to include prisma schema and ensure all files are present
 COPY . .
 
 # Generate Prisma client
@@ -33,25 +42,29 @@ ENV PORT=3000
 # - JWT_SECRET (required for authentication)
 # - FLARESOLVERR_URL (required)
 
-# Create data directory
-RUN mkdir -p /app/data
-
-# Expose port
-EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
-
-# Create startup script (respects TZ env by configuring /etc/localtime)
+# Create startup script BEFORE switching to non-root user (so we can write to /app)
+# This script respects TZ env via environment variable
 RUN echo '#!/bin/sh\n\
     if [ -n "$TZ" ] && [ -f "/usr/share/zoneinfo/$TZ" ]; then\n\
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo "$TZ" > /etc/timezone;\n\
+    export TZ\n\
     fi\n\
     echo "Running Prisma migrations..."\n\
     npx prisma migrate deploy || npx prisma db push\n\
     echo "Starting application..."\n\
     exec node /app/server.js' > /app/start.sh && chmod +x /app/start.sh
+
+# Create data directory with correct permissions
+RUN mkdir -p /app/data && chown -R ${UID}:${GID} /app
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
+
+# Switch to non-root user (AFTER creating files that need root permissions)
+USER sweaterr
 
 # Start the application
 CMD ["/app/start.sh"]

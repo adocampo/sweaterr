@@ -3,7 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: sweaterr:latest
+      # Map your local UID/GID to avoid permission issues with volumes
+      # On Linux, run: id (to get your UID/GID), then pass them here
+      # Example: docker-compose build --build-arg UID=1000 --build-arg GID=1000
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    image: ghcr.io/adocampo/sweaterr:latest
     container_name: sweaterr
     ports:
       - "3000:3000"
@@ -15,14 +21,9 @@ services:
       # Optional: set JWT_SECRET here as JWT_SECRET=... if you want to manage it manually.
       # If not provided, the server auto-generates and persists one under ./data/.jwt_secret
     volumes:
-      # Database persistence (named volume)
+      # Database persistence - using named volumes for better portability
       - sweaterr-data:/app/data
-      # Prisma schema (named volume, read-only) - persisted for migration safety
-      - sweaterr-prisma:/app/prisma:ro
-      # Optional: mount entire app for development with live reload
-      # - .:/app
-      # - /app/node_modules
-      # - /app/.next
+      # Prisma schema is now baked into the image (no need to mount)
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
@@ -59,9 +60,7 @@ services:
   #     - sweaterr
   #   restart: unless-stopped
 
-# Persistent volumes
+# Named volumes for persistence
 volumes:
   sweaterr-data:
-    driver: local
-  sweaterr-prisma:
     driver: local
