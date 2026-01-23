@@ -45,13 +45,13 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Create startup script (respects TZ env by configuring /etc/localtime)
 RUN echo '#!/bin/sh\n\
-        if [ -n "$TZ" ] && [ -f "/usr/share/zoneinfo/$TZ" ]; then\n\
-            ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo "$TZ" > /etc/timezone;\n\
-        fi\n\
-        echo "Running Prisma migrations..."\n\
-        npx prisma migrate deploy || npx prisma db push\n\
-        echo "Starting application..."\n\
-        exec node /app/server.js' > /app/start.sh && chmod +x /app/start.sh
+    if [ -n "$TZ" ] && [ -f "/usr/share/zoneinfo/$TZ" ]; then\n\
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo "$TZ" > /etc/timezone;\n\
+    fi\n\
+    echo "Running Prisma migrations..."\n\
+    npx prisma migrate deploy || npx prisma db push\n\
+    echo "Starting application..."\n\
+    exec node /app/server.js' > /app/start.sh && chmod +x /app/start.sh
 
 # Start the application
 CMD ["/app/start.sh"]
