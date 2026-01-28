@@ -13,7 +13,9 @@ openssl rand -base64 32  # JWT_SECRET (optional if you use the auto-generated vo
 # Set these in your docker-compose.yml or deployment configuration:
 
 # Database Configuration
-DATABASE_URL="file:/app/data/app.db"  # or PostgreSQL URL for production
+# SQLite (default) or PostgreSQL URL for production
+# Tip: On NAS/HDD or bind mounts, SQLite can be slow/locky. Keep connection_limit=1.
+DATABASE_URL="file:/app/data/app.db?connection_limit=1"
 
 # Authentication Secrets
 # - Optional: If NOT set, Docker autogenera y persiste en /app/data/.jwt_secret
@@ -56,8 +58,12 @@ The `docker-compose.yml` file is pre-configured with sensible defaults.
 environment:
   # Optional: omit to auto-generate and persist in /app/data/.jwt_secret
   - # JWT_SECRET=<your-generated-secret>  # opcional: si se omite, se genera y persiste en /app/data/.jwt_secret
-  - DATABASE_URL=file:/app/data/app.db
+  - DATABASE_URL=file:/app/data/app.db?connection_limit=1
   - FLARESOLVERR_URL=http://flaresolverr:8191
+  # Optional SQLite tuning (useful on NAS/HDD)
+  # - SQLITE_JOURNAL_MODE=WAL
+  # - SQLITE_SYNCHRONOUS=NORMAL
+  # - SQLITE_BUSY_TIMEOUT_MS=15000
 ```
 
 1. **Start the services**:
@@ -83,7 +89,7 @@ docker run -d \
   --name sweaterr \
   -p 3000:3000 \
   -v sweaterr-data:/app/data \
-  -e DATABASE_URL="file:/app/data/app.db" \
+  -e DATABASE_URL="file:/app/data/app.db?connection_limit=1" \
   # Optional: omit to auto-generate and persist in /app/data/.jwt_secret
   # -e JWT_SECRET="<your-secret>" \
   -e FLARESOLVERR_URL="http://host.docker.internal:8191" \
@@ -118,7 +124,7 @@ docker push your-username/sweaterr:latest
 
 ## 📋 Volumes
 
-The default Docker setup creates a persistent volume for data, and requires mounting the Prisma schema:
+The default Docker setup creates a persistent volume for data:
 
 ```yaml
 volumes:
@@ -126,15 +132,25 @@ volumes:
     driver: local
 ```
 
-To use specific host paths (recommended for production):
+To use specific host paths (optional):
 
 ```yaml
 volumes:
   - /path/to/sweaterr/data:/app/data           # Data: read-write
-  - /path/to/sweaterr/prisma:/app/prisma:ro    # Prisma schema: read-only (REQUIRED for migrations)
+
 ```
 
-**Important**: The `./prisma:/app/prisma:ro` volume is **required** because `start.sh` executes `npx prisma migrate deploy` at startup, which needs access to the schema file.
+**Important**: Prisma schema is baked into the Docker image, so you do NOT need to mount `/app/prisma`.
+
+### NAS / HDD note (SQLite)
+
+If you run SQLite on slow disks, RAID arrays, or networked filesystems via bind mounts, Prisma may log `P1008 Socket timeout` due to lock contention and I/O latency.
+
+Recommended mitigations:
+
+- Prefer Docker named volumes located on SSD (e.g., Docker's `/var/lib/docker/volumes` on SSD)
+- Keep `connection_limit=1` in `DATABASE_URL`
+- Optionally set `SQLITE_JOURNAL_MODE=WAL` and `SQLITE_BUSY_TIMEOUT_MS=15000`
 
 ## 🏥 Health Check
 

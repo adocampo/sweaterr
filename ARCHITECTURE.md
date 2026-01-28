@@ -131,6 +131,29 @@ Cuando agregues features o fixes: **actualiza TODOS.md y ARCHITECTURE.md changel
 
 ## ISSUES
 
+### 2026-01-24 - Prisma P1008 socket timeouts on NAS/HDD (SQLite)
+
+**Symptom**:
+
+- On some NAS/RAID HDD setups (especially when using bind mounts), the app starts and migrations succeed, but API calls later fail with:
+  - `PrismaClientKnownRequestError (P1008): Socket timeout (the database failed to respond ...)`
+
+**Most likely causes**:
+
+- SQLite file I/O latency + locking contention on slow disks or networked filesystems.
+- Multiple `new PrismaClient()` instances causing extra SQLite connections/engines and increasing lock contention.
+
+**Fixes applied**:
+
+- Use the shared singleton Prisma client from `src/lib/db.ts` (avoid local `new PrismaClient()` in auth/user routes).
+- Apply conservative SQLite PRAGMAs at startup (best-effort): `journal_mode=WAL`, `busy_timeout`, `synchronous`.
+- Recommend `connection_limit=1` in `DATABASE_URL` for SQLite.
+
+**Operational guidance**:
+
+- Prefer Docker named volumes stored on SSD for `/app/data`.
+- If you must use bind mounts on HDD/NAS, keep SQLite concurrency low (`connection_limit=1`) and increase `SQLITE_BUSY_TIMEOUT_MS`.
+
 ### 2026-01-21 - Sonarr muestra "Invalid torrent file specified" y no controla Activity
 
 **Síntoma**:

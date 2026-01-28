@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '@/lib/services/auth';
+import { db } from '@/lib/db';
 
-const prisma = new PrismaClient();
-const userDelegate = () => (prisma as any).user as any;
+const userDelegate = () => (db as any).user as any;
 
 /**
  * POST /api/auth/reset-password

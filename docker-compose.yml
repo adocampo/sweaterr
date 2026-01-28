@@ -15,9 +15,14 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/data/dev.db
+      # For SQLite, keep connection_limit=1 to reduce lock contention (especially on NAS/HDD).
+      - DATABASE_URL=file:/app/data/dev.db?connection_limit=1
       - FLARESOLVERR_URL=http://192.168.1.100:8191
       - TZ=Europe/Madrid
+      # SQLite tuning (optional): helps on slow disks / networked filesystems
+      # - SQLITE_JOURNAL_MODE=WAL
+      # - SQLITE_SYNCHRONOUS=NORMAL
+      # - SQLITE_BUSY_TIMEOUT_MS=15000
       # Optional: set JWT_SECRET here as JWT_SECRET=... if you want to manage it manually.
       # If not provided, the server auto-generates and persists one under ./data/.jwt_secret
     volumes:

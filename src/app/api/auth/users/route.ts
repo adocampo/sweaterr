@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { extractToken, verifyToken, hashPassword } from '@/lib/services/auth';
+import { db } from '@/lib/db';
 
-const prisma = new PrismaClient();
-const userDelegate = () => (prisma as any).user as any;
+const userDelegate = () => (db as any).user as any;
 export const runtime = 'nodejs';
 
 function requireAdmin(request: NextRequest) {

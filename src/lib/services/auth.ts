@@ -1,10 +1,8 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
 
-// Local Prisma client to avoid undefined delegates in hot-reload scenarios
-const prisma = new PrismaClient();
-const userDelegate = () => (prisma as any).user as any;
+const userDelegate = () => (db as any).user as any;
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {

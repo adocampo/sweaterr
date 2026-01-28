@@ -234,13 +234,19 @@ export class ForumService {
         // Persist cookies to DB if cookie array present
         try {
           const cookiesJson = JSON.stringify({ cookies: result.cookieArray || [], userAgent: result.userAgent });
-          await db.forum.update({
+          const updated = await db.forum.updateMany({
             where: { id: forumId },
             data: {
               persistentCookies: cookiesJson,
               cookiesUpdatedAt: new Date(),
-            }
+            },
           });
+
+          if (updated.count === 0) {
+            // This can happen in "check" flows where we authenticate a non-persisted forum (id="test").
+            logger.info('forum', `Skipping cookie persistence: forum id ${forumId} not found in DB`);
+            return true;
+          }
           // Keep in-memory config aligned so fallback paths see fresh cookies/UA
           config.persistentCookies = cookiesJson;
           this.configs.set(forumId, { ...config });
@@ -1489,7 +1495,7 @@ export class ForumService {
       const title = $(config.postTitleSelector || '.post-title, .topic-title, h1, h2').first().text().trim();
       const containerSelector = config.linksContainerSelector
         || '.post-content, .message-body, .post-body, #post_message, [id^="post_message_"]';
-      
+
       // CRITICAL FIX: Use only the FIRST matching container, not all of them.
       // When parsing a post from a thread URL, we should extract links from the first post content only,
       // not from all posts in the thread (which would include comments, replies, etc.).
