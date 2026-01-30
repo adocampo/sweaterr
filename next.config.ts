@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Allow cross-origin dev access from other machines
+  allowedDevOrigins: ['192.168.1.10', 'localhost', '127.0.0.1'],
   images: {
     // Our custom production server bypasses `next start` (Next.js 15 Docker streaming bug)
     // and does not implement the on-the-fly image optimizer route (`/_next/image`).

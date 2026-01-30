@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { JDownloaderLocalService, JDownloaderService } from '@/lib/services/jdownloader';
 
+function normalizeMatchValue(value: string | null | undefined): string {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[\s._-]+/g, ' ')
+    .replace(/[^a-z0-9 ]/g, '')
+    .trim();
+}
+
 // GET /api/downloads/status - Get download status from JDownloader
 export async function GET() {
   try {
@@ -50,7 +58,8 @@ export async function GET() {
       const mappedStatus =
         jdDownload.status === 'finished' ? 'completed' :
           jdDownload.status === 'running' ? 'downloading' :
-            jdDownload.status === 'failed' ? 'failed' : 'pending';
+            jdDownload.status === 'extracting' ? 'downloading' :
+              jdDownload.status === 'failed' ? 'failed' : 'pending';
 
       // Try to find existing download by uuid
       const existingDownload = await db.download.findFirst({
@@ -68,21 +77,58 @@ export async function GET() {
             updatedAt: new Date(),
           },
         });
-      } else {
-        // Create new download record if it doesn't exist
-        // This can happen if JDownloader has downloads but we don't have them in DB
-        await db.download.create({
+        continue;
+      }
+
+      const normalizedCategory = normalizeMatchValue(jdDownload.category);
+      const normalizedName = normalizeMatchValue(jdDownload.name);
+
+      let matchedDownload = null as null | { id: string };
+      if (normalizedCategory || normalizedName) {
+        const candidates = await db.download.findMany({
+          where: {
+            forumName: 'Sweaterr qBittorrent API',
+            jDownloaderId: null,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 50,
+        });
+
+        matchedDownload =
+          candidates.find((candidate) => normalizeMatchValue(candidate.releaseTitle) === normalizedCategory) ||
+          candidates.find((candidate) => normalizeMatchValue(candidate.title) === normalizedCategory) ||
+          candidates.find((candidate) => normalizeMatchValue(candidate.releaseTitle) === normalizedName) ||
+          candidates.find((candidate) => normalizeMatchValue(candidate.title) === normalizedName) ||
+          null;
+      }
+
+      if (matchedDownload) {
+        await db.download.update({
+          where: { id: matchedDownload.id },
           data: {
-            title: jdDownload.name,
-            sourceUrl: '',
-            forumName: 'JDownloader',
             jDownloaderId: jdDownload.uuid,
             status: mappedStatus,
             progress: (jdDownload.progress / 100) || 0,
             size: jdDownload.size ? `${(jdDownload.size / (1024 * 1024 * 1024)).toFixed(2)} GB` : undefined,
+            updatedAt: new Date(),
           },
         });
+        continue;
       }
+
+      // Create new download record if it doesn't exist
+      // This can happen if JDownloader has downloads but we don't have them in DB
+      await db.download.create({
+        data: {
+          title: jdDownload.name,
+          sourceUrl: '',
+          forumName: 'JDownloader',
+          jDownloaderId: jdDownload.uuid,
+          status: mappedStatus,
+          progress: (jdDownload.progress / 100) || 0,
+          size: jdDownload.size ? `${(jdDownload.size / (1024 * 1024 * 1024)).toFixed(2)} GB` : undefined,
+        },
+      });
     }
 
     return NextResponse.json({

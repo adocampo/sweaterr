@@ -32,11 +32,13 @@ const sqliteInitPromise = (async () => {
     : 'NORMAL';
 
   try {
-    await db.$executeRawUnsafe('PRAGMA foreign_keys = ON;');
-    await db.$executeRawUnsafe(`PRAGMA journal_mode = ${journalMode};`);
-    await db.$executeRawUnsafe(`PRAGMA synchronous = ${synchronous};`);
+    // PRAGMA statements can return rows in SQLite; use $queryRawUnsafe to avoid
+    // "Execute returned results" errors.
+    await db.$queryRawUnsafe('PRAGMA foreign_keys = ON;');
+    await db.$queryRawUnsafe(`PRAGMA journal_mode = ${journalMode};`);
+    await db.$queryRawUnsafe(`PRAGMA synchronous = ${synchronous};`);
     if (Number.isFinite(busyTimeoutMs) && busyTimeoutMs > 0) {
-      await db.$executeRawUnsafe(`PRAGMA busy_timeout = ${Math.floor(busyTimeoutMs)};`);
+      await db.$queryRawUnsafe(`PRAGMA busy_timeout = ${Math.floor(busyTimeoutMs)};`);
     }
     logger.info('db', `SQLite PRAGMAs applied (journal_mode=${journalMode}, synchronous=${synchronous}, busy_timeout=${busyTimeoutMs}ms)`);
   } catch (err) {

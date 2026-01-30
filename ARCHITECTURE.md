@@ -858,6 +858,97 @@ DEEPSEEK_API_KEY="..."
 
 ## 📝 CHANGELOG
 
+### 2026-01-30 (FIX: qBittorrent Facade - Package-level progress sync + Real-time ETA/Speed)
+
+**Estado**: ✅ COMPLETADO
+
+**Problema**:
+
+- Sonarr Activity no mostraba el progreso de descargas activas en JDownloader.
+- El sync comparaba a nivel de archivo individual (ej. `BB4d.5x01.x265...`) en vez de a nivel de paquete (ej. `Breaking Bad T5...`).
+- Resultado: `progress: 0` aunque JDownloader reportaba progreso real en los archivos.
+- ETA mostraba valores incorrectos (8640000 o 0) en lugar del tiempo real restante.
+- Velocidad mostraba 0 en Sonarr Activity.
+
+**Solución implementada**:
+
+- Reescrito el bloque de sync en `/api/qbittorrent/api/v2/torrents/info`.
+- Los ítems de JDownloader ahora se agrupan por `category` (nombre del paquete).
+- Se calcula el progreso total del paquete: `loadedSize / totalSize` de todos los archivos.
+- Se determina el estado del paquete según progreso: `allFinished` → completed, `anyRunning` → downloading.
+- Matching por título normalizado sin depender de `jDownloaderId`.
+- **Speed/ETA real-time**: Se solicitan campos `speed`, `eta`, `bytesTotal`, `bytesLoaded` a nivel de paquete en `queryPackages()`.
+- **ETA calculado correctamente**: `amountLeft / speed` (bytes restantes ÷ velocidad en bytes/s).
+- **Interfaz JDownloaderDownload extendida** con `packageSpeed`, `packageEta`, `packageBytesTotal`, `packageBytesLoaded`.
+- Sonarr Activity ahora muestra progreso, velocidad y ETA en tiempo real.
+
+**Archivos modificados**:
+
+- `src/app/api/qbittorrent/api/v2/torrents/info/route.ts`
+- `src/lib/services/jdownloader.ts`
+
+---
+
+### 2026-01-29 (FEATURE: JDownloader Local forceExtract support)
+
+**Estado**: ✅ COMPLETADO
+
+**Problema**:
+
+- El endpoint `/api/downloads/extract` solo funcionaba con JDownloader Cloud (MyJDownloader).
+- Los usuarios en modo local no podían forzar la extracción de archivos ya descargados.
+- Paquetes añadidos antes del fix de autoExtract quedaban sin extraer.
+
+**Solución implementada**:
+
+- Añadido método `forceExtract()` a `JDownloaderLocalService` usando `/extraction/startExtractionNow`.
+- Actualizado `/api/downloads/extract` para detectar el modo (local/cloud) y usar el servicio correcto.
+
+**Archivos modificados**:
+
+- `src/lib/services/jdownloader.ts`
+- `src/app/api/downloads/extract/route.ts`
+
+### 2026-01-29 (BUGFIX: SQLite PRAGMA init compatible with Prisma)
+
+**Estado**: ✅ COMPLETADO
+
+**Problema**:
+
+- `[db] ⚠ Failed to apply SQLite PRAGMAs: ... Execute returned results, which is not allowed in SQLite.`
+
+**Root cause**:
+
+- Some SQLite `PRAGMA ... = ...` statements can return rows.
+- Prisma `$executeRawUnsafe()` rejects queries that return results for SQLite.
+
+**Solución implementada**:
+
+- Use Prisma `$queryRawUnsafe()` for all SQLite PRAGMA statements in `src/lib/db.ts`.
+
+### 2026-01-28 (BUGFIX: Sonarr Activity sync + JDownloader auto-start/extract in qBittorrent facade)
+
+**Estado**: ✅ COMPLETADO
+
+**Problemas iniciales**:
+
+1. **Sonarr Activity no mostraba progreso/fin** cuando los enlaces se gestionaban vía JDownloader (qBittorrent facade).
+2. **JDownloader no iniciaba automáticamente ni extraía** al recibir enlaces desde Sonarr.
+
+**Solución implementada**:
+
+1. **Sync inteligente de descargas**: al refrescar `/api/downloads/status`, los items de JDownloader se enlazan con registros ARR existentes (matching por `releaseTitle/title` y categoría), actualizando `status` y `progress` para que Sonarr vea la actividad real.
+2. **Auto-start + auto-extract en facade qBittorrent**:
+
+- Local: `addLinks(..., autostart=true, autoExtract=true)` + `downloadcontroller/start`.
+- Cloud: `addLinks(..., autostart=true, autoExtract=true)` + mover a downloads + start controller.
+
+**Archivos modificados**:
+
+- `src/app/api/qbittorrent/api/v2/torrents/add/route.ts`
+- `src/app/api/downloads/status/route.ts`
+- `src/lib/services/jdownloader.ts`
+
 ### 2026-01-22 (BUGFIX: Docker production - thenable route modules + FlareSolverr integration)
 
 **Estado**: ✅ COMPLETADO

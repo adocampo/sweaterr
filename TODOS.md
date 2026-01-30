@@ -2,6 +2,11 @@
 
 Estado: 11 de enero de 2026
 
+## ✅ COMPLETADOS RECIENTES
+
+- 2026-01-30: Real-time speed and ETA for Sonarr Activity via package-level JDownloader sync.
+- 2026-01-28: Synced JDownloader progress to ARR downloads and enabled auto-start/auto-extract in the qBittorrent facade.
+
 ## 🔴 CRÍTICOS (Afectan UX/Functionality)
 
 ### 0. **Docker Compose: Imagen con nombre genérico y healthcheck robusto** ✅

@@ -51,6 +51,11 @@ export interface JDownloaderDownload {
   addedAt?: number;
   finishedAt?: number;
   category?: string;
+  // Package-level stats (more accurate for speed/eta)
+  packageSpeed?: number;
+  packageEta?: number;
+  packageBytesTotal?: number;
+  packageBytesLoaded?: number;
 }
 
 export interface JDownloaderLinksResponse {
@@ -137,6 +142,29 @@ export class JDownloaderLocalService {
     }
   }
 
+  async startDownloadController(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/downloadcontroller/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify([]),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text}`);
+      }
+
+      logger.info('jdownloader', '[LocalJD] Download controller started');
+      return true;
+    } catch (error) {
+      logger.error('jdownloader', '[LocalJD] Start download controller failed:', error);
+      return false;
+    }
+  }
+
   async getStatus(): Promise<any> {
     try {
       const response = await fetch(`${this.baseUrl}/system/getSystemInfos`, {
@@ -155,6 +183,43 @@ export class JDownloaderLocalService {
     } catch (error) {
       logger.error('jdownloader', '[LocalJD] Get status failed:', error);
       return null;
+    }
+  }
+
+  /**
+   * Force extraction of downloaded files (same API as cloud version)
+   * Uses /extraction/startExtractionNow endpoint
+   */
+  async forceExtract(linkIds: Array<string | number>, packageIds?: Array<string | number>): Promise<boolean> {
+    try {
+      const ids = linkIds.map((id) => (typeof id === 'string' ? parseInt(id, 10) : id)).filter((id) => !isNaN(id));
+      const pkgIds = packageIds ? packageIds.map((id) => (typeof id === 'string' ? parseInt(id, 10) : id)).filter((id) => !isNaN(id)) : [];
+
+      if (!ids.length && !pkgIds.length) {
+        logger.warn('jdownloader', '[LocalJD] forceExtract: No valid IDs provided');
+        return false;
+      }
+
+      logger.info('jdownloader', `[LocalJD] Force extract linkIds=${JSON.stringify(ids)}, packageIds=${JSON.stringify(pkgIds)}`);
+
+      const response = await fetch(`${this.baseUrl}/extraction/startExtractionNow`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify([ids, pkgIds]),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`HTTP ${response.status}: ${text}`);
+      }
+
+      logger.info('jdownloader', '[LocalJD] Force extract command sent successfully');
+      return true;
+    } catch (error) {
+      logger.error('jdownloader', '[LocalJD] Force extract failed:', error);
+      return false;
     }
   }
 }
@@ -513,15 +578,34 @@ export class JDownloaderService {
   }
 
   // Query packages from an endpoint
-  private async queryPackages(endpoint: string): Promise<Array<{ uuid: string | number, name: string, isLinkGrabber: boolean, hosts?: string[], saveTo?: string, addedAt?: number }>> {
+  private async queryPackages(endpoint: string): Promise<Array<{
+    uuid: string | number,
+    name: string,
+    isLinkGrabber: boolean,
+    hosts?: string[],
+    saveTo?: string,
+    addedAt?: number,
+    bytesTotal?: number,
+    bytesLoaded?: number,
+    speed?: number,
+    eta?: number,
+    finished?: boolean,
+    running?: boolean
+  }>> {
     try {
       const rid = Date.now();
       const action = `/t_${this.sessionToken}_${this.deviceId}${endpoint}`;
 
-      // Minimal required params for queryPackages
+      // Request package-level stats including speed and ETA
       const queryParams = [{
-        saveTo: true,  // Include saveTo field
-        hosts: true,   // Include hosts field
+        saveTo: true,
+        hosts: true,
+        bytesTotal: true,
+        bytesLoaded: true,
+        speed: true,
+        eta: true,
+        finished: true,
+        running: true,
         maxResults: -1,
         startAt: 0
       }];
@@ -577,6 +661,12 @@ export class JDownloaderService {
         hosts: pkg.hosts,
         saveTo: pkg.saveTo,
         addedAt: pkg.added,
+        bytesTotal: pkg.bytesTotal,
+        bytesLoaded: pkg.bytesLoaded,
+        speed: pkg.speed,
+        eta: pkg.eta,
+        finished: pkg.finished,
+        running: pkg.running,
       }));
     } catch (error) {
       logger.error('jdownloader', `[MyJD] Query ${endpoint} error:`, error);
@@ -585,7 +675,17 @@ export class JDownloaderService {
   }
 
   // Query links for a specific package
-  private async queryLinksForPackage(pkg: { uuid: string | number; name: string; hosts?: string[]; saveTo?: string; addedAt?: number }, isLinkGrabber: boolean): Promise<JDownloaderDownload[]> {
+  private async queryLinksForPackage(pkg: {
+    uuid: string | number;
+    name: string;
+    hosts?: string[];
+    saveTo?: string;
+    addedAt?: number;
+    bytesTotal?: number;
+    bytesLoaded?: number;
+    speed?: number;
+    eta?: number;
+  }, isLinkGrabber: boolean): Promise<JDownloaderDownload[]> {
     try {
       const rid = Date.now();
       const endpoint = isLinkGrabber ? '/linkgrabberv2/queryLinks' : '/downloadsV2/queryLinks';
@@ -663,6 +763,11 @@ export class JDownloaderService {
           addedAt: link.addedDate || pkg.addedAt,
           finishedAt: link.finishedDate,
           category: link.packageName || pkg.name,
+          // Pass package-level stats for accurate speed/eta
+          packageSpeed: pkg.speed,
+          packageEta: pkg.eta,
+          packageBytesTotal: pkg.bytesTotal,
+          packageBytesLoaded: pkg.bytesLoaded,
         } as JDownloaderDownload;
       });
 

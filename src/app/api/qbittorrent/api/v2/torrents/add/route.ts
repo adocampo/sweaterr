@@ -226,11 +226,14 @@ export async function POST(request: NextRequest) {
 
                             let success = false;
                             if (jdLocal) {
-                                success = await jdLocal.addLinks(links, packageName, true, false);
+                                success = await jdLocal.addLinks(links, packageName, true, true);
+                                if (success) {
+                                    await jdLocal.startDownloadController();
+                                }
                             } else if (jdRemote) {
                                 const authed = await jdRemote.authenticate();
                                 if (authed) {
-                                    success = await jdRemote.addLinks(links, packageName, true, false);
+                                    success = await jdRemote.addLinks(links, packageName, true, true);
                                     if (success) {
                                         await jdRemote.moveLinkGrabberPackagesToDownloadsByName(packageName);
                                         await jdRemote.startDownloadController();

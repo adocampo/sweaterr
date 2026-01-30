@@ -2,6 +2,43 @@
 
 ## ✅ CORREGIDOS
 
+### 0. **qBittorrent Facade: Package-level progress sync + Real-time Speed/ETA** (30 Enero 2026)
+
+**Problema**: Sonarr Activity no mostraba el progreso de descargas activas. El sync comparaba a nivel de archivo individual (ej. `BB4d.5x01.x265...`) en vez de a nivel de paquete (ej. `Breaking Bad T5...`), causando:
+
+- `progress: 0` para descargas activas aunque JDownloader reportaba progreso real
+- Los registros con `jDownloaderId` ya establecido eran ignorados en el matching
+- ETA mostraba valores incorrectos (8640000 = infinity, o 0) en lugar del tiempo real restante
+- Velocidad mostraba 0 en Sonarr Activity
+
+**Corrección**:
+
+- ✅ Reescrito el bloque de sync en `/api/qbittorrent/api/v2/torrents/info`
+- ✅ Los ítems de JDownloader ahora se agrupan por `category` (nombre del paquete)
+- ✅ Se calcula el progreso total del paquete: `loadedSize / totalSize` de todos los archivos
+- ✅ Se determina el estado del paquete: `allFinished` → completed, `anyRunning` → downloading
+- ✅ Matching por título normalizado (sin depender de `jDownloaderId`)
+- ✅ **Speed real-time**: Se solicitan campos `speed`, `bytesTotal`, `bytesLoaded` a nivel de paquete
+- ✅ **ETA calculado correctamente**: `amountLeft / speed` (bytes restantes ÷ velocidad en bytes/s)
+- ✅ Interfaz `JDownloaderDownload` extendida con `packageSpeed`, `packageEta`, `packageBytesTotal`, `packageBytesLoaded`
+- ✅ Agregado logging: `Synced package "pkgName" -> title (X.X%, status, speed=XMB/s, eta=Xs, remaining=XGB)`
+
+**Archivos**: `src/app/api/qbittorrent/api/v2/torrents/info/route.ts`, `src/lib/services/jdownloader.ts`
+
+---
+
+### 0.1. **JDownloader Local: forceExtract support** (29 Enero 2026)
+
+**Problema**: El endpoint `/api/downloads/extract` solo funcionaba con JDownloader Cloud (MyJDownloader). Los usuarios en modo local no podían forzar la extracción de archivos ya descargados.
+
+**Corrección**:
+
+- ✅ Añadido método `forceExtract()` a `JDownloaderLocalService` usando el endpoint `/extraction/startExtractionNow`
+- ✅ Actualizado `/api/downloads/extract` para detectar el modo (local/cloud) y usar el servicio correcto
+- ✅ Ambos modos ahora soportan forzar extracción de paquetes existentes
+
+**Archivos**: `src/lib/services/jdownloader.ts`, `src/app/api/downloads/extract/route.ts`
+
 ### 1. **API Key vs URL** (CRÍTICO)
 
 **Problema**: Estaba copiando la URL completa `http://192.168.1.10:3000/api/arr?apikey=fdd-xxx`  
@@ -185,6 +222,20 @@ Efectos típicos:
 - ✅ Para limitarlo a queries lentas: `PRISMA_LOG_SLOW_MS=200`
 
 **Archivo**: `src/lib/db.ts`
+
+### 16. **Sonarr Activity + JDownloader auto-start/extract (qBittorrent facade)**
+
+**Problem**:
+
+- Sonarr Activity did not reflect download progress/finish when using the qBittorrent facade.
+- JDownloader did not auto-start or auto-extract after links were sent by Sonarr.
+
+**Fix**:
+
+- Sync `/api/downloads/status` now matches JDownloader items back to ARR download records (by title/category) and updates `status`/`progress`.
+- qBittorrent facade now sends `autostart=true` and `autoExtract=true`, and starts the download controller (local + cloud).
+
+**Files**: `src/app/api/qbittorrent/api/v2/torrents/add/route.ts`, `src/app/api/downloads/status/route.ts`, `src/lib/services/jdownloader.ts`
 
 ## 📋 PENDIENTE
 
