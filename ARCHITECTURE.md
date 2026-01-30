@@ -869,6 +869,8 @@ DEEPSEEK_API_KEY="..."
 - Resultado: `progress: 0` aunque JDownloader reportaba progreso real en los archivos.
 - ETA mostraba valores incorrectos (8640000 o 0) en lugar del tiempo real restante.
 - Velocidad mostraba 0 en Sonarr Activity.
+- **Auto-extract no funcionaba** en modo Cloud: el parámetro se llamaba `autoExtract` pero JDownloader API espera `extractAfterDownload`.
+- **save_path/content_path vacíos**: Sonarr no podía importar archivos porque no sabía dónde estaban.
 
 **Solución implementada**:
 
@@ -880,12 +882,15 @@ DEEPSEEK_API_KEY="..."
 - **Speed/ETA real-time**: Se solicitan campos `speed`, `eta`, `bytesTotal`, `bytesLoaded` a nivel de paquete en `queryPackages()`.
 - **ETA calculado correctamente**: `amountLeft / speed` (bytes restantes ÷ velocidad en bytes/s).
 - **Interfaz JDownloaderDownload extendida** con `packageSpeed`, `packageEta`, `packageBytesTotal`, `packageBytesLoaded`.
-- Sonarr Activity ahora muestra progreso, velocidad y ETA en tiempo real.
+- **Fix extractAfterDownload**: Corregido parámetro de `autoExtract` a `extractAfterDownload` en el servicio Cloud.
+- **save_path/content_path**: Ahora se obtiene `saveTo` del paquete de JDownloader y se devuelve en la respuesta.
+- Sonarr Activity ahora muestra progreso, velocidad, ETA y ruta correcta en tiempo real.
 
 **Archivos modificados**:
 
 - `src/app/api/qbittorrent/api/v2/torrents/info/route.ts`
 - `src/lib/services/jdownloader.ts`
+- `src/app/api/testing/jdownloader/add-links/route.ts`
 
 ---
 

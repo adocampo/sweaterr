@@ -2,7 +2,7 @@
 
 ## ✅ CORREGIDOS
 
-### 0. **qBittorrent Facade: Package-level progress sync + Real-time Speed/ETA** (30 Enero 2026)
+### 0. **qBittorrent Facade: Package-level progress sync + Real-time Speed/ETA + Auto-extract fix** (30 Enero 2026)
 
 **Problema**: Sonarr Activity no mostraba el progreso de descargas activas. El sync comparaba a nivel de archivo individual (ej. `BB4d.5x01.x265...`) en vez de a nivel de paquete (ej. `Breaking Bad T5...`), causando:
 
@@ -10,6 +10,8 @@
 - Los registros con `jDownloaderId` ya establecido eran ignorados en el matching
 - ETA mostraba valores incorrectos (8640000 = infinity, o 0) en lugar del tiempo real restante
 - Velocidad mostraba 0 en Sonarr Activity
+- **Auto-extract no funcionaba en modo Cloud**: parámetro incorrecto `autoExtract` vs `extractAfterDownload`
+- **save_path/content_path vacíos**: Sonarr no sabía dónde estaban los archivos (icono amarillo)
 
 **Corrección**:
 
@@ -21,9 +23,12 @@
 - ✅ **Speed real-time**: Se solicitan campos `speed`, `bytesTotal`, `bytesLoaded` a nivel de paquete
 - ✅ **ETA calculado correctamente**: `amountLeft / speed` (bytes restantes ÷ velocidad en bytes/s)
 - ✅ Interfaz `JDownloaderDownload` extendida con `packageSpeed`, `packageEta`, `packageBytesTotal`, `packageBytesLoaded`
+- ✅ **Fix extractAfterDownload**: Corregido parámetro en JDownloaderService Cloud de `autoExtract` a `extractAfterDownload`
+- ✅ **save_path/content_path**: Ahora incluye `saveTo` del paquete JDownloader
+- ✅ Testing endpoint ahora pasa `autostart`/`autoExtract` a Cloud igual que Local
 - ✅ Agregado logging: `Synced package "pkgName" -> title (X.X%, status, speed=XMB/s, eta=Xs, remaining=XGB)`
 
-**Archivos**: `src/app/api/qbittorrent/api/v2/torrents/info/route.ts`, `src/lib/services/jdownloader.ts`
+**Archivos**: `src/app/api/qbittorrent/api/v2/torrents/info/route.ts`, `src/lib/services/jdownloader.ts`, `src/app/api/testing/jdownloader/add-links/route.ts`
 
 ---
 

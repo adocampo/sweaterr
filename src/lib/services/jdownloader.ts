@@ -482,8 +482,8 @@ export class JDownloaderService {
       const params: any = {
         links: urls.join('\n'),
         priority: 'DEFAULT',
-        autostart: autostart ?? false,         // default: don't start automatically
-        autoExtract: autoExtract ?? false,     // JD API uses autoExtract
+        autostart: autostart ?? false,
+        extractAfterDownload: autoExtract ?? false,  // JD API uses extractAfterDownload, not autoExtract
         deepDecrypt: true,
       };
 

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             if (!authed) {
                 return NextResponse.json({ success: false, error: 'No se pudo autenticar con MyJDownloader' }, { status: 400 });
             }
-            added = await remote.addLinks(links, packageName);
+            added = await remote.addLinks(links, packageName, autostart, autoExtract);
         }
 
         if (!added) {

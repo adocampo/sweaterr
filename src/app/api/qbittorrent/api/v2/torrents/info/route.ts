@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
         eta: number;
         status: string;
         progress: number;
+        saveTo: string;
     }>();
 
     // Sync JDownloader status first (real-time updates for Sonarr Activity)
@@ -92,6 +93,7 @@ export async function GET(request: NextRequest) {
                     status: string;
                     items: typeof jdDownloads;
                     hasPackageData: boolean;
+                    saveTo: string;
                 }>();
 
                 for (const item of jdDownloads) {
@@ -128,6 +130,7 @@ export async function GET(request: NextRequest) {
                             status: item.status,
                             items: [item],
                             hasPackageData: hasPackageData,
+                            saveTo: item.saveTo || '',
                         });
                     }
                 }
@@ -201,6 +204,7 @@ export async function GET(request: NextRequest) {
                             eta: eta,
                             status: mappedStatus,
                             progress: packageProgress,
+                            saveTo: pkgData.saveTo,
                         });
 
                         // Also store by grabId for faster lookup
@@ -213,6 +217,7 @@ export async function GET(request: NextRequest) {
                                 eta: eta,
                                 status: mappedStatus,
                                 progress: packageProgress,
+                                saveTo: pkgData.saveTo,
                             });
                         }
 
@@ -295,6 +300,7 @@ export async function GET(request: NextRequest) {
                 const dlspeed = syncData?.speed || 0;
                 const eta = syncData?.eta || (state === 'downloading' ? 8640000 : 0);
                 const amountLeft = totalSize - loadedSize;
+                const saveTo = syncData?.saveTo || '/downloads';
 
                 return {
                     added_on: row ? Math.floor(new Date(row.createdAt).getTime() / 1000) : Math.floor(Date.now() / 1000),
@@ -304,7 +310,7 @@ export async function GET(request: NextRequest) {
                     category: row?.category || 'tv-sonarr',
                     completed: Math.round(loadedSize),
                     completion_on: state === 'uploading' && row ? Math.floor(new Date(row.updatedAt).getTime() / 1000) : 0,
-                    content_path: '',
+                    content_path: saveTo,
                     dl_limit: -1,
                     dlspeed: Math.round(dlspeed),
                     downloaded: Math.round(loadedSize),
@@ -324,7 +330,7 @@ export async function GET(request: NextRequest) {
                     priority: 0,
                     progress,
                     ratio: 0,
-                    save_path: '/downloads',
+                    save_path: saveTo,
                     seeding_time: 0,
                     seeding_time_limit: -1,
                     seen_complete: 0,
@@ -393,6 +399,7 @@ export async function GET(request: NextRequest) {
             const dlspeed = syncData?.speed || 0;
             const eta = syncData?.eta || (state === 'downloading' ? 8640000 : 0);
             const amountLeft = totalSize - loadedSize;
+            const saveTo = syncData?.saveTo || '/downloads';
 
             return {
                 added_on: Math.floor(new Date(d.createdAt).getTime() / 1000),
@@ -402,7 +409,7 @@ export async function GET(request: NextRequest) {
                 category: d.category || '',
                 completed: Math.round(loadedSize),
                 completion_on: state === 'uploading' ? Math.floor(new Date(d.updatedAt).getTime() / 1000) : 0,
-                content_path: '',
+                content_path: saveTo,
                 dl_limit: -1,
                 dlspeed: Math.round(dlspeed),
                 downloaded: Math.round(loadedSize),
@@ -422,7 +429,7 @@ export async function GET(request: NextRequest) {
                 priority: 0,
                 progress,
                 ratio: 0,
-                save_path: '/downloads',
+                save_path: saveTo,
                 seeding_time: 0,
                 seeding_time_limit: -1,
                 seen_complete: 0,
