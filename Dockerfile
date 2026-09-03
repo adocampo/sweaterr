@@ -42,26 +42,37 @@ ENV PORT=3000
 # - JWT_SECRET (required for authentication)
 # - FLARESOLVERR_URL (required)
 
-# Create startup script BEFORE switching to non-root user (so we can write to /app)
-# This script respects TZ env via environment variable
-# Uses prisma migrate deploy to apply historical migrations from prisma/migrations/
-RUN echo '#!/bin/sh\n\
-    if [ -n "$TZ" ] && [ -f "/usr/share/zoneinfo/$TZ" ]; then\n\
-    export TZ\n\
-    fi\n\
-    echo "Applying database migrations..."\n\
-    npx prisma migrate deploy || {\n\
-      echo "Migration deploy failed, falling back to db push..."\n\
-      npx prisma db push --accept-data-loss || {\n\
-        echo "ERROR: Failed to apply database schema"\n\
-        exit 1\n\
-      }\n\
-    }\n\
-    echo "Starting application..."\n\
-    exec node /app/server.js' > /app/start.sh && chmod +x /app/start.sh
+# Create startup script that fixes data directory permissions before running the app
+# This handles Docker volumes mounted from host with any ownership
+RUN cat > /app/start.sh << 'EOF'
+#!/bin/sh
+if [ -n "$TZ" ] && [ -f "/usr/share/zoneinfo/$TZ" ]; then
+  export TZ
+fi
 
-# Create data directory with correct permissions
-RUN mkdir -p /app/data && chown -R ${UID}:${GID} /app
+# Fix data directory permissions to match container user
+# This handles volumes mounted from host with different ownership
+if [ -d "/app/data" ]; then
+  chown -R ${UID}:${GID} /app/data 2>/dev/null || true
+  chmod -R 755 /app/data 2>/dev/null || true
+fi
+
+echo "Applying database migrations..."
+npx prisma migrate deploy || {
+  echo "Migration deploy failed, falling back to db push..."
+  npx prisma db push --accept-data-loss || {
+    echo "ERROR: Failed to apply database schema"
+    exit 1
+  }
+}
+echo "Starting application..."
+exec node /app/server.js
+EOF
+
+RUN chmod +x /app/start.sh
+
+# Create data directory (will be overridden by volume mount, but ensures it exists)
+RUN mkdir -p /app/data
 
 # Expose port
 EXPOSE 3000
@@ -70,8 +81,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
 
-# Switch to non-root user (AFTER creating files that need root permissions)
-USER sweaterr
-
-# Start the application
+# Start the application via startup script
 CMD ["/app/start.sh"]
