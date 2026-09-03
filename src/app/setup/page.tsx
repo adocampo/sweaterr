@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,28 @@ export default function SetupPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [hasUsers, setHasUsers] = useState<boolean | null>(null);
+
+    // If users already exist, redirect to login
+    useEffect(() => {
+        const checkUsers = async () => {
+            try {
+                const res = await fetch('/api/auth/users-count');
+                const data = await res.json();
+                setHasUsers(data.success && data.count > 0);
+            } catch (error) {
+                console.error('[Setup] Error checking users:', error);
+                setHasUsers(false);
+            }
+        };
+        checkUsers();
+    }, []);
+
+    useEffect(() => {
+        if (hasUsers === true) {
+            router.push('/login');
+        }
+    }, [hasUsers, router]);
 
     const handleSetup = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,12 +108,12 @@ export default function SetupPage() {
     };
 
     return (
-        <div className="h-screen flex flex-col items-center justify-between bg-gradient-to-br from-slate-900 to-slate-800 p-4 py-6">
-            <div className="w-full flex items-center justify-center">
+        <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+            <div className="flex-1 flex items-center justify-center">
                 <Card className="w-full max-w-md">
                     <CardHeader className="text-center space-y-2 pb-4">
-                        <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-                            Sweaterr
+                        <div className="flex justify-center mb-2">
+                            <Image src="/logo.png" alt="Sweaterr" width={200} height={50} priority className="h-12 w-auto" />
                         </div>
                         <CardTitle>{t('auth.setup')}</CardTitle>
                         <CardDescription>{t('auth.setupTitle')}</CardDescription>
@@ -178,6 +201,13 @@ export default function SetupPage() {
                                 )}
                             </Button>
                         </form>
+
+                        <p className="text-center text-sm text-muted-foreground">
+                            {t('setup.alreadyHaveAccount')}{' '}
+                            <Button variant="link" className="p-0 h-auto font-normal" onClick={() => router.push('/login')}>
+                                {t('auth.login')}
+                            </Button>
+                        </p>
                     </CardContent>
                 </Card>
             </div>

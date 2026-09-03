@@ -405,7 +405,8 @@
     "usernameLabel": "Username",
     "emailOptional": "(optional)",
     "emailPlaceholder": "admin@sweaterr.local",
-    "usernamePlaceholder": "admin"
+    "usernamePlaceholder": "admin",
+    "alreadyHaveAccount": "Already have an account?"
   },
   "login": {
     "usernameOrEmail": "Username or Email",

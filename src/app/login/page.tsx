@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,21 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [usernameOrEmail, setUsernameOrEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [hasUsers, setHasUsers] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        const checkUsers = async () => {
+            try {
+                const res = await fetch('/api/auth/users-count');
+                const data = await res.json();
+                setHasUsers(data.success && data.count > 0);
+            } catch (error) {
+                console.error('[Login] Error checking users:', error);
+                setHasUsers(false);
+            }
+        };
+        checkUsers();
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -50,9 +65,16 @@ export default function LoginPage() {
         }
     };
 
+    // If no users exist, redirect to setup
+    useEffect(() => {
+        if (hasUsers === false) {
+            router.push('/setup');
+        }
+    }, [hasUsers, router]);
+
     return (
-        <div className="h-screen flex flex-col items-center justify-between bg-gradient-to-br from-slate-900 to-slate-800 p-4 py-6">
-            <div className="w-full flex items-center justify-center">
+        <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+            <div className="flex-1 flex items-center justify-center">
                 <Card className="w-full max-w-md">
                     <CardHeader className="text-center space-y-2 pb-4">
                         <div className="flex justify-center mb-2">
