@@ -51,17 +51,17 @@ export default function LoginPage() {
     };
 
     return (
-        <>
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+        <div className="h-screen flex flex-col items-center justify-between bg-gradient-to-br from-slate-900 to-slate-800 p-4 py-6">
+            <div className="w-full flex items-center justify-center">
                 <Card className="w-full max-w-md">
-                    <CardHeader className="text-center space-y-2">
+                    <CardHeader className="text-center space-y-2 pb-4">
                         <div className="flex justify-center mb-2">
                             <Image src="/logo.png" alt="Sweaterr" width={200} height={50} priority className="h-12 w-auto" />
                         </div>
                         <CardTitle>{t('auth.login')}</CardTitle>
                         <CardDescription>{t('login.enterCredentials')}</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
                         <form onSubmit={handleLogin} className="space-y-4">
                             {error && (
                                 <Alert variant="destructive">
@@ -113,6 +113,6 @@ export default function LoginPage() {
             </Card>
             </div>
             <Footer />
-        </>
+        </div>
     );
 }

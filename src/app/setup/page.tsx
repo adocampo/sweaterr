@@ -85,103 +85,103 @@ export default function SetupPage() {
     };
 
     return (
-        <>
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+        <div className="h-screen flex flex-col items-center justify-between bg-gradient-to-br from-slate-900 to-slate-800 p-4 py-6">
+            <div className="w-full flex items-center justify-center">
                 <Card className="w-full max-w-md">
-                    <CardHeader className="text-center space-y-2">
+                    <CardHeader className="text-center space-y-2 pb-4">
                         <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
                             Sweaterr
                         </div>
                         <CardTitle>{t('auth.setup')}</CardTitle>
                         <CardDescription>{t('auth.setupTitle')}</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
                         <form onSubmit={handleSetup} className="space-y-4">
                             {error && (
                                 <Alert variant="destructive">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
-
-                        {success && (
-                            <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-                                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                <AlertDescription className="text-green-600 dark:text-green-400">
-                                    {t('auth.setupSuccess')}
-                                </AlertDescription>
-                            </Alert>
-                        )}
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">{t('setup.usernameLabel')}</label>
-                            <Input
-                                type="text"
-                                placeholder={t('setup.usernamePlaceholder')}
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                disabled={isLoading || success}
-                                required
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">{t('auth.email')} (optional)</label>
-                            <Input
-                                type="email"
-                                placeholder={t('setup.emailPlaceholder')}
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                disabled={isLoading || success}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">{t('auth.password')}</label>
-                            <Input
-                                type="password"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                disabled={isLoading || success}
-                                required
-                            />
-                            <p className="text-xs text-slate-500">
-                                {t('auth.passwordTooShort')}
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">{t('auth.confirmPassword')}</label>
-                            <Input
-                                type="password"
-                                placeholder="••••••••"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                disabled={isLoading || success}
-                                required
-                            />
-                        </div>
-
-                        <Button
-                            type="submit"
-                            className="w-full"
-                            disabled={isLoading || success}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    {t('common.loading')}
-                                </>
-                            ) : (
-                                t('setup.createAdminAccount')
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertDescription>{error}</AlertDescription>
+                                </Alert>
                             )}
-                        </Button>
-                    </form>
-                </CardContent>
-            </Card>
+
+                            {success && (
+                                <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+                                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                    <AlertDescription className="text-green-600 dark:text-green-400">
+                                        {t('auth.setupSuccess')}
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">{t('setup.usernameLabel')}</label>
+                                <Input
+                                    type="text"
+                                    placeholder={t('setup.usernamePlaceholder')}
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    disabled={isLoading || success}
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">{t('auth.email')} (optional)</label>
+                                <Input
+                                    type="email"
+                                    placeholder={t('setup.emailPlaceholder')}
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    disabled={isLoading || success}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">{t('auth.password')}</label>
+                                <Input
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    disabled={isLoading || success}
+                                    required
+                                />
+                                <p className="text-xs text-slate-500">
+                                    {t('auth.passwordTooShort')}
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">{t('auth.confirmPassword')}</label>
+                                <Input
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    disabled={isLoading || success}
+                                    required
+                                />
+                            </div>
+
+                            <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={isLoading || success}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        {t('common.loading')}
+                                    </>
+                                ) : (
+                                    t('setup.createAdminAccount')
+                                )}
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
             </div>
             <Footer />
-        </>
+        </div>
     );
 }
