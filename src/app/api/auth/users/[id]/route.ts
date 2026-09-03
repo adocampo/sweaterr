@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const userId = params.id;
     try {
         const body = await request.json();
-        const { username, email, password, role } = body || {};
+        const { username, email, password, role, enabled } = body || {};
 
         const data: any = {};
         if (username) data.username = username;
@@ -35,6 +35,26 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
                 return NextResponse.json({ success: false, message: 'Invalid role' }, { status: 400 });
             }
             data.role = role;
+        }
+        if (typeof enabled === 'boolean') {
+            if (enabled === false && auth.userId === userId) {
+                return NextResponse.json({ success: false, message: 'Cannot disable your own account' }, { status: 400 });
+            }
+            if (enabled === false) {
+                const targetUser = await userDelegate().findUnique({
+                    where: { id: userId },
+                    select: { role: true, enabled: true },
+                });
+                if (targetUser?.role === 'admin' && targetUser.enabled) {
+                    const enabledAdminCount = await userDelegate().count({
+                        where: { role: 'admin', enabled: true },
+                    });
+                    if (enabledAdminCount <= 1) {
+                        return NextResponse.json({ success: false, message: 'Cannot disable the last enabled administrator' }, { status: 400 });
+                    }
+                }
+            }
+            data.enabled = enabled;
         }
         if (password) {
             if (password.length < 8) {
@@ -46,7 +66,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         const updated = await userDelegate().update({
             where: { id: userId },
             data,
-            select: { id: true, username: true, email: true, role: true },
+            select: { id: true, username: true, email: true, role: true, enabled: true },
         });
 
         return NextResponse.json({ success: true, user: updated });
@@ -68,6 +88,19 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     try {
+        const targetUser = await userDelegate().findUnique({
+            where: { id: userId },
+            select: { role: true, enabled: true },
+        });
+        if (targetUser?.role === 'admin' && targetUser.enabled) {
+            const enabledAdminCount = await userDelegate().count({
+                where: { role: 'admin', enabled: true },
+            });
+            if (enabledAdminCount <= 1) {
+                return NextResponse.json({ success: false, message: 'Cannot delete the last enabled administrator' }, { status: 400 });
+            }
+        }
+
         await userDelegate().delete({ where: { id: userId } });
         return NextResponse.json({ success: true });
     } catch (error: any) {

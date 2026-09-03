@@ -46,6 +46,7 @@ const forumSchema = z.object({
   postTitleSelector: z.string().optional(),
   username: z.string().optional(),
   password: z.string().optional(),
+  useFlaresolverr: z.boolean().optional().default(true),
   flaresolverrSessionTTL: z.number().min(5).max(1440).optional().default(30),
 }).refine(
   (data) => {
@@ -113,6 +114,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
       postTitleSelector: '',
       username: '',
       password: '',
+      useFlaresolverr: true,
       flaresolverrSessionTTL: 30,
     },
   });
@@ -434,6 +436,22 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
                 />
               </>
             )}
+
+            <FormField
+              control={form.control}
+              name="useFlaresolverr"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">{t('forumForm.useFlaresolverr')}</FormLabel>
+                    <FormDescription>{t('forumForm.useFlaresolverrDescription')}</FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

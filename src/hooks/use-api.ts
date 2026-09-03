@@ -252,6 +252,143 @@ export function useJDownloaderConfig() {
   };
 }
 
+export function useFlareSolverrConfig() {
+  const [config, setConfig] = useState<{ url: string | null; timeout: number; enabled: boolean; source: 'database' | 'env' | 'none' } | null>(null);
+  const [status, setStatus] = useState<'ok' | 'error' | 'disabled' | 'unknown'>('unknown');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchConfig = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/config/flaresolverr', { credentials: 'include' });
+      const data = await response.json();
+      if (data.success) {
+        setConfig(data.data);
+      } else {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError('Failed to fetch FlareSolverr config');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveConfig = async (configData: any) => {
+    try {
+      const response = await fetch('/api/config/flaresolverr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(configData),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setConfig(data.data);
+        return data.data;
+      }
+      throw new Error(data.error || 'Failed to save FlareSolverr config');
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('Failed to save FlareSolverr config');
+    }
+  };
+
+  const toggleConfig = async (enabled: boolean) => {
+    try {
+      const response = await fetch('/api/config/flaresolverr', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ enabled }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setConfig(data.data);
+        return data.data;
+      }
+      throw new Error(data.error || 'Failed to toggle FlareSolverr');
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('Failed to toggle FlareSolverr');
+    }
+  };
+
+  const testConnection = async (configData: any) => {
+    try {
+      const response = await fetch('/api/config/flaresolverr/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(configData),
+      });
+      const data = await response.json();
+      const success = !!data.success;
+      setStatus(success ? 'ok' : 'error');
+      return success;
+    } catch {
+      setStatus('error');
+      return false;
+    }
+  };
+
+  const refreshStatus = async () => {
+    if (!config?.url) {
+      setStatus(config?.enabled === false ? 'disabled' : 'unknown');
+      return false;
+    }
+
+    try {
+      const response = await fetch('/api/config/flaresolverr/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url: config.url }),
+      });
+      const data = await response.json();
+      const success = !!data.success;
+      setStatus(config?.enabled === false ? 'disabled' : (success ? 'ok' : 'error'));
+      return success;
+    } catch {
+      setStatus(config?.enabled === false ? 'disabled' : 'error');
+      return false;
+    }
+  };
+
+  const deleteConfig = async () => {
+    try {
+      const response = await fetch('/api/config/flaresolverr', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.success) {
+        await fetchConfig();
+      } else {
+        throw new Error(data.error || 'Failed to delete FlareSolverr config');
+      }
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('Failed to delete FlareSolverr config');
+    }
+  };
+
+  useEffect(() => { fetchConfig(); }, []);
+
+  useEffect(() => {
+    if (config) {
+      if (config.enabled === false) {
+        setStatus('disabled');
+      } else if (!config.url) {
+        setStatus('unknown');
+      } else {
+        void refreshStatus();
+      }
+    }
+  }, [config]);
+
+  return { config, status, loading, error, refetch: fetchConfig, saveConfig, toggleConfig, testConnection, refreshStatus, deleteConfig };
+}
+
 export function useAIConfig() {
   const [config, setConfig] = useState<AIConfig | null>(null);
   const [loading, setLoading] = useState(true);

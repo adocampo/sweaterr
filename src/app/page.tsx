@@ -14,6 +14,7 @@ import {
   Search,
   Globe,
   Cpu,
+  Server,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { JDownloaderConfig } from '@/components/config/jdownloader-config';
 import { AIConfig } from '@/components/config/ai-config';
+import { FlareSolverrConfig } from '@/components/config/flaresolverr-config';
 import { ForumConfig } from '@/components/config/forum-config';
 import { ForumsTable } from '@/components/config/forums-table';
 import { ForumSessionSettings } from '@/components/config/forum-session-settings';
@@ -47,11 +49,31 @@ import { ResultViewer } from '@/components/testing/result-viewer';
 import { JDownloaderTester } from '@/components/testing/jdownloader-tester';
 import { TestingSettings } from '@/components/testing/testing-settings';
 import { DownloadsManager } from '@/components/downloads/downloads-manager';
-import { useForums, useJDownloaderConfig, useAIConfig, useDownloads, useJDownloaders, useAIModels } from '@/hooks/use-api';
+import { useForums, useJDownloaderConfig, useAIConfig, useFlareSolverrConfig, useDownloads, useJDownloaders, useAIModels } from '@/hooks/use-api';
 import { useTheme } from '@/components/theme-provider';
 import { UserMenu } from '@/components/user-menu';
 import { UserManagement } from '@/components/config/user-management';
+import { LogViewer } from '@/components/config/log-viewer';
 import { useI18n } from '@/hooks/use-i18n';
+import { AIConfigForm } from '@/lib/types';
+
+async function testAIConnection(values: AIConfigForm) {
+  try {
+    const res = await fetch('/api/config/ai/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    return {
+      success: !!data.success,
+      error: data.success ? data.message : (data.error || data.message),
+      models: data?.data?.models as string[] | undefined,
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
 
 export default function Home() {
   return (
@@ -85,10 +107,12 @@ function HomeContent() {
   const [editingJDownloader, setEditingJDownloader] = useState<string | null>(null);
   const [editingForum, setEditingForum] = useState<string | null>(null);
   const [editingAIModel, setEditingAIModel] = useState<string | null>(null);
+  const [editingFlareSolverr, setEditingFlareSolverr] = useState(false);
 
   const { forums, loading: forumsLoading, createForum, updateForum, deleteForum, refetch: refetchForums, testConnection: testForumConnection } = useForums();
   const { instances: jdownloaders, loading: jdLoading, createInstance: createJDownloader, deleteInstance: deleteJDownloader, toggleInstance: toggleJDownloader, refetch: refetchJDownloaders } = useJDownloaders();
   const { models: aiModels, loading: aiLoading, createModel: createAIModel, deleteModel: deleteAIModel, toggleModel: toggleAIModel, refetch: refetchAIModels } = useAIModels();
+  const { config: flaresolverrConfig, status: flaresolverrStatus, refetch: refetchFlareSolverrConfig, saveConfig: saveFlareSolverrConfig, toggleConfig: toggleFlareSolverrConfig, testConnection: testFlareSolverrConnection, refreshStatus: refreshFlareSolverrStatus, deleteConfig: deleteFlareSolverrConfig } = useFlareSolverrConfig();
   const { theme, setTheme } = useTheme();
 
   const isAdmin = currentUser?.role === 'admin';
@@ -243,7 +267,7 @@ function HomeContent() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
             {/* Forums Status */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -294,6 +318,36 @@ function HomeContent() {
                 <div className="flex items-center gap-2 mt-2">
                   {getStatusIcon(stats.ai.connected)}
                   <span className="text-xs">{t('dashboard.connected')}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* FlareSolverr Status */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">FlareSolverr</CardTitle>
+                <Server className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {flaresolverrStatus === 'ok'
+                    ? t('flaresolverrConfig.statusOnline')
+                    : flaresolverrStatus === 'error'
+                      ? t('flaresolverrConfig.statusError')
+                      : t('flaresolverrConfig.statusOffline')}
+                </div>
+                <p className="truncate text-xs text-muted-foreground" title={flaresolverrConfig?.url || undefined}>
+                  {flaresolverrConfig?.url || t('dashboard.notConfigured')}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  {getStatusIcon(flaresolverrStatus === 'ok')}
+                  <span className="text-xs">
+                    {flaresolverrConfig?.source === 'database'
+                      ? t('flaresolverrConfig.sourceDatabase')
+                      : flaresolverrConfig?.source === 'env'
+                        ? t('flaresolverrConfig.sourceEnvironment')
+                        : t('dashboard.notConfigured')}
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -666,6 +720,108 @@ function HomeContent() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Download className="h-5 w-5" />
+                    FlareSolverr
+                  </CardTitle>
+                  <CardDescription>
+                    {t('flaresolverrConfig.description')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">{t('flaresolverrConfig.status')}</h3>
+                      <FlareSolverrConfig
+                        config={undefined}
+                        onConfigSave={async (values) => {
+                          await saveFlareSolverrConfig(values);
+                          await refetchFlareSolverrConfig();
+                        }}
+                        onTestConnection={async (values) => testFlareSolverrConnection(values)}
+                        isAdd={true}
+                        language={userLanguage}
+                      />
+                    </div>
+
+                    {flaresolverrConfig?.url ? (
+                      <div className="flex items-center justify-between rounded-md border p-3">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            {flaresolverrStatus === 'ok' ? (
+                              <Badge variant="secondary" className="bg-green-500/10 text-green-700 dark:text-green-400">{t('flaresolverrConfig.statusOnline')}</Badge>
+                            ) : flaresolverrStatus === 'error' ? (
+                              <Badge variant="destructive">{t('flaresolverrConfig.statusError')}</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="bg-orange-500/10 text-orange-700 dark:text-orange-400">{t('flaresolverrConfig.statusOffline')}</Badge>
+                            )}
+                            <Badge variant="secondary">
+                              {flaresolverrConfig.source === 'database'
+                                ? t('flaresolverrConfig.sourceDatabase')
+                                : t('flaresolverrConfig.sourceEnvironment')}
+                            </Badge>
+                          </div>
+                          <div className="max-w-xs truncate text-xs text-muted-foreground">{flaresolverrConfig.url}</div>
+                          <div className="text-xs text-muted-foreground">{flaresolverrConfig.timeout} ms</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={async () => {
+                              await toggleFlareSolverrConfig(!flaresolverrConfig.enabled);
+                              await refreshFlareSolverrStatus();
+                            }}
+                            title={flaresolverrConfig.enabled ? t('config.enabled') : t('config.disabled')}
+                          >
+                            {flaresolverrConfig.enabled ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                          </Button>
+                          <FlareSolverrConfig
+                            config={flaresolverrConfig}
+                            onConfigSave={async (values) => {
+                              await saveFlareSolverrConfig(values);
+                              await refetchFlareSolverrConfig();
+                              setEditingFlareSolverr(false);
+                            }}
+                            onTestConnection={async (values) => testFlareSolverrConnection(values)}
+                            isEdit={true}
+                            isOpen={editingFlareSolverr}
+                            onOpenChange={setEditingFlareSolverr}
+                            language={userLanguage}
+                          />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="icon" title={t('common.delete')}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>{t('flaresolverrConfig.deleteTitle')}</AlertDialogTitle>
+                                <AlertDialogDescription>{t('flaresolverrConfig.deleteDescription')}</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={async () => { await deleteFlareSolverrConfig(); }}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {t('common.delete')}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{t('flaresolverrConfig.statusUnknown')}</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Download className="h-5 w-5" />
                     {t('config.jdownloader')}
                   </CardTitle>
                   <CardDescription>
@@ -815,15 +971,7 @@ function HomeContent() {
                         onConfigSave={async (values) => {
                           await createAIModel(values);
                         }}
-                        onTestConnection={async (values) => {
-                          const res = await fetch('/api/config/ai/test', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(values),
-                          });
-                          const data = await res.json();
-                          return !!data.success;
-                        }}
+                        onTestConnection={testAIConnection}
                         isAdd={true}
                         language={userLanguage}
                       />
@@ -839,8 +987,8 @@ function HomeContent() {
                           <div key={ai.id} className="flex items-center justify-between border rounded-md p-3">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <Badge variant="secondary">{ai.provider}</Badge>
-                                <span className="font-medium text-sm">{ai.model || t('dashboard.defaultModel')}</span>
+                                <span className="font-medium text-sm">{ai.provider}</span>
+                                <Badge variant="secondary">{ai.model || t('dashboard.defaultModel')}</Badge>
                               </div>
                               {ai.baseUrl && (
                                 <div className="text-xs text-muted-foreground truncate max-w-xs">
@@ -876,6 +1024,7 @@ function HomeContent() {
                                   await refetchAIModels();
                                   setEditingAIModel(null);
                                 }}
+                                onTestConnection={testAIConnection}
                                 isEdit={true}
                                 isOpen={editingAIModel === ai.id}
                                 onOpenChange={(open) => setEditingAIModel(open ? ai.id : null)}
@@ -921,6 +1070,19 @@ function HomeContent() {
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  {t('logs.title')}
+                </CardTitle>
+                <CardDescription>{t('logs.description')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <LogViewer language={userLanguage} />
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
       </Tabs>

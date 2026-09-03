@@ -24,6 +24,7 @@ export type LogModule =
   | 'auth'
   | 'jdownloader'
   | 'cloudflare'
+  | 'flaresolverr'
   | 'api'
   | 'sabnzbd'
   | 'testing'
@@ -33,6 +34,58 @@ export type LogModule =
   | 'arr_grab'
   | 'arr-notify'
   | 'qbittorrent';
+
+/** Keys whose value must never reach a log file. */
+const SENSITIVE_KEY = /(password|passwd|token|secret|api[-_]?key|authorization|cookie|clearance|sessionhash)/i;
+
+/**
+ * `JSON.stringify(new Error(...))` yields `{}`, which hides every failure cause.
+ * Axios errors get summarised instead of dumped: their `config` carries the full
+ * request payload, which for us includes session cookies.
+ */
+function describeError(error: any): string {
+  const parts = [`${error.name}: ${error.message}`];
+  if (error.code) parts.push(`code=${error.code}`);
+
+  const response = error.response;
+  if (response) {
+    parts.push(`status=${response.status}`);
+    const body = typeof response.data === 'string' ? response.data : formatData(response.data);
+    if (body) parts.push(`body=${body.slice(0, 500)}`);
+  }
+
+  const config = error.config;
+  if (config?.url) parts.push(`request=${String(config.method || 'get').toUpperCase()} ${config.url}`);
+  if (error.stack) parts.push(error.stack);
+
+  return parts.join(' | ');
+}
+
+function formatData(data: any): string {
+  if (data instanceof Error) return describeError(data);
+  if (typeof data !== 'object' || data === null) return String(data);
+
+  try {
+    return JSON.stringify(
+      data,
+      (key, value) => {
+        if (SENSITIVE_KEY.test(key)) return '[redacted]';
+        if (value instanceof Error) return describeError(value);
+        return value;
+      },
+      2
+    );
+  } catch {
+    return String(data);
+  }
+}
+
+/** The full payload goes to the file; the console only needs the headline. */
+function consoleSuffix(data: any): string {
+  if (data === undefined) return '';
+  const text = formatData(data).split('\n')[0];
+  return ` ${text.length > 400 ? `${text.slice(0, 400)}…` : text}`;
+}
 
 class Logger {
   private readonly maxLogLinesToKeep = 1000;
@@ -75,7 +128,7 @@ class Logger {
 
     let logLine = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
     if (data !== undefined) {
-      logLine += ` ${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}`;
+      logLine += ` ${formatData(data)}`;
     }
     logLine += '\n';
 
@@ -104,12 +157,12 @@ class Logger {
 
   warn(module: LogModule, message: string, data?: any) {
     this.logToFile(module, 'warn', message, data);
-    console.warn(`[${module}] ⚠ ${message}`);
+    console.warn(`[${module}] ⚠ ${message}${consoleSuffix(data)}`);
   }
 
   error(module: LogModule, message: string, data?: any) {
     this.logToFile(module, 'error', message, data);
-    console.error(`[${module}] ✗ ${message}`);
+    console.error(`[${module}] ✗ ${message}${consoleSuffix(data)}`);
   }
 
   // Clear old logs (keep last 1000 lines per file)

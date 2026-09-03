@@ -17,6 +17,7 @@ const forumConfigSchema = z.object({
   postTitleSelector: z.string().optional(),
   username: z.string().optional(),
   password: z.string().optional(),
+  useFlaresolverr: z.boolean().optional(),
   flaresolverrSessionTTL: z.number().min(5).max(1440).optional(),
 });
 
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
         thankButtonSelector: validatedData.thankButtonSelector,
         linksContainerSelector: validatedData.linksContainerSelector,
         postTitleSelector: validatedData.postTitleSelector,
+        useFlaresolverr: validatedData.useFlaresolverr ?? true,
         torznabApiKey, // Auto-generated per forum
         // Store TTL in milliseconds. Incoming value is minutes.
         // If not provided, default to 30 minutes.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ExternalLink, Download, Loader2, Copy, Check, Send, AlertCircle, ChevronDown } from 'lucide-react';
+import { ExternalLink, Download, Loader2, Copy, Check, Send, AlertCircle, ChevronDown, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/hooks/use-i18n';
 import {
@@ -27,6 +27,12 @@ interface ExtractedLink {
     filename?: string;
 }
 
+interface AudioTrack {
+    language: string;
+    codec?: string | null;
+    channels?: string | null;
+}
+
 interface MediaMetadata {
     type: 'series' | 'movie' | 'unknown';
     title?: string | null;
@@ -36,10 +42,20 @@ interface MediaMetadata {
     quality?: string | null;
     audioLanguages?: string[];
     subtitleLanguages?: string[];
+    subtitlesPresent?: 'yes' | 'no' | 'unknown';
+    audioTracks?: AudioTrack[];
     episodesAvailable?: number | null;
     episodesTotal?: number | null;
     genres?: string[];
     size?: string | null;
+}
+
+interface EnrichOutcome {
+    url: string;
+    metadata?: MediaMetadata;
+    elapsedMs: number;
+    aiApplied: boolean;
+    error?: string;
 }
 
 interface MetadataResult {
@@ -86,6 +102,12 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
     );
     const [expandedRawTitles, setExpandedRawTitles] = useState<Set<string>>(new Set());
     const [rawTitlesByPost, setRawTitlesByPost] = useState<Record<string, string>>({});
+    const [aiEnriching, setAiEnriching] = useState<Record<string, boolean>>({});
+    const [aiApplied, setAiApplied] = useState<Record<string, boolean>>({});
+    const [aiTimings, setAiTimings] = useState<Record<string, number>>({});
+    const [aiErrors, setAiErrors] = useState<Record<string, string>>({});
+    const [autoEnrich, setAutoEnrich] = useState(false);
+    const [autoEnrichRunning, setAutoEnrichRunning] = useState(false);
     const { loading: bulkLoading, resolveTitles } = useBulkTitles();
     const [bulkError, setBulkError] = useState<string | null>(null);
 
@@ -379,7 +401,10 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                     });
                     setMetadataByPost(metaMap);
                     setSeasonPacksByPost(seasonPackMap);
-                    setMetadataErrors(errorMap);
+                    setMetadataErrors({
+                        ...errorMap,
+                        ...(data.data?.tmdbWarning ? { general: data.data.tmdbWarning } : {}),
+                    });
                     setRawTitlesByPost(rawTitleMap);
                     setMetadataTime(metaElapsed);
                     setMetadataMode(data.data?.mode || null);
@@ -398,6 +423,104 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
         run();
         return () => { cancelled = true; };
     }, [forumId, results, searchQuery, searchMode]);
+
+    // AI enrichment is opt-in and always runs after the table is already painted.
+    const enrichWithAI = async (urls: string[]) => {
+        if (!forumId || urls.length === 0) return;
+
+        const items = urls
+            .map((url) => {
+                const result = results.find((r) => r.url === url);
+                if (!result) return null;
+                return {
+                    url,
+                    title: rawTitlesByPost[url] || titles[url] || result.title,
+                    snippet: result.snippet || '',
+                };
+            })
+            .filter((item): item is { url: string; title: string; snippet: string } => item !== null);
+
+        if (items.length === 0) return;
+
+        setAiEnriching((prev) => ({ ...prev, ...Object.fromEntries(items.map((i) => [i.url, true])) }));
+        setAiErrors((prev) => {
+            const next = { ...prev };
+            items.forEach((i) => delete next[i.url]);
+            return next;
+        });
+
+        try {
+            const response = await fetch('/api/testing/metadata/enrich', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ forumId, items, searchQuery }),
+            });
+            const data = await response.json();
+
+            if (!data.success) {
+                const message = data.error || t('testing.aiEnrichError');
+                setAiErrors((prev) => ({ ...prev, ...Object.fromEntries(items.map((i) => [i.url, message])) }));
+                return;
+            }
+
+            const outcomes: EnrichOutcome[] = data.data?.results || [];
+            const tmdbWarning = data.data?.tmdbWarning;
+            if (tmdbWarning) {
+                setMetadataErrors((prev) => ({ ...prev, general: tmdbWarning }));
+            }
+            setMetadataByPost((prev) => {
+                const next = { ...prev };
+                outcomes.forEach((outcome) => {
+                    if (outcome.metadata) next[outcome.url] = outcome.metadata;
+                });
+                return next;
+            });
+            setAiTimings((prev) => ({
+                ...prev,
+                ...Object.fromEntries(outcomes.map((o) => [o.url, o.elapsedMs])),
+            }));
+            setAiApplied((prev) => ({
+                ...prev,
+                ...Object.fromEntries(outcomes.map((o) => [o.url, o.aiApplied])),
+            }));
+            const failed = outcomes.filter((o) => o.error);
+            if (failed.length > 0) {
+                setAiErrors((prev) => ({
+                    ...prev,
+                    ...Object.fromEntries(failed.map((o) => [o.url, o.error as string])),
+                }));
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : t('testing.aiEnrichError');
+            setAiErrors((prev) => ({ ...prev, ...Object.fromEntries(items.map((i) => [i.url, message])) }));
+        } finally {
+            setAiEnriching((prev) => {
+                const next = { ...prev };
+                items.forEach((i) => delete next[i.url]);
+                return next;
+            });
+        }
+    };
+
+    useEffect(() => {
+        if (!autoEnrich || metadataLoading || results.length === 0) return;
+
+        let cancelled = false;
+        const run = async () => {
+            setAutoEnrichRunning(true);
+            // Small chunks: the model runs one item at a time, so long batches would stall the request.
+            const pending = results.map((r) => r.url);
+            for (let i = 0; i < pending.length; i += 2) {
+                if (cancelled) return;
+                await enrichWithAI(pending.slice(i, i + 2));
+            }
+            if (!cancelled) setAutoEnrichRunning(false);
+        };
+
+        run();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoEnrich, metadataLoading, results]);
 
     if (results.length === 0) {
         return (
@@ -441,6 +564,22 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                             {t('testing.batchResolveNote')}
                         </div>
                         <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 accent-purple-500"
+                                    checked={autoEnrich}
+                                    onChange={(e) => setAutoEnrich(e.target.checked)}
+                                />
+                                <Cpu className="h-3 w-3 text-purple-500" />
+                                {t('testing.aiEnrichAll')}
+                            </label>
+                            {autoEnrichRunning && (
+                                <span className="text-xs flex items-center gap-1 text-purple-500">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    {t('testing.aiEnrichRunning')}
+                                </span>
+                            )}
                             {metadataLoading && (
                                 <span className="text-xs flex items-center gap-1 text-muted-foreground">
                                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -557,7 +696,13 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                     const qualityLabel = meta?.quality || '—';
                                     const yearLabel = meta?.year || result.date || '—';
                                     const audioLabel = meta?.audioLanguages?.length ? meta.audioLanguages.join(', ') : '—';
-                                    const subsLabel = meta?.subtitleLanguages?.length ? meta.subtitleLanguages.join(', ') : '—';
+                                    const subsLabel = meta?.subtitleLanguages?.length
+                                        ? meta.subtitleLanguages.join(', ')
+                                        : meta?.subtitlesPresent === 'yes'
+                                            ? t('testing.subsPresent')
+                                            : meta?.subtitlesPresent === 'unknown'
+                                                ? t('testing.subsUnknown')
+                                                : '—';
                                     const genresLabel = meta?.genres?.length ? meta.genres.join(', ') : '—';
                                     const sizeLabel = meta?.size || '—';
                                     const metaError = metadataErrors[result.url];
@@ -587,6 +732,20 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                                 <ExternalLink className="h-3 w-3" />
                                                                 {t('testing.open')}
                                                             </a>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => enrichWithAI([result.url])}
+                                                                disabled={!!aiEnriching[result.url]}
+                                                                title={t('testing.aiEnrichRow')}
+                                                                className={`inline-flex items-center gap-1 text-xs transition-colors disabled:opacity-50 ${aiApplied[result.url] ? 'text-purple-500' : 'text-muted-foreground hover:text-purple-500'}`}
+                                                            >
+                                                                {aiEnriching[result.url]
+                                                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                                    : <Cpu className="h-3 w-3" />}
+                                                                {aiTimings[result.url] !== undefined && (
+                                                                    <span>{(aiTimings[result.url] / 1000).toFixed(1)}s</span>
+                                                                )}
+                                                            </button>
                                                         </div>
                                                         {result.snippet && (
                                                             <p className="text-xs text-muted-foreground line-clamp-2">{result.snippet}</p>
@@ -595,6 +754,12 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                             <div className="text-xs text-red-500 flex items-center gap-1">
                                                                 <AlertCircle className="h-3 w-3" />
                                                                 {metaError}
+                                                            </div>
+                                                        )}
+                                                        {aiErrors[result.url] && (
+                                                            <div className="text-xs text-amber-500 flex items-center gap-1">
+                                                                <AlertCircle className="h-3 w-3" />
+                                                                {aiErrors[result.url]}
                                                             </div>
                                                         )}
                                                         {!meta?.title && !titles[result.url] && /\.\.\./.test(result.title) && (

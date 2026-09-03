@@ -10,7 +10,9 @@ import { CookieJar } from 'tough-cookie';
 import * as cheerio from 'cheerio';
 import { getJarForHost, preloadJarCookies } from '@/lib/cookie-jar-store';
 import { AIService, MediaMetadata } from '@/lib/services/ai';
-import { isSeasonPack } from '@/lib/metadata-extractor';
+import { isSeasonPack, detectType, extractYear } from '@/lib/metadata-extractor';
+import { buildHeuristicMetadata, mergeMetadata, applyReference } from '@/lib/services/metadata-ai';
+import { resolveTitleFactsBatch, resolveTitleFacts } from '@/lib/services/tmdb';
 
 interface MetadataResult {
     url: string;
@@ -26,269 +28,39 @@ function normalizeWhitespace(value: string): string {
     return value.replace(/\s+/g, ' ').trim();
 }
 
-// Detect if text contains [X/Y] episode pattern (indicates series)
-function detectSeriesByEpisodePattern(text: string): boolean {
-    // Match patterns like [13/13], [13 de 13], [ 13 / 13 ], [13de13]
-    return /\[\s*(\d{1,3})\s*(?:de|\/)\s*(\d{1,3})\s*\]/i.test(text);
-}
-
-function detectType(title: string, breadcrumbs: string): 'series' | 'movie' | 'unknown' {
-    // STRICT: If there's an episode pattern, it's definitely a series
-    if (detectSeriesByEpisodePattern(title)) {
-        return 'series';
-    }
-    
-    // Only detect as series if there are CLEAR season-related indicators in the TITLE
-    // Don't rely on breadcrumbs or generic "serie" keyword, which are too permissive
-    const lowerTitle = title.toLowerCase();
-    
-    const hasSeasonIndicators = 
-        /\btemporada\s+\d+\b/i.test(title) ||
-        /\d+(?:ª|º)\s+.{0,20}?\btemporada\b/i.test(title) || // 5ª 2/2 Temporada Final
-        /\d+(?:ª|º)\s*temporada\b/i.test(title) || // 5ª Temporada, 3º Temporada
-        /\b[Tt]\s*\d{1,2}\b/.test(title) ||
-        /\bseason\s+\d+\b/i.test(title) ||
-        /\bs\d{1,2}\b/i.test(title) ||
-        /\bserial\b/i.test(title);
-    
-    if (hasSeasonIndicators) {
-        return 'series';
-    }
-    
-    // Check for movie keywords
-    const movieKeywords = ['película', 'movie', 'film', 'cinema'];
-    if (movieKeywords.some(keyword => lowerTitle.includes(keyword))) {
-        return 'movie';
-    }
-    
-    // Default to unknown for ambiguous content that doesn't match clear patterns
-    // This prevents false positives for incorrectly posted content
-    return 'unknown';
-}
-
-function extractYear(text: string): number | null {
-    const match = text.match(/\b(19|20)\d{2}\b/);
-    if (!match) return null;
-    const year = parseInt(match[0], 10);
-    if (year < 1950 || year > new Date().getFullYear() + 1) return null;
-    return year;
-}
-
-function extractSeason(text: string): number | null {
-    // Priority 1: Ordinal patterns with possible text between: "5ª 2/2 Temporada Final", "3º mitad Temporada"
-    // Allow up to 20 chars between ordinal and "temporada" word to be flexible
-    let match = text.match(/(\d{1,2})(?:ª|º)\s+.{0,20}?\b(?:temporada|temp\.?|season)\b/i);
-    if (match) return parseInt(match[1], 10);
-    
-    // Standard ordinal without text between: "5ª Temporada", "3º Season"
-    match = text.match(/(\d{1,2})(?:ª|º)\s*(?:temporada|temp\.?|season)/i);
-    if (match) return parseInt(match[1], 10);
-
-    // Reverse pattern: "Temporada 15ª", "Season 3º"
-    match = text.match(/(?:temporada|temp\.?|season)\s*(\d{1,2})(?:ª|º)?/i);
-    if (match) return parseInt(match[1], 10);
-
-    // Priority 2: T-prefixed patterns: T1, T.1, T5ª, etc
-    match = text.match(/\b[Tt]\.?(\d{1,2})/i);
-    if (match) return parseInt(match[1], 10);
-
-    // Priority 3: S-prefixed patterns: S1, Season 1, etc
-    match = text.match(/\b[Ss](?:eason)?\s*(\d{1,2})/i);
-    if (match) return parseInt(match[1], 10);
-
-    return null;
-}
-
-function extractQuality(text: string): string | null {
-    const qualityMatch = text.match(/\b(2160p|4k|1080p|720p|480p)\b/i);
-    const sourceMatch = text.match(/\b(BluRay|BRRip|WEB[- ]?DL|WebRip|HDRip|DVDRip|HMAX|DVDScr)\b/i);
-    if (qualityMatch && sourceMatch) return `${qualityMatch[1]} ${sourceMatch[1]}`;
-    if (qualityMatch) return qualityMatch[1];
-    return null;
-}
-
-function extractLanguages(text: string): { audio: string[]; subtitles: string[] } {
-    const lower = text.toLowerCase();
-    const audio: string[] = [];
-    const subtitles: string[] = [];
-
-    const audioMatchers: Record<string, RegExp[]> = {
-        'es-ES': [/castellano/, /español/, /es-?es/],
-        'es-LA': [/latino/, /latam/],
-        en: [/ingles/, /inglés/, /english/],
-        fr: [/frances/, /francés/],
-    };
-
-    const subtitleMatchers: Record<string, RegExp[]> = {
-        'es-ES': [/sub(?:s|titulos)?\s*(?:es|esp|español|castellano)/, /sub\s?esp/],
-        en: [/sub(?:s|titles)?\s*en/, /sub\s?ing/],
-    };
-
-    Object.entries(audioMatchers).forEach(([lang, patterns]) => {
-        if (patterns.some((rx) => rx.test(lower))) audio.push(lang);
-    });
-
-    Object.entries(subtitleMatchers).forEach(([lang, patterns]) => {
-        if (patterns.some((rx) => rx.test(lower))) subtitles.push(lang);
-    });
-
-    // Generic subtitles
-    if (/subtit|subs/.test(lower) && subtitles.length === 0) subtitles.push('unknown');
-
-    return { audio, subtitles };
-}
-
-function extractEpisodes(text: string): { available?: number | null; total?: number | null } {
-    // Match patterns like [13/13], [13 de 13], [ 13 / 13 ]
-    const match = text.match(/\[\s*(\d{1,3})\s*(?:de|\/)\s*(\d{1,3})\s*\]/i);
-    if (match) {
-        const available = parseInt(match[1], 10);
-        const total = parseInt(match[2], 10);
-        // Validate range 1-300
-        if (available >= 1 && available <= 300 && total >= 1 && total <= 300) {
-            return { available, total };
-        }
-    }
-    return {};
-}
-
-// Extract clean title by removing metadata (year, season, episodes, quality, size, languages, etc)
-function extractCleanTitle(text: string): string {
-    let clean = text;
-    
-    // Remove year patterns (1900-2099)
-    clean = clean.replace(/\b(19|20)\d{2}\b/g, '');
-    
-    // Remove ordinal season+episode patterns: 5ª 1/2, 5ª 2/, 3º 1/2, etc
-    clean = clean.replace(/\b\d{1,2}(?:ª|º)\s+\d{1,2}\/\d{0,2}\b/gi, '');
-    clean = clean.replace(/\b\d{1,2}(?:ª|º)\s+\d{1,2}\/\b/gi, '');
-    
-    // Remove season patterns: T1, T.1, T01, Temporada 1, 1ª Temporada, Season 1, etc
-    clean = clean.replace(/\b[Tt]\.?\d{1,2}\b/gi, '');
-    clean = clean.replace(/\b(?:[Tt]emporada|[Ss]eason)\s+\d{1,2}(?:ª|º)?\b/gi, '');
-    clean = clean.replace(/\b\d{1,2}(?:ª|º)?\s+(?:[Tt]emporada|[Ss]eason)\b/gi, '');
-    
-    // Remove standalone "Temporada" or "Season" words (in case they remain after number removal)
-    clean = clean.replace(/\b(?:[Tt]emporada|[Ss]eason)\b/gi, '');
-    
-    // Remove "Final" keyword (often used for final season/episodes)
-    clean = clean.replace(/\bFinal\b/gi, '');
-    
-    // Remove episode/chapter patterns: [13/13], [13 de 13], Capítulo 5, etc
-    clean = clean.replace(/\[\s*\d{1,3}\s*(?:de|\/)\s*\d{1,3}\s*\]/gi, '');
-    clean = clean.replace(/\b(?:[Cc]apítulo|[Ee]pisodio|[Cc]ap\.|[Ee]p\.?)\s+\d+\b/gi, '');
-    
-    // Remove quality patterns: 2160p, 4K, 1080p, 720p, 480p
-    clean = clean.replace(/\b(2160p|4k|1080p|720p|480p)\b/gi, '');
-    
-    // Remove source patterns: BluRay, WEB-DL, HDRip, h.264, x.265, HEVC, etc
-    clean = clean.replace(/\b(BluRay|BRRip|WEB[-\s]?DL|WebRip|HDRip|DVDRip|HMAX|DVDScr|h\.?264|h\.?265|x\.?264|x\.?265|hevc|avc)\b/gi, '');
-    
-    // Remove audio formats and codecs: DDP5.1, DD5.1, AC35.1, 5.1, 7.1, etc
-    clean = clean.replace(/\b(DDP|DD|AC3|AAC|FLAC)\s*\d\.\d\b/gi, '');
-    clean = clean.replace(/\b\d\.\d\s*(?:ch|channels|canales)?\b/gi, '');
-    
-    // Remove HDR/color patterns: Dolby Vision, HDR, HDR10, 10-bit, etc
-    clean = clean.replace(/\b(Dolby\s+Vision|Dolby\s+Atmos|HDR10|HDR|10[-\s]?bit|Dolby\s+Digital)\b/gi, '');
-    
-    // Remove size patterns: 2.5GB, 3.14 MB, etc
-    clean = clean.replace(/\b\d+(?:[.,]\d+)?\s*(?:GB|GiB|MB|MiB)\b/gi, '');
-    
-    // Remove language patterns and subtitle indicators: Dual, Castellano, Inglés, Español, English, Subt, Subs, etc
-    clean = clean.replace(/\b(?:Dual|Castellano|Español|Inglés|English|Francés|Latino|Latin|Latam|Japones|Japonés|Coreano|Koreano|Subt|Subs|Sub)\b/gi, '');
-    
-    // Remove special/bracketed patterns: [...] and (...)
-    clean = clean.replace(/\[.*?\]/g, '');
-    clean = clean.replace(/\(.*?\)/g, '');
-    
-    // Remove + prefixed metadata (e.g., "+ Subt", "+ Castellano", "+ Dual")
-    clean = clean.replace(/\s*\+\s+\w+/gi, '');
-    clean = clean.replace(/\s*\+\s*$/g, ''); // Remove trailing +
-    
-    // Remove stray brackets and plus signs that may remain
-    clean = clean.replace(/[\[\]]/g, '');
-    clean = clean.replace(/\s*\+\s*$/g, ''); // Remove trailing + with spaces
-    clean = clean.replace(/^\s*\+\s*/g, ''); // Remove leading + with spaces
-    
-    // Remove extra whitespace and trim
-    clean = clean.replace(/\s+/g, ' ').trim();
-    
-    return clean;
-}
-
-function extractSize(text: string): string | null {
-    // Match patterns like "2.5GB", "2,5 GB", "1500MB", etc.
-    // Use word boundaries to avoid matching partial numbers
-    const match = text.match(/\b(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b/i);
-    if (!match) return null;
-    // Normalize decimal separator to dot
-    const size = match[1].replace(',', '.');
-    return `${size} ${match[2].toUpperCase()}`;
-}
-
-function buildHeuristicMetadata(params: {
-    rawTitle: string;
-    breadcrumbs: string;
-    bodyText: string;
-    linksContainerText?: string;
-    searchQuery?: string;
-}): MediaMetadata {
-    const { rawTitle, breadcrumbs, bodyText, linksContainerText = '', searchQuery } = params;
-    const combined = `${rawTitle} ${breadcrumbs} ${linksContainerText} ${searchQuery || ''}`;
-    const type = detectType(rawTitle, breadcrumbs);
-    const year = extractYear(combined);
-    const season = extractSeason(combined);
-    const quality = extractQuality(combined);
-    const { audio, subtitles } = extractLanguages(combined + ' ' + bodyText);
-    const episodes = extractEpisodes(combined);
-    const size = extractSize(combined) || extractSize(bodyText);
-    const cleanTitle = extractCleanTitle(rawTitle);
-
-    return {
-        type,
-        title: rawTitle || null,
-        cleanTitle: cleanTitle || null,
-        year,
-        season,
-        quality,
-        audioLanguages: audio,
-        subtitleLanguages: subtitles,
-        episodesAvailable: episodes.available ?? null,
-        episodesTotal: episodes.total ?? null,
-        genres: [],
-        size,
-    };
-}
-
-function mergeMetadata(base: MediaMetadata, ai: MediaMetadata | null): MediaMetadata {
-    if (!ai) return base;
-    return {
-        type: ai.type !== 'unknown' ? ai.type : base.type,
-        title: ai.title || base.title,
-        cleanTitle: ai.cleanTitle || base.cleanTitle || null,
-        year: ai.year ?? base.year ?? null,
-        season: ai.season ?? base.season ?? null,
-        quality: ai.quality || base.quality || null,
-        audioLanguages: ai.audioLanguages?.length ? ai.audioLanguages : base.audioLanguages,
-        subtitleLanguages: ai.subtitleLanguages?.length ? ai.subtitleLanguages : base.subtitleLanguages,
-        episodesAvailable: ai.episodesAvailable ?? base.episodesAvailable ?? null,
-        episodesTotal: ai.episodesTotal ?? base.episodesTotal ?? null,
-        genres: ai.genres?.length ? ai.genres : base.genres,
-        size: ai.size || base.size || null,
-    };
-}
-
 export async function POST(request: NextRequest) {
     try {
-        const { forumId, postUrls, searchQuery, directTitles } = await request.json();
+        const { forumId, postUrls, searchQuery, directTitles, useAI } = await request.json();
 
         // Modo directo: parsear títulos sin fetch (búsqueda nativa)
         if (directTitles && Array.isArray(directTitles) && directTitles.length > 0) {
             const results: MetadataResult[] = [];
 
+            const directForum = forumId
+                ? await db.forum.findUnique({ where: { id: forumId }, select: { defaultLanguage: true } })
+                : null;
+            const forumLanguage = directForum?.defaultLanguage || 'es-ES';
+
+            // External facts are independent from AI: they fill year, genres and the language behind "Dual".
+            const tmdbFailures: string[] = [];
+            const references = await resolveTitleFactsBatch(
+                directTitles
+                    .filter((item: any) => item?.title)
+                    .map((item: any) => ({
+                        key: String(item.url || item.title),
+                        title: item.title,
+                        type: detectType(item.title, ''),
+                        year: extractYear(item.title),
+                    })),
+                forumLanguage,
+                (message) => tmdbFailures.push(message)
+            );
+
             // AI provider (first enabled)
             let aiService: AIService | null = null;
-            const aiProvider = await db.aIConfig.findFirst({ where: { enabled: true }, orderBy: { createdAt: 'desc' } });
+            const aiProvider = useAI
+                ? await db.aIConfig.findFirst({ where: { enabled: true }, orderBy: { createdAt: 'desc' } })
+                : null;
             if (aiProvider) {
                 aiService = new AIService({
                     provider: aiProvider.provider,
@@ -313,6 +85,8 @@ export async function POST(request: NextRequest) {
                     searchQuery,
                 });
 
+                const reference = references.get(String(url || title)) || null;
+
                 let aiMetadata: MediaMetadata | null = null;
                 if (aiService) {
                     try {
@@ -321,13 +95,18 @@ export async function POST(request: NextRequest) {
                             breadcrumbs: '',
                             contentSnippet: snippet || '',
                             searchQuery,
+                            forumDefaultLanguage: forumLanguage,
+                            reference,
                         });
                     } catch (err) {
                         logger.warn('metadata', `AI metadata failed: ${err}`);
                     }
                 }
 
-                const merged = mergeMetadata(heuristic, aiMetadata);
+                const merged = applyReference(mergeMetadata(heuristic, aiMetadata), reference, {
+                    rawTitle: title,
+                    forumLanguage,
+                });
                 const seasonPack = isSeasonPack(title);
                 results.push({ url: url || '', rawTitle: title, metadata: merged, isSeasonPack: seasonPack });
             }
@@ -344,6 +123,9 @@ export async function POST(request: NextRequest) {
                     totalResolved,
                     totalResults: directTitles.length,
                     mode: 'direct',
+                    tmdbWarning: tmdbFailures.length
+                        ? `TMDB lookup failed: ${tmdbFailures[0]}. Check TMDB_API_KEY.`
+                        : undefined,
                 },
             });
         }
@@ -402,15 +184,18 @@ export async function POST(request: NextRequest) {
             })
         );
 
-        const flaresolverrUrl = process.env.FLARESOLVERR_URL;
+        const flaresolverrUrl = forum.useFlaresolverr ? process.env.FLARESOLVERR_URL : null;
         const fsClient = flaresolverrUrl ? new FlareSolverrClient(flaresolverrUrl) : null;
         let sessionId: string | undefined;
         let usedFlareSolverr = false;
         const results: MetadataResult[] = [];
+        const tmdbFailures: string[] = [];
 
         // AI provider (first enabled)
         let aiService: AIService | null = null;
-        const aiProvider = await db.aIConfig.findFirst({ where: { enabled: true }, orderBy: { createdAt: 'desc' } });
+        const aiProvider = useAI
+            ? await db.aIConfig.findFirst({ where: { enabled: true }, orderBy: { createdAt: 'desc' } })
+            : null;
         if (aiProvider) {
             aiService = new AIService({
                 provider: aiProvider.provider,
@@ -436,23 +221,22 @@ export async function POST(request: NextRequest) {
 
             try {
                 if (!fsClient) {
-                    results.push({ url: postUrl, error: 'FlareSolverr no configurado' });
-                    continue;
-                }
+                    html = await tryAxios(postUrl);
+                } else {
+                    if (!sessionId) {
+                        const ttlMs = forum.flaresolverrSessionTTL || 30 * 60 * 1000;
+                        sessionId = await sessionManager.getSession(forumId, host, ttlMs, fsClient);
+                    }
+                    usedFlareSolverr = true;
+                    const solution = await fsClient.request(postUrl, 'GET', undefined, sessionId);
+                    html = solution.response || '';
 
-                if (!sessionId) {
-                    const ttlMs = forum.flaresolverrSessionTTL || 30 * 60 * 1000;
-                    sessionId = await sessionManager.getSession(forumId, host, ttlMs, fsClient);
-                }
-                usedFlareSolverr = true;
-                const solution = await fsClient.request(postUrl, 'GET', undefined, sessionId);
-                html = solution.response || '';
-
-                if (solution.cookies && solution.cookies.length > 0) {
-                    await preloadJarCookies(jar, postUrl, solution.cookies);
-                    if (solution.userAgent) {
-                        activeUserAgent = solution.userAgent;
-                        client.defaults.headers['User-Agent'] = solution.userAgent;
+                    if (solution.cookies && solution.cookies.length > 0) {
+                        await preloadJarCookies(jar, postUrl, solution.cookies);
+                        if (solution.userAgent) {
+                            activeUserAgent = solution.userAgent;
+                            client.defaults.headers['User-Agent'] = solution.userAgent;
+                        }
                     }
                 }
             } catch (err) {
@@ -476,12 +260,54 @@ export async function POST(request: NextRequest) {
             const linksContainerText = linksContainerSelector ? normalizeWhitespace($(linksContainerSelector).text() || '') : '';
             const bodyText = normalizeWhitespace($('body').text().substring(0, MAX_SNIPPET_CHARS));
 
+            // Extract the opening post (technical sheet, synopsis, MEDIAINFO block) so the AI
+            // can fill any fields the deterministic pipeline + TMDB could not resolve.
+            function extractFirstPostText(maxChars: number): string {
+                const techMarker = /(datos\s+t[eé]cnicos|ficha\s+t[eé]cnica|mediainfo|subt[ií]tulos?\s*:|audio\s*(#\d+)?\s*:|idiomas?\s*:|calidad\s*:)/i;
+                const selectors = [
+                    '[id^="post_message_"]',
+                    '.postcontent',
+                    '.post_body',
+                    '.message-body .bbWrapper',
+                    'article .message-body',
+                    '.postbody .content',
+                    '.entry-content',
+                ];
+                for (const sel of selectors) {
+                    const el = $(sel).first();
+                    if (!el.length) continue;
+                    el.find('br').replaceWith('\n');
+                    el.find('p, div, li, tr, h1, h2, h3').append('\n');
+                    const text = el.text().replace(/[ \t\u00a0]+/g, ' ').replace(/\n\s*\n+/g, '\n').trim();
+                    if (text.length < 60) continue;
+                    if (text.length > maxChars) {
+                        const marker = text.search(techMarker);
+                        if (marker !== -1) {
+                            const start = Math.max(0, marker - 500);
+                            return text.slice(start, start + maxChars);
+                        }
+                        return text.slice(0, maxChars);
+                    }
+                    return text;
+                }
+                // Fallback: full body
+                return bodyText.substring(0, maxChars);
+            }
+            const firstPostText = extractFirstPostText(Number.POSITIVE_INFINITY);
+
             const heuristic = buildHeuristicMetadata({
                 rawTitle,
                 breadcrumbs,
                 bodyText,
                 linksContainerText,
                 searchQuery,
+            });
+
+            const reference = await resolveTitleFacts(rawTitle, {
+                type: detectType(rawTitle, breadcrumbs),
+                year: extractYear(rawTitle),
+                language: forum.defaultLanguage || 'es-ES',
+                onFailure: (message) => tmdbFailures.push(message),
             });
 
             let aiMetadata: MediaMetadata | null = null;
@@ -491,14 +317,21 @@ export async function POST(request: NextRequest) {
                         title: rawTitle,
                         breadcrumbs,
                         contentSnippet: bodyText.substring(0, MAX_SNIPPET_CHARS),
+                        postText: firstPostText || undefined,
                         searchQuery,
+                        forumDefaultLanguage: forum.defaultLanguage || undefined,
+                        reference,
                     });
+                    logger.info('metadata', `AI called with postText: ${firstPostText ? firstPostText.length : 0} chars`);
                 } catch (err) {
                     logger.warn('metadata', `AI metadata failed: ${err}`);
                 }
             }
 
-            const merged = mergeMetadata(heuristic, aiMetadata);
+            const merged = applyReference(mergeMetadata(heuristic, aiMetadata), reference, {
+                rawTitle,
+                forumLanguage: forum.defaultLanguage || 'es-ES',
+            });
             const seasonPack = isSeasonPack(rawTitle);
             results.push({ url: postUrl, rawTitle, metadata: merged, isSeasonPack: seasonPack });
         }
@@ -534,6 +367,9 @@ export async function POST(request: NextRequest) {
                 totalResolved,
                 totalResults: postUrls.length,
                 mode: 'fetch',
+                tmdbWarning: tmdbFailures.length
+                    ? `TMDB lookup failed: ${tmdbFailures[0]}. Check TMDB_API_KEY.`
+                    : undefined,
             },
         });
     } catch (error) {

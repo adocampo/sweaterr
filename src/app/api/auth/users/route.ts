@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
             username: true,
             email: true,
             role: true,
+            enabled: true,
             language: true,
             theme: true,
             createdAt: true,
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
                 username: true,
                 email: true,
                 role: true,
+                enabled: true,
             },
         });
 

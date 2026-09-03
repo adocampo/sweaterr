@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AIService } from '@/lib/services/ai';
+import { AIService, parseJsonLoose } from '@/lib/services/ai';
+import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 const testSchema = z.object({
@@ -15,39 +16,46 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const validated = testSchema.parse(body);
 
-        // Create AI service instance
         const aiService = new AIService({
             provider: validated.provider,
             apiKey: validated.apiKey,
             baseUrl: validated.baseUrl,
             model: validated.model,
+            timeoutMs: 30000,
         });
 
-        // Test with a simple query
-        const testMapping = await aiService.mapToSceneName(
-            'Breaking Bad T.5 WEBDL 1080p',
-            'Breaking Bad'
+        const started = Date.now();
+        const raw = await aiService.callAIOrThrow(
+            'Reply with this exact JSON and nothing else: {"ok":true}',
+            { json: true }
         );
+        const elapsedMs = Date.now() - started;
 
-        if (!testMapping) {
-            return NextResponse.json({
-                success: false,
-                error: 'AI provider test failed - no response',
-            }, { status: 400 });
+        let models: string[] = [];
+        try {
+            models = await aiService.listModels();
+        } catch (err) {
+            logger.warn('api', 'AI check: model listing unavailable', {
+                error: err instanceof Error ? err.message : String(err),
+            });
         }
 
         return NextResponse.json({
             success: true,
             message: 'AI provider is working',
             data: {
-                testMapping,
+                elapsedMs,
+                // A model that ignores the JSON instruction still proves connectivity.
+                validJson: !!parseJsonLoose(raw),
+                sample: raw.slice(0, 200),
+                models,
             },
         });
     } catch (error: any) {
-        console.error('Error testing AI config:', error);
-        return NextResponse.json({
-            success: false,
-            error: `AI test failed: ${error.message}`,
-        }, { status: 400 });
+        const message = error instanceof z.ZodError
+            ? 'Invalid AI configuration payload'
+            : error?.message || 'Unknown error';
+        logger.error('api', `AI check failed: ${message}`);
+        return NextResponse.json({ success: false, error: message }, { status: 400 });
     }
 }

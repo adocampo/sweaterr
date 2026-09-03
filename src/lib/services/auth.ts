@@ -159,7 +159,7 @@ export async function loginUser(
             },
         });
 
-        if (!user) {
+        if (!user || user.enabled === false) {
             return {
                 success: false,
                 message: 'Invalid username/email or password',

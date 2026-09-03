@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
 import { CloudflareHandler } from './cloudflare-handler';
 import { FlareSolverrClient } from './flaresolverr-client';
+import { getFlareSolverrSettings, getFlareSolverrUrl } from './flaresolverr-config';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -49,6 +50,7 @@ export interface ForumConfig {
   thankButtonSelector?: string;
   linksContainerSelector?: string;
   postTitleSelector?: string;
+  useFlaresolverr?: boolean;
   persistentCookies?: string;
   credentials?: {
     username: string;
@@ -114,7 +116,7 @@ export class ForumService {
         throw error;
       }
 
-      const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+      const flaresolverrUrl = config.useFlaresolverr === false ? null : await getFlareSolverrUrl();
       if (!flaresolverrUrl) {
         throw error;
       }
@@ -221,7 +223,7 @@ export class ForumService {
         '/login.php?do=login',
         config.credentials.username,
         config.credentials.password,
-        process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL
+        await getFlareSolverrUrl()
       );
 
       if (result.success && result.cookies) {
@@ -390,7 +392,7 @@ export class ForumService {
 
         logger.info('search', `Google CSE mode with ID: ${cseId}`);
 
-        const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+        const flaresolverrUrl = await getFlareSolverrUrl();
 
         if (!flaresolverrUrl) {
           logger.error('search', 'Google CSE requires FlareSolverr to be configured');
@@ -567,7 +569,7 @@ export class ForumService {
       // Axios client already carries persistent cookies from the authentication step.
       const resolvedTitleOnly = options?.titleOnly ?? (config.searchMode === 'native' ? (config.searchTitleOnly ?? true) : false);
       const resolvedChildForums = config.searchInChildForums ?? true;
-      const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+      const flaresolverrUrl = config.useFlaresolverr === false ? null : await getFlareSolverrUrl();
 
       const joinUrl = (base: string, path: string) => {
         const baseTrimmed = (base || '').replace(/\/$/, '');
@@ -1240,6 +1242,7 @@ export class ForumService {
 
       const FlareSolverrClientModule = await import('./flaresolverr-client');
       const fsClient = new FlareSolverrClientModule.FlareSolverrClient(flaresolverrUrl);
+      const flaresolverrSettings = await getFlareSolverrSettings();
       // Note: We do NOT create a session here because FlareSolverr sessions manage their own cookies.
       // Instead, we pass custom headers directly to each request to inject our authenticated cookies.
       try {
@@ -1266,7 +1269,10 @@ export class ForumService {
 
         logger.info('search', `[${config.name}] FlareSolverr fallback: passing ${cookiesForFs.length} cookies directly to FlareSolverr API`);
 
-        const fsOptions = { maxTimeout: 15000, requestTimeout: 20000 };
+        const fsOptions = {
+          maxTimeout: flaresolverrSettings.timeout,
+          requestTimeout: flaresolverrSettings.timeout + 15000,
+        };
 
         // If searchId is provided (pagination), skip form submission and go directly to results pages
         if (options?.searchId) {
@@ -1345,7 +1351,45 @@ export class ForumService {
 
         const postHeaders = { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' };
 
-        const processed = await fsClient.request(action, 'POST', postData, undefined, postHeaders, fsCookies, fsOptions);
+        // Some vBulletin installs accept GET for search processing; also used when POST is unusable.
+        const searchViaGet = async (): Promise<ForumSearchResponse | null> => {
+          try {
+            const qs = new URLSearchParams(postData).toString();
+            const getUrl = `${action}${action.includes('?') ? '&' : '?'}${qs}`;
+            const processedGet = await fsClient.request(getUrl, 'GET', undefined, undefined, postHeaders, fsCookies, fsOptions);
+            const htmlGet = processedGet.response || '';
+            const finalGetUrl = processedGet.url || getUrl;
+            const resolved = resolveResultsUrl(finalGetUrl, htmlGet);
+            if (resolved.resultUrl) {
+              const pageParam = options?.page && options.page > 1 ? `&page=${options.page}` : '';
+              const resultsPage = await fsClient.request(`${resolved.resultUrl}${pageParam}`, 'GET', undefined, undefined, headers, fsCookies, fsOptions);
+              const pageResults = parseResults(resultsPage.response || '');
+              const totalResults = extractTotalResults(resultsPage.response || '');
+              return { results: pageResults, searchId: resolved.searchIdFromBody || undefined, totalResults };
+            }
+            const fallbackDirect = parseResults(htmlGet);
+            if (fallbackDirect.length > 0) {
+              const totalResults = extractTotalResults(htmlGet);
+              return { results: fallbackDirect, searchId: resolved.searchIdFromBody || undefined, totalResults };
+            }
+          } catch (getErr) {
+            logger.warn('search', `[${config.name}] FlareSolverr GET fallback failed`, { error: getErr instanceof Error ? getErr.message : String(getErr) });
+          }
+          return null;
+        };
+
+        // FlareSolverr's nodriver build throws while solving a challenge mid-POST, so retry over GET.
+        let processed;
+        try {
+          processed = await fsClient.request(action, 'POST', postData, undefined, postHeaders, fsCookies, fsOptions);
+        } catch (postErr) {
+          logger.warn('search', `[${config.name}] FlareSolverr POST failed, retrying search over GET`, {
+            error: postErr instanceof Error ? postErr.message : String(postErr),
+          });
+          const viaGet = await searchViaGet();
+          if (viaGet) return viaGet;
+          throw postErr;
+        }
 
         const html = processed.response || '';
         const finalUrl = processed.url || action;
@@ -1388,29 +1432,8 @@ export class ForumService {
             postDataPreview: redactPostDataForLog(postData),
           });
           logger.info('search', `[${config.name}] Native search debug HTML snippet (POST/FlareSolverr)`, safeSnippet(html));
-          // Fallback attempt: try GET with querystring (some vBulletin installs accept GET for search processing)
-          try {
-            const qs = new URLSearchParams(postData).toString();
-            const getUrl = `${action}${action.includes('?') ? '&' : '?'}${qs}`;
-            const processedGet = await fsClient.request(getUrl, 'GET', undefined, undefined, postHeaders, fsCookies, fsOptions);
-            const htmlGet = processedGet.response || '';
-            const finalGetUrl = processedGet.url || getUrl;
-            const resolved = resolveResultsUrl(finalGetUrl, htmlGet);
-            if (resolved.resultUrl) {
-              const pageParam = options?.page && options.page > 1 ? `&page=${options.page}` : '';
-              const resultsPage = await fsClient.request(`${resolved.resultUrl}${pageParam}`, 'GET', undefined, undefined, headers, fsCookies, fsOptions);
-              const pageResults = parseResults(resultsPage.response || '');
-              const totalResults = extractTotalResults(resultsPage.response || '');
-              return { results: pageResults, searchId: resolved.searchIdFromBody || undefined, totalResults };
-            }
-            const fallbackDirect = parseResults(htmlGet);
-            if (fallbackDirect.length > 0) {
-              const totalResults = extractTotalResults(htmlGet);
-              return { results: fallbackDirect, searchId: resolved.searchIdFromBody || undefined, totalResults };
-            }
-          } catch (getErr) {
-            logger.warn('search', `[${config.name}] FlareSolverr GET fallback failed`, { error: getErr instanceof Error ? getErr.message : String(getErr) });
-          }
+          const viaGet = await searchViaGet();
+          if (viaGet) return viaGet;
           return { results: [] };
         }
 
@@ -1648,7 +1671,7 @@ export class ForumService {
           await client.get(thankUrl);
         } catch (error: any) {
           if (this.isAxiosBlockedByCloudflare(error)) {
-            const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+            const flaresolverrUrl = await getFlareSolverrUrl();
             if (flaresolverrUrl) {
               logger.warn('forum', `[${config.name}] Thank click blocked; retrying via FlareSolverr`);
               const fsClient = new FlareSolverrClient(flaresolverrUrl);
@@ -1686,7 +1709,7 @@ export class ForumService {
           await client.post(actionUrl, formData);
         } catch (error: any) {
           if (this.isAxiosBlockedByCloudflare(error)) {
-            const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+            const flaresolverrUrl = await getFlareSolverrUrl();
             if (flaresolverrUrl) {
               logger.warn('forum', `[${config.name}] Thank form blocked; retrying via FlareSolverr`);
               const fsClient = new FlareSolverrClient(flaresolverrUrl);

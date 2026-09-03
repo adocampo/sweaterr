@@ -50,11 +50,11 @@ class FlareSolverrSessionManager {
                 // Session still valid, update last used
                 existing.lastUsedAt = now;
                 existing.ttlMs = ttlMs; // Update TTL in case it changed
-                logger.info('cloudflare', `[SessionMgr] Reusing session for ${host} (age: ${Math.round(age / 1000)}s / TTL: ${Math.round(ttlMs / 60000)}m)`);
+                logger.info('flaresolverr', `[SessionMgr] Reusing session for ${host} (age: ${Math.round(age / 1000)}s / TTL: ${Math.round(ttlMs / 60000)}m)`);
                 return existing.sessionId;
             } else {
                 // Session expired, destroy it
-                logger.info('cloudflare', `[SessionMgr] Session expired for ${host}, destroying...`);
+                logger.info('flaresolverr', `[SessionMgr] Session expired for ${host}, destroying...`);
                 await this.destroySession(forumId, fsClient);
             }
         }
@@ -71,10 +71,10 @@ class FlareSolverrSessionManager {
                 lastUsedAt: now,
                 ttlMs,
             });
-            logger.info('cloudflare', `[SessionMgr] Created session for ${host} (TTL: ${Math.round(ttlMs / 60000)}m)`);
+            logger.info('flaresolverr', `[SessionMgr] Created session for ${host} (TTL: ${Math.round(ttlMs / 60000)}m)`);
             return sessionId;
         } catch (err) {
-            logger.error('cloudflare', `[SessionMgr] Failed to create session for ${host}: ${err}`);
+            logger.error('flaresolverr', `[SessionMgr] Failed to create session for ${host}: ${err}`);
             throw err;
         }
     }
@@ -105,7 +105,7 @@ class FlareSolverrSessionManager {
 
             if (isSessionError) {
                 // Session might be invalid, try recreating
-                logger.warn('cloudflare', `[SessionMgr] Session error for ${host}, recreating...`);
+                logger.warn('flaresolverr', `[SessionMgr] Session error for ${host}, recreating...`);
                 this.sessions.delete(forumId);
                 sessionId = await this.getSession(forumId, host, ttlMs, fsClient);
                 return await operation(sessionId);
@@ -124,9 +124,9 @@ class FlareSolverrSessionManager {
         if (session) {
             try {
                 await fsClient.destroySession(session.sessionId);
-                logger.info('cloudflare', `[SessionMgr] Destroyed session for ${session.host}`);
+                logger.info('flaresolverr', `[SessionMgr] Destroyed session for ${session.host}`);
             } catch (err) {
-                logger.warn('cloudflare', `[SessionMgr] Failed to destroy session for ${session.host}: ${err}`);
+                logger.warn('flaresolverr', `[SessionMgr] Failed to destroy session for ${session.host}: ${err}`);
             }
             this.sessions.delete(forumId);
         }
@@ -206,7 +206,7 @@ class FlareSolverrSessionManager {
             }
 
             if (toDelete.length > 0) {
-                logger.info('cloudflare', `[SessionMgr] Cleanup: destroying ${toDelete.length} expired sessions`);
+                logger.info('flaresolverr', `[SessionMgr] Cleanup: destroying ${toDelete.length} expired sessions`);
 
                 // Try to get FlareSolverr client to properly destroy sessions
                 const flaresolverrUrl = process.env.FLARESOLVERR_URL;
@@ -215,9 +215,9 @@ class FlareSolverrSessionManager {
                     for (const { forumId, sessionId, host } of toDelete) {
                         try {
                             await fsClient.destroySession(sessionId);
-                            logger.info('cloudflare', `[SessionMgr] Destroyed expired session for ${host}`);
+                            logger.info('flaresolverr', `[SessionMgr] Destroyed expired session for ${host}`);
                         } catch (err) {
-                            logger.warn('cloudflare', `[SessionMgr] Failed to destroy session for ${host}: ${err}`);
+                            logger.warn('flaresolverr', `[SessionMgr] Failed to destroy session for ${host}: ${err}`);
                         }
                         this.sessions.delete(forumId);
                     }

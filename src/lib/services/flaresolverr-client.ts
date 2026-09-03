@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logger } from '@/lib/logger';
 
 export interface FlareSolverrCookie {
     name: string;
@@ -16,6 +17,13 @@ export interface FlareSolverrSolution {
     response?: string;
 }
 
+/** FlareSolverr reports failures as HTTP 500 with the real cause in the body. */
+function flareSolverrMessage(err: any): string | null {
+    const message = err?.response?.data?.message;
+    if (typeof message !== 'string' || !message.trim()) return null;
+    return message.trim().replace(/^Error:\s*/i, '');
+}
+
 export class FlareSolverrClient {
     private endpoint: string;
 
@@ -24,11 +32,39 @@ export class FlareSolverrClient {
     }
 
     /**
+     * Cheap liveness check. A hung FlareSolverr still accepts TCP connections,
+     * so only a real command tells us whether it can serve requests.
+     */
+    async ping(timeoutMs = 15000): Promise<{ version?: string; sessions: number }> {
+        try {
+            logger.debug('flaresolverr', `Ping ${this.endpoint}`);
+            const { data } = await axios.post(
+                `${this.endpoint}/v1`,
+                { cmd: 'sessions.list' },
+                { timeout: timeoutMs }
+            );
+            if (!data || data.status !== 'ok') {
+                throw new Error(data?.message || 'unexpected response');
+            }
+            const sessions = (data.sessions || []).length;
+            logger.info('flaresolverr', `Ping succeeded: ${sessions} active sessions`);
+            return { version: data.version, sessions };
+        } catch (err: any) {
+            const reason = flareSolverrMessage(err)
+                || (err?.code === 'ECONNABORTED' ? `no response within ${timeoutMs}ms` : err?.message)
+                || 'unknown';
+            logger.warn('flaresolverr', `Ping failed: ${reason}`);
+            throw new Error(`FlareSolverr unreachable at ${this.endpoint}: ${reason}`);
+        }
+    }
+
+    /**
      * Create a persistent session that can be reused across multiple requests
      * @returns Session ID to use in subsequent requests
      */
     async createSession(): Promise<string> {
         try {
+            logger.info('flaresolverr', 'Creating session');
             const { data } = await axios.post(
                 `${this.endpoint}/v1`,
                 { cmd: 'sessions.create' },
@@ -37,9 +73,12 @@ export class FlareSolverrClient {
             if (!data || data.status !== 'ok' || !data.session) {
                 throw new Error(`Failed to create session: ${data?.message || 'unknown error'}`);
             }
+            logger.info('flaresolverr', 'Session created');
             return data.session;
         } catch (err: any) {
-            throw new Error(`FlareSolverr session creation failed: ${err?.message || 'unknown'}`);
+            const reason = flareSolverrMessage(err) || err?.message || 'unknown';
+            logger.warn('flaresolverr', `Session creation failed: ${reason}`);
+            throw new Error(`FlareSolverr session creation failed: ${reason}`);
         }
     }
 
@@ -54,8 +93,10 @@ export class FlareSolverrClient {
                 { cmd: 'sessions.destroy', session: sessionId },
                 { timeout: 10000 }
             );
+            logger.info('flaresolverr', 'Session destroyed');
         } catch (err: any) {
             // Silently ignore destruction errors
+            logger.warn('flaresolverr', `Session destruction failed: ${err?.message || 'unknown'}`);
             console.warn(`Failed to destroy FlareSolverr session ${sessionId}:`, err?.message);
         }
     }
@@ -98,12 +139,13 @@ export class FlareSolverrClient {
         let lastErr: any = null;
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
+                logger.info('flaresolverr', `${method} ${url} (attempt ${attempt}/2, timeout ${maxTimeout}ms)`);
                 const { data } = await axios.post(`${this.endpoint}/v1`, buildPayload(), { timeout: requestTimeout });
                 if (!data || data.status !== 'ok' || !data.solution) {
                     throw new Error(`FlareSolverr error: ${data?.message || 'unknown error'}`);
                 }
                 const solution = data.solution;
-                return {
+                const response = {
                     url: solution.url,
                     status: solution.status,
                     headers: solution.headers || {},
@@ -111,10 +153,16 @@ export class FlareSolverrClient {
                     userAgent: solution.userAgent,
                     response: solution.response || '',
                 };
+                logger.info('flaresolverr', `${method} ${url} succeeded (${response.response.length} chars)`);
+                return response;
             } catch (err: any) {
-                lastErr = err;
+                const serverMessage = flareSolverrMessage(err);
+                lastErr = serverMessage ? new Error(`FlareSolverr error: ${serverMessage}`) : err;
+                // Retry only on transport timeouts; a solver failure will just fail again.
                 const msg = String(err?.message || '');
-                const isTimeout = msg.toLowerCase().includes('timeout') || msg.toLowerCase().includes('timed out');
+                const isTimeout = !serverMessage
+                    && (msg.toLowerCase().includes('timeout') || msg.toLowerCase().includes('timed out'));
+                logger.warn('flaresolverr', `${method} ${url} failed on attempt ${attempt}/2: ${lastErr.message || msg}`);
                 if (!isTimeout || attempt === 2) break;
                 // brief backoff before retry
                 await new Promise(r => setTimeout(r, 1000));
