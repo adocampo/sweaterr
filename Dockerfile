@@ -44,12 +44,22 @@ ENV PORT=3000
 
 # Create startup script BEFORE switching to non-root user (so we can write to /app)
 # This script respects TZ env via environment variable
+# Uses prisma db push for first-run migration (works with existing DBs)
+# Then prisma migrate deploy for subsequent runs (respects migration history)
 RUN echo '#!/bin/sh\n\
     if [ -n "$TZ" ] && [ -f "/usr/share/zoneinfo/$TZ" ]; then\n\
     export TZ\n\
     fi\n\
-    echo "Running Prisma migrations..."\n\
-    npx prisma migrate deploy || npx prisma db push\n\
+    echo "Applying database schema..."\n\
+    if npx prisma migrate deploy 2>/dev/null; then\n\
+      echo "Migration history applied"\n\
+    else\n\
+      echo "No migration history found, pushing schema..."\n\
+      npx prisma db push || {\n\
+        echo "ERROR: Failed to apply database schema"\n\
+        exit 1\n\
+      }\n\
+    fi\n\
     echo "Starting application..."\n\
     exec node /app/server.js' > /app/start.sh && chmod +x /app/start.sh
 
