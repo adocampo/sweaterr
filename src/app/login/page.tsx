@@ -51,31 +51,32 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-            <Card className="w-full max-w-md">
-                <CardHeader className="text-center space-y-2">
-                    <div className="flex justify-center mb-2">
-                        <Image src="/logo.png" alt="Sweaterr" width={200} height={50} priority className="h-12 w-auto" />
-                    </div>
-                    <CardTitle>{t('auth.login')}</CardTitle>
-                    <CardDescription>{t('login.enterCredentials')}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        {error && (
-                            <Alert variant="destructive">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
+        <>
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="text-center space-y-2">
+                        <div className="flex justify-center mb-2">
+                            <Image src="/logo.png" alt="Sweaterr" width={200} height={50} priority className="h-12 w-auto" />
+                        </div>
+                        <CardTitle>{t('auth.login')}</CardTitle>
+                        <CardDescription>{t('login.enterCredentials')}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            {error && (
+                                <Alert variant="destructive">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertDescription>{error}</AlertDescription>
+                                </Alert>
+                            )}
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">{t('login.usernameOrEmail')}</label>
-                            <Input
-                                type="text"
-                                placeholder={t('login.usernameOrEmailPlaceholder')}
-                                value={usernameOrEmail}
-                                onChange={(e) => setUsernameOrEmail(e.target.value)}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">{t('login.usernameOrEmail')}</label>
+                                <Input
+                                    type="text"
+                                    placeholder={t('login.usernameOrEmailPlaceholder')}
+                                    value={usernameOrEmail}
+                                    onChange={(e) => setUsernameOrEmail(e.target.value)}
                                 disabled={isLoading}
                                 required
                             />
@@ -110,7 +111,8 @@ export default function LoginPage() {
                     </form>
                 </CardContent>
             </Card>
+            </div>
             <Footer />
-        </div>
+        </>
     );
 }

@@ -85,19 +85,20 @@ export default function SetupPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-            <Card className="w-full max-w-md">
-                <CardHeader className="text-center space-y-2">
-                    <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
-                        Sweaterr
-                    </div>
-                    <CardTitle>{t('auth.setup')}</CardTitle>
-                    <CardDescription>{t('auth.setupTitle')}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSetup} className="space-y-4">
-                        {error && (
-                            <Alert variant="destructive">
+        <>
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="text-center space-y-2">
+                        <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+                            Sweaterr
+                        </div>
+                        <CardTitle>{t('auth.setup')}</CardTitle>
+                        <CardDescription>{t('auth.setupTitle')}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSetup} className="space-y-4">
+                            {error && (
+                                <Alert variant="destructive">
                                 <AlertCircle className="h-4 w-4" />
                                 <AlertDescription>{error}</AlertDescription>
                             </Alert>
@@ -179,7 +180,8 @@ export default function SetupPage() {
                     </form>
                 </CardContent>
             </Card>
+            </div>
             <Footer />
-        </div>
+        </>
     );
 }
