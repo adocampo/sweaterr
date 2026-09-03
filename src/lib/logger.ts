@@ -141,17 +141,21 @@ class Logger {
 
   info(module: LogModule, message: string, data?: any) {
     this.logToFile(module, 'info', message, data);
-    // Only show essential info in console (skip noisy modules)
+    // Always show in console for critical modules (FlareSolverr, Cloudflare, etc.)
     if (process.env.NODE_ENV === 'development' && module !== 'db' && module !== 'search' && module !== 'jdownloader') {
       console.log(`[${module}] ${message}`);
+    } else if (process.env.NODE_ENV === 'production' && ['flaresolverr', 'cloudflare', 'api', 'auth', 'arr_caps', 'arr_grab'].includes(module)) {
+      console.log(`[${module}] [INFO] ${message}`);
     }
   }
 
   debug(module: LogModule, message: string, data?: any) {
-    // Debug goes to file to keep console clean and avoid breaking callers
+    // Debug goes to file and console for critical modules in production
     this.logToFile(module, 'debug', message, data);
     if (process.env.NODE_ENV === 'development' && module !== 'db' && module !== 'jdownloader') {
       console.debug(`[${module}] ${message}`);
+    } else if (process.env.NODE_ENV === 'production' && ['flaresolverr', 'cloudflare', 'api', 'auth'].includes(module)) {
+      console.log(`[${module}] [DEBUG] ${message}`);
     }
   }
 
