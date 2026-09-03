@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Footer } from '@/components/footer';
 import { useI18n } from '@/hooks/use-i18n';
 import { AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
@@ -178,6 +179,7 @@ export default function SetupPage() {
                     </form>
                 </CardContent>
             </Card>
+            <Footer />
         </div>
     );
 }
