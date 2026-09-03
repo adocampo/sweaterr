@@ -1,19 +1,50 @@
 -- CreateTable
+CREATE TABLE "users" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "username" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'user',
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "language" TEXT NOT NULL DEFAULT 'es',
+    "theme" TEXT NOT NULL DEFAULT 'dark',
+    "isFirstSetupDone" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
 CREATE TABLE "forums" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
     "baseUrl" TEXT NOT NULL,
     "searchPath" TEXT NOT NULL,
+    "searchMode" TEXT,
+    "searchForumLabel" TEXT,
+    "cseId" TEXT,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
+    "searchTitleOnly" BOOLEAN NOT NULL DEFAULT true,
+    "searchInChildForums" BOOLEAN NOT NULL DEFAULT false,
+    "torznabApiKey" TEXT NOT NULL,
+    "protocol" TEXT NOT NULL DEFAULT 'torrent',
+    "defaultLanguage" TEXT NOT NULL DEFAULT 'es-ES',
+    "seedersSelector" TEXT,
+    "peersSelector" TEXT,
+    "infohashSelector" TEXT,
+    "magnetUriSelector" TEXT,
     "thankButtonSelector" TEXT,
     "linksContainerSelector" TEXT,
     "postTitleSelector" TEXT,
     "loginPath" TEXT,
     "usernameField" TEXT,
     "passwordField" TEXT,
-    "loginFormSelector" TEXT
+    "loginFormSelector" TEXT,
+    "persistentCookies" TEXT,
+    "cookiesUpdatedAt" DATETIME,
+    "useFlaresolverr" BOOLEAN NOT NULL DEFAULT true,
+    "flaresolverrSessionTTL" INTEGER NOT NULL DEFAULT 1800000
 );
 
 -- CreateTable
@@ -28,9 +59,13 @@ CREATE TABLE "forum_credentials" (
 -- CreateTable
 CREATE TABLE "jdownloader_configs" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "deviceName" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
+    "mode" TEXT NOT NULL DEFAULT 'local',
+    "connectionName" TEXT,
+    "localHost" TEXT,
+    "localPort" INTEGER,
+    "email" TEXT,
+    "password" TEXT,
+    "deviceName" TEXT,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
@@ -43,6 +78,16 @@ CREATE TABLE "ai_configs" (
     "apiKey" TEXT,
     "baseUrl" TEXT,
     "model" TEXT,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "flaresolverr_configs" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "url" TEXT NOT NULL,
+    "timeout" INTEGER NOT NULL DEFAULT 60000,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
@@ -101,8 +146,28 @@ CREATE TABLE "arr_services" (
     "updatedAt" DATETIME NOT NULL
 );
 
+-- CreateTable
+CREATE TABLE "testing_settings" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "forums_torznabApiKey_key" ON "forums"("torznabApiKey");
+
 -- CreateIndex
 CREATE UNIQUE INDEX "forum_credentials_forumId_key" ON "forum_credentials"("forumId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "arr_services_apiKey_key" ON "arr_services"("apiKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "testing_settings_userId_key" ON "testing_settings"("userId");

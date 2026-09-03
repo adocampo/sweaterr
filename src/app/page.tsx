@@ -56,6 +56,7 @@ import { UserManagement } from '@/components/config/user-management';
 import { LogViewer } from '@/components/config/log-viewer';
 import { useI18n } from '@/hooks/use-i18n';
 import { AIConfigForm } from '@/lib/types';
+import { Footer } from '@/components/footer';
 
 async function testAIConnection(values: AIConfigForm) {
   try {
@@ -1086,6 +1087,7 @@ function HomeContent() {
           </TabsContent>
         )}
       </Tabs>
+      <Footer />
     </div>
   );
 }

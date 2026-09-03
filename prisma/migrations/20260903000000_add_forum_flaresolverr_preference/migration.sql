@@ -1,1 +1,0 @@
-ALTER TABLE "forums" ADD COLUMN "useFlaresolverr" BOOLEAN NOT NULL DEFAULT true;
