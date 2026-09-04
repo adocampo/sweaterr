@@ -21,5 +21,9 @@ npx prisma migrate deploy || {
   }
 }
 
+# Create logs directory if it doesn't exist
+mkdir -p /app/logs
+
+# Start application with stdout/stderr redirected to log file
 echo "Starting application..."
-exec node /app/server.js
+exec node /app/server.js >> /app/logs/server.log 2>&1
