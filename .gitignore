@@ -15,6 +15,8 @@ node_modules
 
 # logs
 logs/
+!src/app/api/logs/
+!src/app/api/logs/route.ts
 *.log
 dev.out
 
