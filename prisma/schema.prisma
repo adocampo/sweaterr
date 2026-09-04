@@ -151,6 +151,17 @@ model FlareSolverrConfig {
   @@map("flaresolverr_configs")
 }
 
+// TMDB metadata configuration
+model TmdbConfig {
+  id        String   @id @default(cuid())
+  apiKey    String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tmdb_configs")
+}
+
 // Search history
 model SearchHistory {
   id         String   @id @default(cuid())

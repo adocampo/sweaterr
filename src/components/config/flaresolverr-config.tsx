@@ -49,6 +49,7 @@ interface FlareSolverrConfigProps {
   onTestConnection?: (values: FlareSolverrSettingsForm) => Promise<boolean>;
   isAdd?: boolean;
   isEdit?: boolean;
+  isAddDisabled?: boolean;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   language?: 'es' | 'en';
@@ -60,6 +61,7 @@ export function FlareSolverrConfig({
   onTestConnection,
   isAdd,
   isEdit,
+  isAddDisabled = false,
   isOpen: externalIsOpen,
   onOpenChange,
   language = 'es',
@@ -117,7 +119,7 @@ export function FlareSolverrConfig({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant={isAdd ? 'default' : 'outline'} size={isAdd ? 'default' : 'icon'}>
+        <Button variant={isAdd ? 'default' : 'outline'} size={isAdd ? 'default' : 'icon'} disabled={isAddDisabled}>
           {isAdd ? (
             <>
               <Plus className="h-4 w-4 mr-2" />

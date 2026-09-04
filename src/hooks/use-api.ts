@@ -387,6 +387,57 @@ export function useFlareSolverrConfig() {
   return { config, status, loading, error, refetch: fetchConfig, saveConfig, toggleConfig, testConnection, refreshStatus, deleteConfig };
 }
 
+export function useTmdbConfig() {
+  const [config, setConfig] = useState<{ apiKey: string | null; enabled: boolean; source: 'database' | 'env' | 'none' } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchConfig = async () => {
+    try {
+      const response = await fetch('/api/config/tmdb', { credentials: 'include' });
+      const data = await response.json();
+      if (data.success) setConfig(data.data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveConfig = async (configData: any) => {
+    const response = await fetch('/api/config/tmdb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(configData),
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'Failed to save TMDB config');
+    setConfig(data.data);
+  };
+
+  const testConnection = async (configData: any) => {
+    try {
+      const response = await fetch('/api/config/tmdb/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(configData),
+      });
+      return !!(await response.json()).success;
+    } catch {
+      return false;
+    }
+  };
+
+  const deleteConfig = async () => {
+    const response = await fetch('/api/config/tmdb', { method: 'DELETE', credentials: 'include' });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'Failed to delete TMDB config');
+    setConfig(data.data);
+  };
+
+  useEffect(() => { void fetchConfig(); }, []);
+  return { config, loading, refetch: fetchConfig, saveConfig, testConnection, deleteConfig };
+}
+
 export function useAIConfig() {
   const [config, setConfig] = useState<AIConfig | null>(null);
   const [loading, setLoading] = useState(true);

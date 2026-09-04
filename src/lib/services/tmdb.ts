@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import { TitleFacts } from '@/lib/services/ai';
 import { extractCleanTitle } from '@/lib/metadata-extractor';
+import { getTmdbApiKey } from '@/lib/services/tmdb-config';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -26,12 +27,11 @@ interface CacheEntry {
 const lookupCache = new Map<string, CacheEntry>();
 let genreCache: { map: Map<number, string>; expiresAt: number } | null = null;
 
-export function isTmdbConfigured(): boolean {
-    return !!process.env.TMDB_API_KEY?.trim();
+async function getConfiguredTmdbApiKey(): Promise<string | null> {
+    return getTmdbApiKey();
 }
 
-function buildRequest(path: string, params: Record<string, string>): { url: string; headers: Record<string, string> } {
-    const key = process.env.TMDB_API_KEY!.trim();
+function buildRequest(path: string, params: Record<string, string>, key: string): { url: string; headers: Record<string, string> } {
     const search = new URLSearchParams(params);
     const headers: Record<string, string> = { Accept: 'application/json' };
 
@@ -46,7 +46,9 @@ function buildRequest(path: string, params: Record<string, string>): { url: stri
 }
 
 async function tmdbGet<T>(path: string, params: Record<string, string>, timeoutMs = 10000): Promise<T> {
-    const { url, headers } = buildRequest(path, params);
+    const key = await getConfiguredTmdbApiKey();
+    if (!key) throw new Error('TMDB is not configured');
+    const { url, headers } = buildRequest(path, params, key);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -92,7 +94,7 @@ export async function lookupTitle(
     rawTitle: string,
     options: { year?: number | null; type?: 'series' | 'movie' | 'unknown'; language?: string; onFailure?: (message: string) => void } = {}
 ): Promise<TitleReference | null> {
-    if (!isTmdbConfigured()) return null;
+    if (!await getConfiguredTmdbApiKey()) return null;
 
     const query = normalizeQuery(rawTitle);
     if (query.length < 2) return null;
@@ -183,7 +185,7 @@ export async function resolveTitleFactsBatch(
     onFailure?: (message: string) => void
 ): Promise<Map<string, TitleFacts | null>> {
     const map = new Map<string, TitleFacts | null>();
-    if (!isTmdbConfigured()) return map;
+    if (!await getConfiguredTmdbApiKey()) return map;
 
     await Promise.all(
         entries.map(async (entry) => {

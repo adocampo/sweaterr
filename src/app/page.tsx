@@ -41,6 +41,7 @@ import {
 import { JDownloaderConfig } from '@/components/config/jdownloader-config';
 import { AIConfig } from '@/components/config/ai-config';
 import { FlareSolverrConfig } from '@/components/config/flaresolverr-config';
+import { TmdbConfig } from '@/components/config/tmdb-config';
 import { ForumConfig } from '@/components/config/forum-config';
 import { ForumsTable } from '@/components/config/forums-table';
 import { ForumSessionSettings } from '@/components/config/forum-session-settings';
@@ -49,7 +50,7 @@ import { ResultViewer } from '@/components/testing/result-viewer';
 import { JDownloaderTester } from '@/components/testing/jdownloader-tester';
 import { TestingSettings } from '@/components/testing/testing-settings';
 import { DownloadsManager } from '@/components/downloads/downloads-manager';
-import { useForums, useJDownloaderConfig, useAIConfig, useFlareSolverrConfig, useDownloads, useJDownloaders, useAIModels } from '@/hooks/use-api';
+import { useForums, useJDownloaderConfig, useAIConfig, useFlareSolverrConfig, useTmdbConfig, useDownloads, useJDownloaders, useAIModels } from '@/hooks/use-api';
 import { useTheme } from '@/components/theme-provider';
 import { UserMenu } from '@/components/user-menu';
 import { UserManagement } from '@/components/config/user-management';
@@ -114,6 +115,7 @@ function HomeContent() {
   const { instances: jdownloaders, loading: jdLoading, createInstance: createJDownloader, deleteInstance: deleteJDownloader, toggleInstance: toggleJDownloader, refetch: refetchJDownloaders } = useJDownloaders();
   const { models: aiModels, loading: aiLoading, createModel: createAIModel, deleteModel: deleteAIModel, toggleModel: toggleAIModel, refetch: refetchAIModels } = useAIModels();
   const { config: flaresolverrConfig, status: flaresolverrStatus, refetch: refetchFlareSolverrConfig, saveConfig: saveFlareSolverrConfig, toggleConfig: toggleFlareSolverrConfig, testConnection: testFlareSolverrConnection, refreshStatus: refreshFlareSolverrStatus, deleteConfig: deleteFlareSolverrConfig } = useFlareSolverrConfig();
+  const { config: tmdbConfig, saveConfig: saveTmdbConfig, testConnection: testTmdbConnection, deleteConfig: deleteTmdbConfig } = useTmdbConfig();
   const { theme, setTheme } = useTheme();
 
   const isAdmin = currentUser?.role === 'admin';
@@ -722,6 +724,51 @@ function HomeContent() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    TMDB
+                  </CardTitle>
+                  <CardDescription>{t('tmdbConfig.description')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">{t('tmdbConfig.status')}</h3>
+                      <TmdbConfig
+                        onConfigSave={saveTmdbConfig}
+                        onTestConnection={testTmdbConnection}
+                        isAdd
+                        isAddDisabled={!!tmdbConfig?.apiKey}
+                        language={userLanguage}
+                      />
+                    </div>
+                    {tmdbConfig?.apiKey ? (
+                      <div className="flex items-center justify-between rounded-md border p-3">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className={tmdbConfig.enabled ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-orange-500/10 text-orange-700 dark:text-orange-400'}>
+                              {tmdbConfig.enabled ? t('tmdbConfig.statusOnline') : t('config.disabled')}
+                            </Badge>
+                            <Badge variant="secondary">{tmdbConfig.source === 'database' ? t('tmdbConfig.sourceDatabase') : t('tmdbConfig.sourceEnvironment')}</Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground">TMDB API</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <TmdbConfig config={tmdbConfig} onConfigSave={saveTmdbConfig} onTestConnection={testTmdbConnection} isEdit language={userLanguage} />
+                          {tmdbConfig.source === 'database' && (
+                            <Button variant="destructive" size="icon" title={t('common.delete')} onClick={() => void deleteTmdbConfig()}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ) : <p className="text-sm text-muted-foreground">{t('tmdbConfig.statusUnknown')}</p>}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
                     <Download className="h-5 w-5" />
                     FlareSolverr
                   </CardTitle>
@@ -741,6 +788,7 @@ function HomeContent() {
                         }}
                         onTestConnection={async (values) => testFlareSolverrConnection(values)}
                         isAdd={true}
+                        isAddDisabled={!!flaresolverrConfig?.url}
                         language={userLanguage}
                       />
                     </div>

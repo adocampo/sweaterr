@@ -29,6 +29,7 @@ export type LogModule =
   | 'sabnzbd'
   | 'testing'
   | 'db'
+  | 'tmdb'
   | 'metadata'
   | 'arr_caps'
   | 'arr_grab'
