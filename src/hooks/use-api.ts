@@ -316,7 +316,7 @@ export function useFlareSolverrConfig() {
 
   const testConnection = async (configData: any) => {
     try {
-      const response = await fetch('/api/config/flaresolverr/test', {
+      const response = await fetch('/api/config/flaresolverr/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -339,7 +339,7 @@ export function useFlareSolverrConfig() {
     }
 
     try {
-      const response = await fetch('/api/config/flaresolverr/test', {
+      const response = await fetch('/api/config/flaresolverr/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

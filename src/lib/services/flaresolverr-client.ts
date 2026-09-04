@@ -35,7 +35,7 @@ export class FlareSolverrClient {
      * Cheap liveness check. A hung FlareSolverr still accepts TCP connections,
      * so only a real command tells us whether it can serve requests.
      */
-    async ping(timeoutMs = 15000): Promise<{ version?: string; sessions: number }> {
+    async ping(timeoutMs = 30000): Promise<{ version?: string; sessions: number }> {
         try {
             logger.debug('flaresolverr', `Ping ${this.endpoint}`);
             const { data } = await axios.post(
