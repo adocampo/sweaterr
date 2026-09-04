@@ -14,6 +14,7 @@ const forumConfigSchema = z.object({
     thankButtonSelector: z.string().optional(),
     linksContainerSelector: z.string().optional(),
     postTitleSelector: z.string().optional(),
+    requiresAuthentication: z.boolean().optional(),
     username: z.string().optional(),
     password: z.string().optional(),
     useFlaresolverr: z.boolean().optional(),
@@ -58,6 +59,7 @@ export async function PUT(
                 thankButtonSelector: validatedData.thankButtonSelector,
                 linksContainerSelector: validatedData.linksContainerSelector,
                 postTitleSelector: validatedData.postTitleSelector,
+                requiresAuthentication: validatedData.requiresAuthentication ?? existingForum.requiresAuthentication,
                 useFlaresolverr: validatedData.useFlaresolverr ?? existingForum.useFlaresolverr,
                 // Persist TTL in milliseconds if provided (incoming value is minutes)
                 flaresolverrSessionTTL:

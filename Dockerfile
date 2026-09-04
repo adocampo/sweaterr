@@ -21,6 +21,9 @@ COPY package*.json ./
 # Install dependencies and explicitly remove the z-ai-web-dev-sdk
 RUN npm install && npm uninstall z-ai-web-dev-sdk || true
 
+# Install Chromium for direct forum authentication when FlareSolverr is disabled.
+RUN npx playwright install --with-deps chromium
+
 # Copy source code EARLY to include prisma schema and ensure all files are present
 COPY . .
 

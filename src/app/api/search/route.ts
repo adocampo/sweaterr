@@ -66,13 +66,14 @@ export async function POST(request: NextRequest) {
         thankButtonSelector: forum.thankButtonSelector || undefined,
         linksContainerSelector: forum.linksContainerSelector || undefined,
         postTitleSelector: forum.postTitleSelector || undefined,
+        requiresAuthentication: forum.requiresAuthentication,
         credentials: forum.credentials ? {
           username: forum.credentials.username,
           password: forum.credentials.password,
         } : undefined,
       });
 
-      if (forum.credentials) {
+      if (forum.requiresAuthentication && forum.credentials) {
         await forumService.authenticate(forum.id);
       }
     }

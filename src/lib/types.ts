@@ -106,7 +106,7 @@ export interface ForumConfigForm {
   linksContainerSelector?: string;
   postTitleSelector?: string;
   useFlaresolverr?: boolean;
-  useFlaresolverr?: boolean;
+  requiresAuthentication?: boolean;
   username?: string;
   password?: string;
   flaresolverrSessionTTL?: number;

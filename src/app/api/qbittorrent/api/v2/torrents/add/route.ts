@@ -197,12 +197,15 @@ export async function POST(request: NextRequest) {
                     if (!matchedForum) {
                         logger.warn('qbittorrent', 'No matching forum found for URL; skipping extraction');
                     } else {
+                        // Determine if FlareSolverr should be used for this forum
+                        const flareUrl = (matchedForum.useFlaresolverr !== false && process.env.FLARESOLVERR_URL) ? process.env.FLARESOLVERR_URL : undefined;
+
                         const extractResult = await extractLinksFromPost(
                             forumUrl,
                             matchedForum.baseUrl,
                             matchedForum.credentials?.username,
                             matchedForum.credentials?.password,
-                            process.env.FLARESOLVERR_URL,
+                            flareUrl,
                             matchedForum.id,
                             {
                                 thankButtonSelector: matchedForum.thankButtonSelector || undefined,

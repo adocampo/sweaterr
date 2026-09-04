@@ -15,6 +15,7 @@ const forumConfigSchema = z.object({
   thankButtonSelector: z.string().optional(),
   linksContainerSelector: z.string().optional(),
   postTitleSelector: z.string().optional(),
+  requiresAuthentication: z.boolean().optional(),
   username: z.string().optional(),
   password: z.string().optional(),
   useFlaresolverr: z.boolean().optional(),
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
         thankButtonSelector: validatedData.thankButtonSelector,
         linksContainerSelector: validatedData.linksContainerSelector,
         postTitleSelector: validatedData.postTitleSelector,
+        requiresAuthentication: validatedData.requiresAuthentication ?? false,
         useFlaresolverr: validatedData.useFlaresolverr ?? true,
         torznabApiKey, // Auto-generated per forum
         // Store TTL in milliseconds. Incoming value is minutes.

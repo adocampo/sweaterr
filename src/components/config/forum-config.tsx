@@ -44,6 +44,7 @@ const forumSchema = z.object({
   thankButtonSelector: z.string().optional(),
   linksContainerSelector: z.string().optional(),
   postTitleSelector: z.string().optional(),
+  requiresAuthentication: z.boolean().optional().default(false),
   username: z.string().optional(),
   password: z.string().optional(),
   useFlaresolverr: z.boolean().optional().default(true),
@@ -61,10 +62,18 @@ const forumSchema = z.object({
   }
 );
 
+interface ForumConnectionTestResult {
+  success: boolean;
+  message?: string;
+  messageKey?: string;
+  messageParams?: Record<string, string | number | boolean | null | undefined>;
+  sessionStarted?: boolean;
+}
+
 interface ForumConfigProps {
   config?: ForumConfigForm | null;
   onConfigSave?: (config: ForumConfigForm) => void;
-  onTestConnection?: (config: ForumConfigForm) => Promise<boolean>;
+  onTestConnection?: (config: ForumConfigForm) => Promise<boolean | ForumConnectionTestResult>;
   isEdit?: boolean;
   forumId?: string;
   isOpen?: boolean;
@@ -95,7 +104,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [testMessage, setTestMessage] = useState<string>('');
-  const [useCredentials, setUseCredentials] = useState(!!config?.username);
+  const [useCredentials, setUseCredentials] = useState(config?.requiresAuthentication ?? !!config?.username);
 
   const form = useForm<ForumConfigForm>({
     resolver: zodResolver(forumSchema),
@@ -112,6 +121,7 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
       thankButtonSelector: '',
       linksContainerSelector: '',
       postTitleSelector: '',
+      requiresAuthentication: false,
       username: '',
       password: '',
       useFlaresolverr: true,
@@ -158,7 +168,9 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
           setTestMessage(result ? t('forums.connectionSuccessful') : t('forums.connectionFailed'));
         } else if (result && typeof result === 'object') {
           setTestResult(result.success ? 'success' : 'error');
-          setTestMessage(result.message || (result.success ? t('forums.connectionSuccessful') : t('forums.connectionFailed')));
+          setTestMessage(result.messageKey
+            ? t(result.messageKey, result.messageParams)
+            : (result.message || (result.success ? t('forums.connectionSuccessful') : t('forums.connectionFailed'))));
         }
       } else {
         setTestResult('error');
@@ -493,7 +505,10 @@ export function ForumConfig({ config, onConfigSave, onTestConnection, isEdit = f
               <div className="flex items-center space-x-2">
                 <Switch
                   checked={useCredentials}
-                  onCheckedChange={setUseCredentials}
+                  onCheckedChange={(checked) => {
+                    setUseCredentials(checked);
+                    form.setValue('requiresAuthentication', checked);
+                  }}
                 />
                 <label className="text-sm font-medium">
                   {t('forums.requiresAuth')}

@@ -545,8 +545,10 @@ function HomeContent() {
                   thankButtonSelector: forum.thankButtonSelector || undefined,
                   linksContainerSelector: forum.linksContainerSelector || undefined,
                   postTitleSelector: forum.postTitleSelector || undefined,
+                  requiresAuthentication: (forum as any).requiresAuthentication ?? !!forum.credentials?.username,
                   username: forum.credentials?.username,
                   password: forum.credentials?.password,
+                  useFlaresolverr: (forum as any).useFlaresolverr ?? true,
                   // Convert stored TTL (ms) to minutes for the form
                   flaresolverrSessionTTL: typeof (forum as any).flaresolverrSessionTTL === 'number'
                     ? Math.round((forum as any).flaresolverrSessionTTL / 60000)
@@ -750,7 +752,7 @@ function HomeContent() {
                             {flaresolverrStatus === 'ok' ? (
                               <Badge variant="secondary" className="bg-green-500/10 text-green-700 dark:text-green-400">{t('flaresolverrConfig.statusOnline')}</Badge>
                             ) : flaresolverrStatus === 'error' ? (
-                              <Badge variant="destructive">{t('flaresolverrConfig.statusError')}</Badge>
+                              <Badge variant="secondary" className="bg-red-500/10 text-red-700 dark:text-red-400">{t('flaresolverrConfig.statusError')}</Badge>
                             ) : (
                               <Badge variant="secondary" className="bg-orange-500/10 text-orange-700 dark:text-orange-400">{t('flaresolverrConfig.statusOffline')}</Badge>
                             )}

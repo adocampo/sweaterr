@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       thankButtonSelector: forum.thankButtonSelector || undefined,
       linksContainerSelector: forum.linksContainerSelector || undefined,
       postTitleSelector: forum.postTitleSelector || undefined,
+      requiresAuthentication: forum.requiresAuthentication,
       credentials: forum.credentials ? {
         username: forum.credentials.username,
         password: forum.credentials.password,
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Authenticate with forum
-    if (forum.credentials) {
+    if (forum.requiresAuthentication && forum.credentials) {
       const authSuccess = await forumService.authenticate(forum.id);
       if (!authSuccess) {
         return NextResponse.json({

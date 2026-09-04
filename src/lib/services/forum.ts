@@ -51,6 +51,7 @@ export interface ForumConfig {
   linksContainerSelector?: string;
   postTitleSelector?: string;
   useFlaresolverr?: boolean;
+  requiresAuthentication?: boolean;
   persistentCookies?: string;
   credentials?: {
     username: string;
@@ -191,6 +192,11 @@ export class ForumService {
       return false;
     }
 
+    if (!config.requiresAuthentication) {
+      logger.info('forum', `Authentication is disabled for ${config.name}; skipping login.`);
+      return true;
+    }
+
     // If we already have persistent cookies, apply and skip login
     const { cookies: storedCookies, userAgent: storedUserAgent } = this.parseStoredCookies(config.persistentCookies);
     if (storedCookies.length > 0) {
@@ -223,7 +229,11 @@ export class ForumService {
         '/login.php?do=login',
         config.credentials.username,
         config.credentials.password,
-        await getFlareSolverrUrl()
+        await getFlareSolverrUrl(),
+        'input[name="username"]',
+        'input[name="password"]',
+        'button[type="submit"], input[type="submit"]',
+        config.useFlaresolverr
       );
 
       if (result.success && result.cookies) {

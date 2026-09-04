@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const { baseUrl, credentials, thankButtonSelector, linksContainerSelector } = forumConfig;
+        const { baseUrl, credentials, thankButtonSelector, linksContainerSelector, useFlaresolverr } = forumConfig;
         const username = credentials?.username;
         const password = credentials?.password;
 
@@ -58,13 +58,16 @@ export async function POST(request: NextRequest) {
 
         console.log('[API] Extracting links from:', postUrl);
 
+        // Determine if FlareSolverr should be used for this forum
+        const flareUrl = (useFlaresolverr !== false && process.env.FLARESOLVERR_URL) ? process.env.FLARESOLVERR_URL : undefined;
+
         // Extract links using the service (requires login to see thanks button)
         const result = await extractLinksFromPost(
             postUrl,
             baseUrl,
             username || undefined,
             password || undefined,
-            process.env.FLARESOLVERR_URL,
+            flareUrl,
             forumId,
             {
                 thankButtonSelector: thankButtonSelector || undefined,

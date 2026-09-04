@@ -151,6 +151,7 @@ export async function GET(request: NextRequest) {
                 thankButtonSelector: forum.thankButtonSelector || undefined,
                 linksContainerSelector: forum.linksContainerSelector || undefined,
                 postTitleSelector: forum.postTitleSelector || undefined,
+                requiresAuthentication: forum.requiresAuthentication,
                 credentials: forum.credentials ? {
                     username: forum.credentials.username,
                     password: forum.credentials.password,
@@ -158,7 +159,7 @@ export async function GET(request: NextRequest) {
             });
 
             // Authenticate only when we will actually search
-            if (shouldSearch && forum.credentials) {
+            if (shouldSearch && forum.requiresAuthentication && forum.credentials) {
                 await forumService.authenticate(forum.id);
             }
         }

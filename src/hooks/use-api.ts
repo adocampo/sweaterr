@@ -118,14 +118,12 @@ export function useForums() {
 
       const data = await response.json();
 
-      if (!data.success && data.error) {
-        throw new Error(data.error);
-      }
-
       // Return both success boolean and message for better UI feedback
       return {
         success: data.success,
         message: data.message || (data.success ? 'Conexión exitosa' : 'Conexión fallida'),
+        messageKey: data.messageKey || data.errorKey,
+        messageParams: data.messageParams,
         sessionStarted: data.sessionStarted || false,
       };
     } catch (err: any) {

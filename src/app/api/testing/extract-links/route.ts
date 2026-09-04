@@ -28,13 +28,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Determine if FlareSolverr should be used for this forum
+        const flareUrl = (forum.useFlaresolverr !== false && process.env.FLARESOLVERR_URL) ? process.env.FLARESOLVERR_URL : undefined;
+
         // Use the working link extraction function
         const result = await extractLinksFromPost(
             postUrl,
             forum.baseUrl,
             forum.credentials?.username,
             forum.credentials?.password,
-            process.env.FLARESOLVERR_URL,
+            flareUrl,
             forumId
         );
 

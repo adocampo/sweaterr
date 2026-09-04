@@ -43,6 +43,7 @@ interface Forum {
         username: string;
         password: string;
     } | null;
+    useFlaresolverr?: boolean | null;
     flaresolverrSessionTTL?: number | null;
     torznabApiKey?: string; // API key for Torznab indexer
 }

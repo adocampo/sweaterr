@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     if (!name || !baseUrl) {
       logger.warn('forum', 'Forum check: missing name or baseUrl');
       return NextResponse.json(
-        { success: false, error: 'Nombre y URL base son requeridos' },
+        { success: false, errorKey: 'forumForm.missingNameOrUrl' },
         { status: 400 }
       );
     }
@@ -33,7 +33,13 @@ export async function POST(request: NextRequest) {
       include: { credentials: true },
     });
 
-    // Add forum config for testing (bind to existing id if present)
+    // Prioritize form values over the saved configuration during testing.
+    const authRequired = body.requiresAuthentication !== undefined
+      ? body.requiresAuthentication
+      : (existing?.requiresAuthentication ?? true);
+    const useFs = body.useFlaresolverr !== undefined
+      ? body.useFlaresolverr
+      : (existing?.useFlaresolverr ?? true);
     const testConfig = {
       id: existing?.id || 'test',
       name: existing?.name || name,
@@ -41,9 +47,11 @@ export async function POST(request: NextRequest) {
       searchPath: existing?.searchPath || searchPath || '/search.php',
       searchMode: existing?.searchMode || searchMode,
       persistentCookies: existing?.persistentCookies || undefined,
-      credentials: username && password
+      requiresAuthentication: authRequired,
+      useFlaresolverr: useFs,
+      credentials: authRequired && username && password
         ? { username, password }
-        : existing?.credentials
+        : (authRequired && existing?.credentials)
           ? { username: existing.credentials.username, password: existing.credentials.password }
           : undefined,
     } as any;
@@ -53,11 +61,11 @@ export async function POST(request: NextRequest) {
       logger.info('forum', `Forum check: added config for ${testConfig.name} (${testConfig.baseUrl})`);
     } catch (err: any) {
       logger.error('forum', `Forum check: failed to add forum config: ${err?.message || String(err)}`);
-      return NextResponse.json({ success: false, error: 'No se pudo preparar la configuración del foro para la prueba.' }, { status: 500 });
+      return NextResponse.json({ success: false, errorKey: 'forumForm.testPreparationError' }, { status: 500 });
     }
 
-    // Test authentication if credentials provided
-    if (username && password) {
+    // Test authentication if credentials provided and requiresAuthentication is true
+    if (authRequired && testConfig.credentials) {
       logger.info('forum', `=== TESTING FORUM: ${name} ===`);
       logger.info('forum', `URL: ${baseUrl}`);
       logger.info('forum', `User: ${username}`);
@@ -69,7 +77,7 @@ export async function POST(request: NextRequest) {
         logger.warn('forum', '[ForumCheck] Authentication failed');
         return NextResponse.json({
           success: false,
-          error: 'Autenticación fallida. Verifica tus credenciales. Revisa los logs (logs/forum.log) para más detalles.',
+          errorKey: 'forumForm.authenticationFailed',
           sessionStarted: false,
         });
       }
@@ -82,10 +90,12 @@ export async function POST(request: NextRequest) {
 
       try {
         const flaresolverrUrl = process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+        const shouldUseFlareSolverr = useFs;
         logger.info('forum', `[ForumCheck] FlareSolverr URL: ${flaresolverrUrl || 'MISSING'}`);
         logger.info('forum', `[ForumCheck] Existing forum ID: ${existing?.id || 'none'}`);
+        logger.info('forum', `[ForumCheck] useFlaresolverr: ${existing?.useFlaresolverr ?? 'not set'}, shouldUse: ${shouldUseFlareSolverr}`);
 
-        if (flaresolverrUrl && existing?.id) {
+        if (shouldUseFlareSolverr && flaresolverrUrl && existing?.id) {
           logger.info('forum', '[ForumCheck] Attempting to create FlareSolverr session...');
           const fsClient = new FlareSolverrClient(flaresolverrUrl);
           const url = new URL(baseUrl);
@@ -106,8 +116,16 @@ export async function POST(request: NextRequest) {
             sessionMessage = 'Autenticación exitosa, pero no se pudo crear sesión FlareSolverr (las búsquedas funcionarán pero requerirán más tiempo).';
           }
         } else {
-          logger.info('forum', '[ForumCheck] Skipping session creation: FlareSolverr URL or existing forum ID missing');
-          sessionMessage = 'Autenticación exitosa (no se creó sesión FlareSolverr porque el foro no está guardado aún).';
+          if (!shouldUseFlareSolverr) {
+            logger.info('forum', '[ForumCheck] Skipping session creation: useFlaresolverr is disabled for this forum');
+            sessionMessage = 'Autenticación exitosa. FlareSolverr está desactivado para este foro.';
+          } else if (!flaresolverrUrl) {
+            logger.info('forum', '[ForumCheck] Skipping session creation: FlareSolverr URL not configured');
+            sessionMessage = 'Autenticación exitosa (no se creó sesión FlareSolverr porque no hay URL configurada).';
+          } else {
+            logger.info('forum', '[ForumCheck] Skipping session creation: FlareSolverr URL or existing forum ID missing');
+            sessionMessage = 'Autenticación exitosa (no se creó sesión FlareSolverr porque el foro no está guardado aún).';
+          }
         }
       } catch (err) {
         logger.error('forum', `[ForumCheck] Error attempting to create FlareSolverr session: ${err}`);
@@ -118,9 +136,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: sessionStarted
-          ? `Autenticación exitosa. ${sessionMessage}`
-          : 'Autenticación exitosa. El foro está configurado correctamente.',
+        messageKey: 'forumForm.authenticationSucceeded',
         sessionStarted,
       });
     }
@@ -140,26 +156,28 @@ export async function POST(request: NextRequest) {
         logger.info('forum', `[ForumCheck] Base URL responded with status ${response.status}`);
         return NextResponse.json({
           success: true,
-          message: 'URL accesible. Considera añadir credenciales si el foro las requiere.',
+          messageKey: 'forumForm.connectionAccessible',
         });
       }
 
       logger.warn('forum', `[ForumCheck] Base URL responded with error status ${response.status}`);
       return NextResponse.json({
         success: false,
-        error: `El foro respondió con código ${response.status}`,
+        errorKey: 'forumForm.forumResponseError',
+        messageParams: { status: response.status },
       });
     } catch (error: any) {
       logger.error('forum', `[ForumCheck] Connection error: ${error?.message || String(error)}`);
       return NextResponse.json({
         success: false,
-        error: `No se pudo conectar al foro: ${error.message}`,
+        errorKey: 'forumForm.forumConnectionError',
+        messageParams: { reason: error.message },
       });
     }
   } catch (error) {
     logger.error('forum', `Error testing forum: ${error}`);
     return NextResponse.json(
-      { success: false, error: 'Error al probar la conexión del foro' },
+      { success: false, errorKey: 'forumForm.connectionTestError' },
       { status: 500 }
     );
   } finally {

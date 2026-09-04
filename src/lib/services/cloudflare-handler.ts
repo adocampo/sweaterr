@@ -1,5 +1,6 @@
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import axios from 'axios';
+import { existsSync } from 'fs';
 import { FlareSolverrClient } from './flaresolverr-client';
 
 export class CloudflareHandler {
@@ -9,9 +10,15 @@ export class CloudflareHandler {
 
     async initialize(): Promise<void> {
         if (!this.browser) {
+            const macOsChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+            const executablePath = process.platform === 'darwin' && existsSync(macOsChrome)
+                ? macOsChrome
+                : undefined;
+
             this.browser = await chromium.launch({
                 headless: false,
                 args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                executablePath,
             });
         }
     }
@@ -56,76 +63,96 @@ export class CloudflareHandler {
         flaresolverrUrl?: string,
         usernameFieldSelector: string = 'input[name="username"]',
         passwordFieldSelector: string = 'input[name="password"]',
-        submitButtonSelector: string = 'button[type="submit"], input[type="submit"]'
+        submitButtonSelector: string = 'button[type="submit"], input[type="submit"]',
+        useFlaresolverr?: boolean
     ): Promise<{ success: boolean; cookies: string; cookieArray?: Array<{ name: string; value: string }>; userAgent?: string; error?: string }> {
         try {
 
-            // Prefer FlareSolverr if available
-            flaresolverrUrl = flaresolverrUrl || process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
-            if (flaresolverrUrl) {
-                console.log(`[FlareSolverr] Using endpoint: ${flaresolverrUrl}`);
-                const client = new FlareSolverrClient(flaresolverrUrl);
-                // Warm up base URL to obtain CF cookies
-                const warm = await client.request(baseUrl, 'GET');
-                const cookieHeader = FlareSolverrClient.cookiesToHeader(warm.cookies);
-                const headers = { ...warm.headers, Cookie: cookieHeader, 'Accept-Language': 'es-ES,es;q=0.9' };
+            // Only use FlareSolverr if explicitly enabled OR if no Playwright fallback is desired
+            const resolvedUseFlaresolverr = useFlaresolverr ?? true;
+            if (resolvedUseFlaresolverr) {
+                flaresolverrUrl = flaresolverrUrl || process.env.FLARESOLVERR_URL || process.env.NEXT_PUBLIC_FLARESOLVERR_URL;
+                if (flaresolverrUrl) {
+                    console.log(`[FlareSolverr] Using endpoint: ${flaresolverrUrl}`);
+                    const client = new FlareSolverrClient(flaresolverrUrl);
+                    // Warm up base URL to obtain CF cookies
+                    const warm = await client.request(baseUrl, 'GET');
+                    const cookieHeader = FlareSolverrClient.cookiesToHeader(warm.cookies);
+                    const headers = { ...warm.headers, Cookie: cookieHeader, 'Accept-Language': 'es-ES,es;q=0.9' };
 
-                // Perform vBulletin login POST via FlareSolverr
-                const postData = {
-                    do: 'login',
-                    vb_login_username: username,
-                    vb_login_password: password,
-                    s: '',
-                    securitytoken: 'guest',
-                    url: `${baseUrl}/forum.php`,
-                    cookieuser: '1',
-                };
+                    const isXenForo = /xenforo|data-xf-init|_xfToken/i.test(warm.response || '');
+                    const xfTokenMatch = (warm.response || '').match(/name=["']_xfToken["'][^>]*value=["']([^"']+)["']|value=["']([^"']+)["'][^>]*name=["']_xfToken["']/i);
+                    const loginEndpoint = isXenForo
+                        ? new URL('/login/login', baseUrl).toString()
+                        : new URL(loginUrl, baseUrl).toString();
+                    const postData = isXenForo
+                        ? {
+                            login: username,
+                            password,
+                            remember: '1',
+                            _xfToken: xfTokenMatch?.[1] || xfTokenMatch?.[2] || '',
+                            _xfRedirect: baseUrl,
+                        }
+                        : {
+                            do: 'login',
+                            vb_login_username: username,
+                            vb_login_password: password,
+                            s: '',
+                            securitytoken: 'guest',
+                            url: `${baseUrl}/forum.php`,
+                            cookieuser: '1',
+                        };
 
-                const login = await client.request(`${baseUrl}${loginUrl}`, 'POST', postData);
-                const loginHtml = login.response || '';
+                    console.log(`[FlareSolverr] Detected ${isXenForo ? 'XenForo' : 'vBulletin'} login flow`);
+                    const login = await client.request(loginEndpoint, 'POST', postData, undefined, headers, warm.cookies);
+                    const loginHtml = login.response || '';
 
-                // Check for vBulletin login error messages in response
-                if (loginHtml.includes('nombre de usuario o contraseña no válidos') ||
-                    loginHtml.includes('incorrect') ||
-                    loginHtml.includes('invalid username or password') ||
-                    loginHtml.includes('has introducido un nombre de usuario o contraseña')) {
-                    console.log('[FlareSolverr] ✗ Invalid credentials detected in response');
+                    // Check for vBulletin login error messages in response
+                    if (loginHtml.includes('nombre de usuario o contraseña no válidos') ||
+                        loginHtml.includes('incorrect') ||
+                        loginHtml.includes('invalid username or password') ||
+                        loginHtml.includes('has introducido un nombre de usuario o contraseña')) {
+                        console.log('[FlareSolverr] ✗ Invalid credentials detected in response');
+                        return {
+                            success: false,
+                            cookies: '',
+                            error: 'Credenciales incorrectas',
+                        };
+                    }
+
+                    const finalCookies = FlareSolverrClient.cookiesToHeader(login.cookies);
+
+                    // Verify the platform-specific authenticated session cookie.
+                    const hasSessionCookie = login.cookies.some(c =>
+                        isXenForo
+                            ? c.name === 'xf_user'
+                            : c.name.startsWith('bb') || c.name.includes('session') || c.name.includes('userid')
+                    );
+
+                    if (!hasSessionCookie && loginHtml.length > 0) {
+                        console.log('[FlareSolverr] ✗ No session cookies found after login');
+                        return {
+                            success: false,
+                            cookies: '',
+                            error: 'No se obtuvieron cookies de sesión. Verifica las credenciales.',
+                        };
+                    }
+
+                    if (finalCookies.length > 0) {
+                        console.log('[FlareSolverr] ✓ Login successful, session cookies acquired');
+                        const userAgent = login.userAgent || warm.userAgent;
+                        return { success: true, cookies: finalCookies, cookieArray: login.cookies || [], userAgent };
+                    }
+
                     return {
                         success: false,
                         cookies: '',
-                        error: 'Credenciales incorrectas',
+                        cookieArray: [],
+                        userAgent: login.userAgent || warm.userAgent,
+                        error: 'No se pudo obtener cookies tras el login con FlareSolverr',
                     };
                 }
-
-                const finalCookies = FlareSolverrClient.cookiesToHeader(login.cookies);
-
-                // Verify by checking if we have session cookies (vBulletin uses 'bb' prefix)
-                const hasSessionCookie = login.cookies.some(c =>
-                    c.name.startsWith('bb') || c.name.includes('session') || c.name.includes('userid')
-                );
-
-                if (!hasSessionCookie && loginHtml.length > 0) {
-                    console.log('[FlareSolverr] ✗ No session cookies found after login');
-                    return {
-                        success: false,
-                        cookies: '',
-                        error: 'No se obtuvieron cookies de sesión. Verifica las credenciales.',
-                    };
-                }
-
-                if (finalCookies.length > 0) {
-                    console.log('[FlareSolverr] ✓ Login successful, session cookies acquired');
-                    const userAgent = login.userAgent || warm.userAgent;
-                    return { success: true, cookies: finalCookies, cookieArray: login.cookies || [], userAgent };
-                }
-
-                return {
-                    success: false,
-                    cookies: '',
-                    cookieArray: [],
-                    userAgent: login.userAgent || warm.userAgent,
-                    error: 'No se pudo obtener cookies tras el login con FlareSolverr',
-                };
+                // If resolvedUseFlaresolverr is true but no URL available, fall through to Playwright
             }
 
             const page = await this.getPage();
@@ -156,8 +183,12 @@ export class CloudflareHandler {
                 }
             }
 
-            console.log(`[Playwright] Navigating to login page: ${baseUrl}${loginUrl}`);
-            await page.goto(`${baseUrl}${loginUrl}`, {
+            const discoveredLoginPath = await page.locator('a[href*="/login"]').first().getAttribute('href');
+            const resolvedLoginUrl = discoveredLoginPath
+                ? new URL(discoveredLoginPath, baseUrl).toString()
+                : new URL(loginUrl, baseUrl).toString();
+            console.log(`[Playwright] Navigating to login page: ${resolvedLoginUrl}`);
+            await page.goto(resolvedLoginUrl, {
                 waitUntil: 'domcontentloaded',
                 timeout: 30000,
             });
@@ -175,7 +206,7 @@ export class CloudflareHandler {
                     await page.goto(`${baseUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
                     await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => { });
                     await page.waitForTimeout(2000);
-                    await page.goto(`${baseUrl}${loginUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                    await page.goto(resolvedLoginUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
                     await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => { });
                 }
             }
@@ -325,7 +356,7 @@ export class CloudflareHandler {
                 // Extract cookies
                 const cookies = await page.context().cookies();
                 const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-                const userAgent = await page.context().userAgent();
+                const userAgent = await page.evaluate(() => navigator.userAgent);
 
                 return {
                     success: true,

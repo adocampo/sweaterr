@@ -71,6 +71,7 @@ model Forum {
   postTitleSelector      String? // CSS selector for post title
   
   // Login configuration
+  requiresAuthentication Boolean @default(false) // Whether saved credentials should be used for this forum
   loginPath              String? // Login form path (e.g., "/login.php")
   usernameField          String? // Username input name
   passwordField          String? // Password input name

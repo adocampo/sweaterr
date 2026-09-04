@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
             baseUrl: forum.baseUrl,
             searchPath: forum.searchPath,
             persistentCookies: (forum as any).persistentCookies || undefined,
+            requiresAuthentication: forum.requiresAuthentication,
             credentials: forum.credentials ? {
                 username: (forum.credentials as any).username,
                 password: (forum.credentials as any).password,
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Authenticate if needed
-        if (forum.credentials) {
+        if (forum.requiresAuthentication && forum.credentials) {
             logger.info('search', `Authenticating for forum: ${forum.name}...`);
             try {
                 const authSuccess = await forumService.authenticate(forum.id);

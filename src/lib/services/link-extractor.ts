@@ -113,10 +113,7 @@ export async function extractLinksFromPost(
 ): Promise<ExtractLinksResult> {
     try {
         const flareUrl = flaresolverrUrl || process.env.FLARESOLVERR_URL;
-
-        if (!flareUrl) {
-            return { success: false, error: 'FlareSolverr URL not configured' };
-        }
+        const shouldUseFlareSolverr = !!flareUrl;
 
         const host = new URL(postUrl).hostname;
         const jar: CookieJar = getJarForHost(host);
@@ -164,7 +161,7 @@ export async function extractLinksFromPost(
         }));
 
         const callFlareSolverr = async (url: string, method: 'GET' | 'POST' = 'GET', postData?: Record<string, any>) => {
-            if (!fsClient) throw new Error('FlareSolverr URL not configured');
+            if (!fsClient) throw new Error('FlareSolverr not available');
             const sol = await fsClient.request(url, method, postData, sessionId);
             const solvedCookies = sol.cookies || [];
             if (solvedCookies.length > 0) {
@@ -224,11 +221,16 @@ export async function extractLinksFromPost(
         try {
             html = await tryAxios(postUrl);
         } catch {
-            html = await callFlareSolverr(postUrl, 'GET');
-            try {
-                html = await tryAxios(postUrl);
-            } catch {
-                // keep solver html
+            if (shouldUseFlareSolverr && fsClient) {
+                html = await callFlareSolverr(postUrl, 'GET');
+                try {
+                    html = await tryAxios(postUrl);
+                } catch {
+                    // keep solver html
+                }
+            } else {
+                // No FlareSolverr available, return error
+                return { success: false, error: 'Cloudflare challenge detected but FlareSolverr is not configured for this forum' };
             }
         }
 
@@ -619,7 +621,8 @@ export async function extractLinksFromPostWithThankClick(
         }));
 
         const flaresolverrUrl = process.env.FLARESOLVERR_URL;
-        const fsClient = flaresolverrUrl ? new FlareSolverrClient(flaresolverrUrl) : null;
+        const shouldUseFlareSolverr = forum.useFlaresolverr !== false;
+        const fsClient = shouldUseFlareSolverr && flaresolverrUrl ? new FlareSolverrClient(flaresolverrUrl) : null;
 
         // Get or create FlareSolverr session for this forum
         let sessionId: string | undefined;
@@ -627,6 +630,8 @@ export async function extractLinksFromPostWithThankClick(
         if (fsClient && forumId) {
             sessionId = await sessionManager.getSession(forumId, host, ttlMs, fsClient);
             logger.info('extract-shared', `Got FlareSolverr session: ${sessionId}`);
+        } else if (!shouldUseFlareSolverr) {
+            logger.info('extract-shared', `FlareSolverr disabled for forum ${forum.name}, using direct requests`);
         }
 
         // Helper: Try request with FlareSolverr fallback
