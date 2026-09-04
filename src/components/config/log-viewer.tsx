@@ -78,7 +78,9 @@ export function LogViewer({ language = 'es' }: LogViewerProps) {
                     setLoading(true);
                     const params = new URLSearchParams();
                     params.append('source', 'all');
-                    const response = await fetch(`/api/logs?${params.toString()}`);
+                    const response = await fetch(`/api/logs?${params.toString()}`, {
+                        credentials: 'include',
+                    });
                     const data = await response.json();
                     if (!data.success) throw new Error(data.error || t('logs.loadError'));
                     if (!cancelled) {
@@ -95,7 +97,9 @@ export function LogViewer({ language = 'es' }: LogViewerProps) {
                     setLoading(true);
                     const params = new URLSearchParams();
                     selectedSources.forEach((source) => params.append('source', source));
-                    const response = await fetch(`/api/logs?${params.toString()}`);
+                    const response = await fetch(`/api/logs?${params.toString()}`, {
+                        credentials: 'include',
+                    });
                     const data = await response.json();
                     if (!data.success) throw new Error(data.error || t('logs.loadError'));
                     if (!cancelled) {
@@ -162,7 +166,10 @@ export function LogViewer({ language = 'es' }: LogViewerProps) {
             } else {
                 selectedSources.forEach((s) => params.append('source', s));
             }
-            const response = await fetch(`/api/logs?${params.toString()}`, { method: 'DELETE' });
+            const response = await fetch(`/api/logs?${params.toString()}`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
             const data = await response.json();
             if (!data.success) throw new Error(data.error || t('logs.clearError'));
             setEntries([]);
