@@ -33,6 +33,7 @@ export async function middleware(request: NextRequest) {
         '/api/sabnzbd', // SABnzbd-compatible API for *arr download client integration
         '/api/config/forums/check', // Forum connectivity test (allows unauthenticated testing)
         '/api/testing',
+        '/api/logs', // Log viewer - endpoint has its own admin auth
     ];
 
     // Check if the current route is public
