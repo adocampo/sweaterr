@@ -267,8 +267,8 @@ function HomeContent() {
         isAdmin={isAdmin}
         language={userLanguage}
       />
-      <div className={`flex-1 min-h-0 flex-col overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
-        <div className="flex min-h-0 h-full flex-col w-full overflow-hidden p-4 md:p-6">
+      <div className={`flex-1 min-h-0 flex-col overflow-auto transition-all duration-300 ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
+        <div className="flex min-h-0 h-full flex-col w-full overflow-auto p-4 md:p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-4 shrink-0">
             <div className="flex flex-col gap-1">

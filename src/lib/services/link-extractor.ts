@@ -635,7 +635,7 @@ export async function extractLinksFromPostWithThankClick(
         }
 
         // Helper: Try request with FlareSolverr fallback
-        const useFlareSolverr = async (url: string) => {
+        const fetchWithFlareSolverr = async (url: string) => {
             if (!fsClient) {
                 logger.error('extract-shared', 'FlareSolverr not configured');
                 throw new Error('FlareSolverr URL not configured');
@@ -719,7 +719,7 @@ export async function extractLinksFromPostWithThankClick(
         } catch (firstErr: any) {
             const status = firstErr?.response?.status;
             logger.warn('extract-shared', `✗ Axios failed (status ${status}), trying FlareSolverr...`);
-            html = await useFlareSolverr(postUrl);
+            html = await fetchWithFlareSolverr(postUrl);
             // Try axios again after FlareSolverr
             try {
                 html = await tryAxios(postUrl);
@@ -753,7 +753,7 @@ export async function extractLinksFromPostWithThankClick(
             } catch (err: any) {
                 logger.warn('extract-shared', `✗ Axios thanks failed, using FlareSolverr`);
                 try {
-                    await useFlareSolverr(thanksUrl);
+                    await fetchWithFlareSolverr(thanksUrl);
                     logger.info('extract-shared', `✓ Thanks click via FlareSolverr`);
                 } catch (solverErr) {
                     logger.error('extract-shared', `Failed to click thanks: ${solverErr}`);
@@ -768,7 +768,7 @@ export async function extractLinksFromPostWithThankClick(
                 logger.info('extract-shared', `✓ Post refetch succeeded`);
             } catch {
                 logger.warn('extract-shared', `Axios refetch failed, using FlareSolverr`);
-                html = await useFlareSolverr(postUrl);
+                html = await fetchWithFlareSolverr(postUrl);
             }
         } else {
             logger.info('extract-shared', `No thanks button found (content may already be revealed)`);

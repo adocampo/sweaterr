@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useActionState } from 'react';
+import { Suspense, useEffect, useActionState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { loginAction } from '@/app/actions/auth';
 import { useI18n } from '@/hooks/use-i18n';
 import Image from 'next/image';
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { t } = useI18n('es');
@@ -73,5 +73,13 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense>
+            <LoginForm />
+        </Suspense>
     );
 }

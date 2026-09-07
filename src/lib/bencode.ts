@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 type BencodeValue =
     | number
     | string
