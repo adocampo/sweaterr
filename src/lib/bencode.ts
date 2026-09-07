@@ -163,6 +163,5 @@ export function base64UrlToBuffer(b64url: string): Buffer {
 }
 
 export function bufferToHexSha1(buf: Buffer): string {
-    const crypto = require('node:crypto') as typeof import('node:crypto');
     return crypto.createHash('sha1').update(buf).digest('hex');
 }

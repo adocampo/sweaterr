@@ -31,7 +31,9 @@ COPY . .
 RUN npx prisma generate
 
 # Build application (require JWT_SECRET for Next.js build, can be any value)
-RUN JWT_SECRET="build-time-secret-not-used-in-runtime" npm run build
+# TURBOPACK_MEMORY_LIMIT increases available memory for Next.js 15 Turbopack builds
+# This prevents OOM errors in CI/CD environments like GitHub Actions
+RUN TURBOPACK_MEMORY_LIMIT=4294967296 JWT_SECRET="build-time-secret-not-used-in-runtime" npm run build
 
 # Set environment variables
 ENV NODE_ENV=production

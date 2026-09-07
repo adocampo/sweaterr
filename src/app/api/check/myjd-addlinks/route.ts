@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { JDownloaderService } from '@/lib/services/jdownloader';
+import CryptoJS from 'crypto-js';
 
 /**
  * Check MyJDownloader addLinks with different parameter combinations
@@ -71,7 +72,6 @@ export async function GET() {
 }
 
 async function testQuery(service: any) {
-    const CryptoJS = require('crypto-js');
 
     try {
         const rid = Date.now();
@@ -113,7 +113,6 @@ async function testQuery(service: any) {
 }
 
 async function testAddLinks(service: any, params: any) {
-    const CryptoJS = require('crypto-js');
 
     try {
         const rid = Date.now();

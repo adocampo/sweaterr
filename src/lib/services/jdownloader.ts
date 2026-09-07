@@ -6,8 +6,7 @@
 // Implements official AES/HMAC-SHA256 authentication flow
 
 import { webcrypto } from 'node:crypto';
-// Import CryptoJS - used for MyJD authentication (matches official addon implementation)
-const CryptoJS = require('crypto-js');
+import CryptoJS from 'crypto-js';
 import { logger } from '@/lib/logger';
 
 // Extend CryptoJS WordArray with firstHalf() and secondHalf() methods (from jdapi.js lines 18-28)
