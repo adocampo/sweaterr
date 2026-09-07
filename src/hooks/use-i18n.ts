@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import esTranslations from '@/locales/es.json';
 import enTranslations from '@/locales/en.json';
 
@@ -27,10 +27,22 @@ function interpolate(value: string, params?: TranslationParams): string {
 }
 
 export function useI18n(language: Language = 'es') {
+    // Prevent hydration mismatch: defer to client-side value after first render
+    const [resolvedLanguage, setResolvedLanguage] = useState<Language>(language);
+    const [isHydrated, setIsHydrated] = useState(false);
+
+    useEffect(() => {
+        setResolvedLanguage(language);
+        setIsHydrated(true);
+    }, [language]);
+
+    // Use the resolved value after hydration
+    const effectiveLanguage = isHydrated ? resolvedLanguage : language;
+
     // Get the translation object for the current language
     const currentTranslations = useMemo(() => {
-        return translations[language] || translations.es;
-    }, [language]);
+        return translations[effectiveLanguage] || translations.es;
+    }, [effectiveLanguage]);
 
     // Helper function to get nested translation by path (e.g., "auth.login")
     const t = useCallback(

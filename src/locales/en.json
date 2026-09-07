@@ -14,6 +14,10 @@
     "logout": "Logout",
     "settings": "Settings"
   },
+  "sidebar": {
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
   "auth": {
     "login": "Login",
     "setup": "Initial Setup",
@@ -45,6 +49,7 @@
     "forums": "Forums",
     "downloads": "Downloads",
     "configuration": "Configuration",
+    "connections": "Connections",
     "testing": "Testing",
     "subtitle": "Integration with direct download forums for Sonarr/Radarr/Lidarr",
     "active": "Active",
@@ -95,7 +100,9 @@
     "defaultModel": "Default Model",
     "localMode": "Local",
     "cloudMode": "Cloud",
-    "notConfigured": "Not Configured"
+    "notConfigured": "Not Configured",
+    "backupRestore": "Backup & Restore",
+    "backupRestoreDescription": "Export or import your entire Sweaterr configuration"
   },
   "logs": {
     "title": "Logs",
@@ -352,6 +359,19 @@
     "testError": "Connection failed",
     "save": "Save",
     "cancel": "Cancel"
+  },
+  "configBackup": {
+    "title": "Configuration backup",
+    "description": "Export the full configuration (forums, JDownloader, AI, FlareSolverr, TMDB, *arr services) to a JSON file, or import it to restore it.",
+    "export": "Export configuration",
+    "import": "Import configuration",
+    "exportSuccess": "Configuration exported successfully",
+    "exportError": "Error exporting configuration",
+    "importSuccess": "Configuration imported successfully. Reloading...",
+    "importError": "Error importing configuration",
+    "importConfirmTitle": "Import configuration?",
+    "importConfirmDescription": "This will replace all current configuration (forums, JDownloader, AI, FlareSolverr, TMDB and *arr services) with the one from the selected file. This action cannot be undone.",
+    "importConfirmAction": "Import and replace"
   },
   "flaresolverrConfig": {
     "add": "Add FlareSolverr",

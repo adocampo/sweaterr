@@ -1,140 +1,77 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Footer } from '@/components/footer';
+import { useEffect, useActionState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { loginAction } from '@/app/actions/auth';
 import { useI18n } from '@/hooks/use-i18n';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 
 export default function LoginPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { t } = useI18n('es');
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [usernameOrEmail, setUsernameOrEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [hasUsers, setHasUsers] = useState<boolean | null>(null);
+    const [state, login, isPending] = useActionState(loginAction, null);
 
     useEffect(() => {
-        const checkUsers = async () => {
-            try {
-                const res = await fetch('/api/auth/users-count');
-                const data = await res.json();
-                setHasUsers(data.success && data.count > 0);
-            } catch (error) {
-                console.error('[Login] Error checking users:', error);
-                setHasUsers(false);
-            }
-        };
-        checkUsers();
-    }, []);
-
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setIsLoading(true);
-
-        try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ usernameOrEmail, password }),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                setError(data.message || 'Login failed');
-                setIsLoading(false);
-                return;
-            }
-
-            console.log('[Login] Success, redirecting to dashboard');
-
-            // Force full page reload to ensure middleware picks up cookie
-            window.location.href = '/';
-        } catch (err) {
-            setError(t('errors.tryAgain'));
-            console.error('[Login] Error:', err);
-            setIsLoading(false);
+        if (state?.success) {
+            router.push('/');
         }
-    };
+    }, [state, router]);
 
-    // If no users exist, redirect to setup
-    useEffect(() => {
-        if (hasUsers === false) {
-            router.push('/setup');
-        }
-    }, [hasUsers, router]);
+    const error = searchParams.get('error') || '';
 
     return (
         <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 to-slate-800 p-4">
             <div className="flex-1 flex items-center justify-center">
-                <Card className="w-full max-w-md">
-                    <CardHeader className="text-center space-y-2 pb-4">
-                        <div className="flex justify-center mb-2">
+                <div className="w-full max-w-md bg-white/10 backdrop-blur-sm rounded-lg p-8 border border-white/20">
+                    <div className="text-center mb-6">
+                        <div className="flex justify-center mb-4">
                             <Image src="/logo.png" alt="Sweaterr" width={200} height={50} priority className="h-12 w-auto" />
                         </div>
-                        <CardTitle>{t('auth.login')}</CardTitle>
-                        <CardDescription>{t('login.enterCredentials')}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <form onSubmit={handleLogin} className="space-y-4">
-                            {error && (
-                                <Alert variant="destructive">
-                                    <AlertCircle className="h-4 w-4" />
-                                    <AlertDescription>{error}</AlertDescription>
-                                </Alert>
-                            )}
+                        <h1 className="text-2xl font-bold text-white">{t('auth.login')}</h1>
+                        <p className="text-gray-300 text-sm mt-1">{t('login.enterCredentials')}</p>
+                    </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">{t('login.usernameOrEmail')}</label>
-                                <Input
-                                    type="text"
-                                    placeholder={t('login.usernameOrEmailPlaceholder')}
-                                    value={usernameOrEmail}
-                                    onChange={(e) => setUsernameOrEmail(e.target.value)}
-                                disabled={isLoading}
+                    <form action={login} className="space-y-4">
+                        {error && (
+                            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded text-sm">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-200">{t('login.usernameOrEmail')}</label>
+                            <input
+                                type="text"
+                                name="usernameOrEmail"
+                                placeholder={t('login.usernameOrEmailPlaceholder')}
+                                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 required
+                                autoFocus
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">{t('auth.password')}</label>
-                            <Input
+                            <label className="text-sm font-medium text-gray-200">{t('auth.password')}</label>
+                            <input
                                 type="password"
+                                name="password"
                                 placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                disabled={isLoading}
+                                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 required
                             />
                         </div>
 
-                        <Button
+                        <button
                             type="submit"
-                            className="w-full"
-                            disabled={isLoading}
+                            disabled={isPending}
+                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded transition-colors"
                         >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    {t('common.loading')}
-                                </>
-                            ) : (
-                                t('auth.login')
-                            )}
-                        </Button>
+                            {isPending ? '...' : t('auth.login')}
+                        </button>
                     </form>
-                </CardContent>
-            </Card>
+                </div>
             </div>
-            <Footer />
         </div>
     );
 }

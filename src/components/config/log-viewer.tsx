@@ -114,12 +114,19 @@ export function LogViewer({ language = 'es' }: LogViewerProps) {
             }
         };
 
-        loadLogs();
-        if (!live) return () => { cancelled = true; };
-        const timer = window.setInterval(loadLogs, 2000);
+        let timer: number | undefined;
+        const run = async () => {
+            await loadLogs();
+            // Schedule the next poll only after the current request finishes,
+            // so slow requests never pile up and cause a perpetual loading state
+            if (!cancelled && live) {
+                timer = window.setTimeout(run, 2000);
+            }
+        };
+        run();
         return () => {
             cancelled = true;
-            window.clearInterval(timer);
+            if (timer !== undefined) window.clearTimeout(timer);
         };
     }, [live, selectedSources, sources, t]);
 
@@ -182,7 +189,7 @@ export function LogViewer({ language = 'es' }: LogViewerProps) {
     };
 
     return (
-        <div className="space-y-3">
+        <div className="flex h-full flex-col gap-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="relative min-w-0 flex-1">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -266,7 +273,7 @@ export function LogViewer({ language = 'es' }: LogViewerProps) {
             {error ? (
                 <p className="text-sm text-destructive">{error}</p>
             ) : (
-                <div ref={logContainerRef} onScroll={handleScroll} className="h-96 overflow-auto rounded-md border bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-200">
+                <div ref={logContainerRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-auto rounded-md border bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-200">
                     {loading && entries.length === 0 ? (
                         <div className="flex items-center gap-2 text-zinc-400"><Loader2 className="h-4 w-4 animate-spin" />{t('common.loading')}</div>
                     ) : orderedEntries.length === 0 ? (
@@ -278,7 +285,7 @@ export function LogViewer({ language = 'es' }: LogViewerProps) {
                     ))}
                 </div>
             )}
-            <p className="text-xs text-muted-foreground">{t('logs.entries', { count: visibleEntries.length })}</p>
+            <p className="shrink-0 text-xs text-muted-foreground">{t('logs.entries', { count: visibleEntries.length })}</p>
         </div>
     );
 }

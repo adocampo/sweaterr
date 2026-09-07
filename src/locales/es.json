@@ -14,6 +14,10 @@
     "logout": "Cerrar sesión",
     "settings": "Configuración"
   },
+  "sidebar": {
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú"
+  },
   "auth": {
     "login": "Iniciar sesión",
     "setup": "Configuración inicial",
@@ -45,6 +49,7 @@
     "forums": "Foros",
     "downloads": "Descargas",
     "configuration": "Configuración",
+    "connections": "Conexiones",
     "testing": "Testing",
     "subtitle": "Integración con foros y páginas de descarga directa para la familia *arr",
     "active": "Activo",
@@ -95,7 +100,9 @@
     "defaultModel": "Modelo por defecto",
     "localMode": "Local",
     "cloudMode": "Cloud",
-    "notConfigured": "No configurado"
+    "notConfigured": "No configurado",
+    "backupRestore": "Respaldo y Restauración",
+    "backupRestoreDescription": "Exporta o restaura toda tu configuración de Sweaterr"
   },
   "logs": {
     "title": "Registros",
@@ -350,6 +357,19 @@
     "testError": "Conexión fallida",
     "save": "Guardar",
     "cancel": "Cancelar"
+  },
+  "configBackup": {
+    "title": "Copia de seguridad de la configuración",
+    "description": "Exporta toda la configuración (foros, JDownloader, IA, FlareSolverr, TMDB, servicios *arr) a un archivo JSON, o impórtala para restaurarla.",
+    "export": "Exportar configuración",
+    "import": "Importar configuración",
+    "exportSuccess": "Configuración exportada correctamente",
+    "exportError": "Error al exportar la configuración",
+    "importSuccess": "Configuración importada correctamente. Recargando...",
+    "importError": "Error al importar la configuración",
+    "importConfirmTitle": "¿Importar configuración?",
+    "importConfirmDescription": "Esto reemplazará toda la configuración actual (foros, JDownloader, IA, FlareSolverr, TMDB y servicios *arr) con la del archivo seleccionado. Esta acción no se puede deshacer.",
+    "importConfirmAction": "Importar y reemplazar"
   },
   "flaresolverrConfig": {
     "add": "Añadir FlareSolverr",

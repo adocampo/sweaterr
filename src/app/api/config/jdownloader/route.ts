@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { refreshDownloadsNow } from '@/lib/services/downloads-cache';
 import { z } from 'zod';
 
 // Modo Local: IP/Hostname + Puerto
@@ -67,6 +68,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Warm the downloads cache immediately so Dashboard/Downloads load fast
+    void refreshDownloadsNow();
+
     return NextResponse.json({
       success: true,
       data: config,
@@ -132,6 +136,8 @@ export async function PUT(request: NextRequest) {
         data: { enabled: body.enabled },
       });
       console.log(`[JDownloader] Toggled successfully:`, config);
+      // Warm the cache when a config is (re)activated
+      void refreshDownloadsNow();
       return NextResponse.json({ success: true, data: config });
     }
 
@@ -153,6 +159,9 @@ export async function PUT(request: NextRequest) {
       where: { id },
       data: updateData,
     });
+
+    // Warm the cache after a successful config update
+    void refreshDownloadsNow();
 
     return NextResponse.json({
       success: true,

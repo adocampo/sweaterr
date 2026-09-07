@@ -1,9 +1,9 @@
 {
   "name": "sweaterr",
-  "version": "1.0.5",
+  "version": "1.5.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000 2>&1 | tee dev.log",
+    "dev": "next dev -p 3000 --turbopack 2>&1 | tee dev.log",
     "build": "next build",
     "start": "NODE_ENV=production next start -p 3000 2>&1 | tee server.log",
     "start:simple": "NODE_ENV=production npm start 2>&1 | tee server.log",

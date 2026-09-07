@@ -15,14 +15,35 @@ function extractToken(
     return null;
 }
 
+// In-memory cache for setup status (avoids DB hits on every request)
+let _setupStatusCache: { needed: boolean; expiresAt: number } | null = null;
+const SETUP_CACHE_TTL_MS = 5_000; // 5 seconds
+
+async function getSetupStatusCache(): Promise<boolean> {
+    const now = Date.now();
+    if (_setupStatusCache && now < _setupStatusCache.expiresAt) {
+        return _setupStatusCache.needed;
+    }
+    try {
+        const res = await fetch('http://127.0.0.1:3000/api/auth/users-count', {
+            cache: 'no-store',
+        });
+        const data = await res.json();
+        const needed = !(data.success && data.count > 0);
+        _setupStatusCache = { needed, expiresAt: now + SETUP_CACHE_TTL_MS };
+        return needed;
+    } catch {
+        // Fallback: assume setup is needed (allows first-time access)
+        return true;
+    }
+}
+
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // List of public routes that don't require authentication
     const publicRoutes = [
-        '/',           // Root path - handled by client-side redirect in page.tsx
         '/login',
-        '/setup',
         '/api/auth/setup',
         '/api/auth/login',
         '/api/auth/reset-password', // Emergency password reset
@@ -38,6 +59,15 @@ export async function middleware(request: NextRequest) {
 
     // Check if the current route is public
     const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+
+    // Special handling for /setup: only allow when no users exist
+    if (pathname === '/setup') {
+        const setupNeeded = await getSetupStatusCache();
+        if (!setupNeeded) {
+            return NextResponse.redirect(new URL('/login', request.url), { status: 302 });
+        }
+        return NextResponse.next();
+    }
 
     if (isPublicRoute) {
         return NextResponse.next();
@@ -76,6 +106,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/((?!_next|static|favicon.ico).*)'],
-    runtime: 'nodejs',
+    matcher: ['/((?!_next|static|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|txt)$).*)'],
 };

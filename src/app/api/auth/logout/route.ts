@@ -21,5 +21,13 @@ export async function POST(request: NextRequest) {
         path: '/',
     });
 
+    response.cookies.set('sweaterr-user', '', {
+        httpOnly: false,
+        secure: isHttps,
+        sameSite: 'lax',
+        maxAge: 0,
+        path: '/',
+    });
+
     return response;
 }

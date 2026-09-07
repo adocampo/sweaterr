@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { ExternalLink, Download, Loader2, Copy, Check, Send, AlertCircle, ChevronDown, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/hooks/use-i18n';
@@ -708,8 +708,8 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                     const metaError = metadataErrors[result.url];
 
                                     return (
-                                        <>
-                                            <tr key={`${index}-main`} className={`border-b ${selectedPost === result.url ? 'bg-accent/40' : ''}`}>
+                                        <Fragment key={result.url}>
+                                            <tr className={`border-b ${selectedPost === result.url ? 'bg-accent/40' : ''}`}>
                                                 <td className="px-3 py-2 align-top">
                                                     <div className="space-y-1">
                                                         <div className="flex items-center gap-2 flex-wrap">
@@ -832,7 +832,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                 </td>
                                             </tr>
                                             {isExpanded && rawTitle && (
-                                                <tr key={`${index}-raw`} className="border-b bg-muted/30">
+                                                <tr className="border-b bg-muted/30">
                                                     <td colSpan={10} className="px-3 py-2">
                                                         <div className="text-xs text-muted-foreground">
                                                             <span className="font-semibold">Original title:</span> {rawTitle}
@@ -840,7 +840,7 @@ export function ResultViewer({ results, forumId, searchQuery, searchMode, totalR
                                                     </td>
                                                 </tr>
                                             )}
-                                        </>
+                                        </Fragment>
                                     );
                                 })}
                             </tbody>

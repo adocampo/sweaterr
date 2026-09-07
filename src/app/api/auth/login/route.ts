@@ -48,6 +48,16 @@ export async function POST(request: NextRequest) {
             path: '/',
         });
 
+        // Non-httpOnly cookie so the client can read the role instantly
+        // (avoids waiting on /api/auth/me before rendering admin-only UI).
+        response.cookies.set('sweaterr-user', JSON.stringify(result.user), {
+            httpOnly: false,
+            secure: isHttps,
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60, // 7 days
+            path: '/',
+        });
+
         return response;
     } catch (error) {
         console.error('[Login] Error:', error);

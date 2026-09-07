@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -24,7 +24,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Loader2,
-  Clock
+  Clock,
+  HardDrive
 } from 'lucide-react';
 import Image from 'next/image';
 import {
@@ -57,7 +58,9 @@ import { UserManagement } from '@/components/config/user-management';
 import { LogViewer } from '@/components/config/log-viewer';
 import { useI18n } from '@/hooks/use-i18n';
 import { AIConfigForm } from '@/lib/types';
-import { Footer } from '@/components/footer';
+import { ConfigBackup } from '@/components/config/config-backup';
+import { DashboardLayout } from '@/components/dashboard-layout';
+import { Sidebar } from '@/components/sidebar';
 
 async function testAIConnection(values: AIConfigForm) {
   try {
@@ -86,11 +89,24 @@ export default function Home() {
 }
 
 function HomeContent() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeSection, setActiveSection] = useState('overview');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Keep-alive: sections stay mounted once visited so background work and state persist
+  const [visitedSections, setVisitedSections] = useState<Set<string>>(() => new Set(['overview']));
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [loadingUser, setLoadingUser] = useState<boolean>(true);
   const [userLanguage, setUserLanguage] = useState<'es' | 'en'>('es');
   const { t } = useI18n(userLanguage);
+
+  // Restore the last active section so reloads (e.g. language change) stay in place
+  useEffect(() => {
+    const saved = window.localStorage.getItem('sweaterr.activeSection');
+    if (saved) setActiveSection(saved);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('sweaterr.activeSection', activeSection);
+  }, [activeSection]);
 
   // Get download stats from context (only components using this will re-render)
   const { totalSpeed, activeDownloadsCount, jDownloaderStats, jDownloaderDownloads, dbDownloads } = useDownloadsContext();
@@ -179,10 +195,19 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
-    if (!loadingUser && !isAdmin && activeTab === 'config') {
-      setActiveTab('overview');
+    if (!loadingUser && !isAdmin && activeSection.startsWith('settings-')) {
+      setActiveSection('overview');
     }
-  }, [loadingUser, isAdmin, activeTab]);
+  }, [loadingUser, isAdmin, activeSection]);
+
+  useEffect(() => {
+    setVisitedSections((prev) => {
+      if (prev.has(activeSection)) return prev;
+      const next = new Set(prev);
+      next.add(activeSection);
+      return next;
+    });
+  }, [activeSection]);
 
   // Format speed in human-readable format
   const formatSpeed = (bytesPerSecond: number) => {
@@ -233,43 +258,45 @@ function HomeContent() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Sweaterr" width={160} height={40} priority className="h-10 w-auto" />
-            <span className="sr-only">Sweaterr</span>
+    <DashboardLayout>
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        isAdmin={isAdmin}
+        language={userLanguage}
+      />
+      <div className={`flex-1 min-h-0 flex-col overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
+        <div className="flex min-h-0 h-full flex-col w-full overflow-hidden p-4 md:p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4 shrink-0">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-3">
+                <Image src="/logo.png" alt="Sweaterr" width={160} height={40} priority className="h-10 w-auto" />
+                <span className="sr-only">Sweaterr</span>
+              </div>
+              <p className="text-muted-foreground">
+                {t('dashboard.subtitle')}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={activeDownloadsCount > 0 ? "default" : "outline"}
+                className="flex items-center gap-1"
+              >
+                <Activity className="h-3 w-3" />
+                {activeDownloadsCount > 0 ? formatSpeed(totalSpeed) : t('dashboard.idle')}
+              </Badge>
+              {!loadingUser && currentUser && (
+                <UserMenu user={currentUser} onThemeChange={(t) => setTheme(t)} currentTheme={theme} />
+              )}
+            </div>
           </div>
-          <p className="text-muted-foreground">
-            {t('dashboard.subtitle')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge
-            variant={activeDownloadsCount > 0 ? "default" : "outline"}
-            className="flex items-center gap-1"
-          >
-            <Activity className="h-3 w-3" />
-            {activeDownloadsCount > 0 ? formatSpeed(totalSpeed) : t('dashboard.idle')}
-          </Badge>
-          {!loadingUser && currentUser && (
-            <UserMenu user={currentUser} onThemeChange={(t) => setTheme(t)} currentTheme={theme} />
-          )}
-        </div>
-      </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
-          <TabsTrigger value="overview">{t('dashboard.overview')}</TabsTrigger>
-          <TabsTrigger value="forums">{t('dashboard.forums')}</TabsTrigger>
-          <TabsTrigger value="testing">{t('dashboard.testing')}</TabsTrigger>
-          <TabsTrigger value="downloads">{t('dashboard.downloads')}</TabsTrigger>
-          {isAdmin && <TabsTrigger value="config">{t('dashboard.configuration')}</TabsTrigger>}
-        </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
+          {/* Overview Section */}
+          {visitedSections.has('overview') && (
+            <div className={activeSection === 'overview' ? 'space-y-6' : 'hidden'}>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
             {/* Forums Status */}
             <Card>
@@ -459,10 +486,12 @@ function HomeContent() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+          )}
 
-        {/* Forums Tab */}
-        <TabsContent value="forums" className="space-y-6">
+          {/* Forums Section */}
+          {visitedSections.has('settings-forums') && (
+            <div className={activeSection === 'settings-forums' ? 'space-y-6' : 'hidden'}>
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.configuredForums')}</h2>
@@ -574,16 +603,18 @@ function HomeContent() {
               language={userLanguage}
             />
           )}
-        </TabsContent>
+        </div>
+          )}
 
-        {/* Testing Tab */}
-        <TabsContent value="testing" className="space-y-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.testingEmulation')}</h2>
-            <p className="text-muted-foreground">
-              {t('dashboard.testingDescription')}
-            </p>
-          </div>
+          {/* Testing Section */}
+          {visitedSections.has('testing') && (
+            <div className={activeSection === 'testing' ? 'space-y-6' : 'hidden'}>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.testingEmulation')}</h2>
+                <p className="text-muted-foreground">
+                  {t('dashboard.testingDescription')}
+                </p>
+              </div>
 
           <div className="space-y-6">
             <TestingSettings language={userLanguage} />
@@ -688,16 +719,19 @@ function HomeContent() {
 
             <JDownloaderTester language={userLanguage} />
           </div>
-        </TabsContent>
+        </div>
+          )}
 
-        {/* Downloads Tab */}
-        <TabsContent value="downloads" className="space-y-6">
-          <DownloadsManager language={userLanguage} />
-        </TabsContent>
+          {/* Downloads Section */}
+          {visitedSections.has('downloads') && (
+            <div className={activeSection === 'downloads' ? 'space-y-6' : 'hidden'}>
+              <DownloadsManager language={userLanguage} />
+            </div>
+          )}
 
-        {/* Configuration Tab */}
-        {isAdmin && (
-          <TabsContent value="config" className="space-y-6">
+          {/* Configuration Section */}
+          {isAdmin && visitedSections.has('settings-connections') && (
+            <div className={activeSection === 'settings-connections' ? 'space-y-6' : 'hidden'}>
             <div>
               <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.configuration')}</h2>
               <p className="text-muted-foreground">
@@ -706,21 +740,6 @@ function HomeContent() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    {t('dashboard.userManagement')}
-                  </CardTitle>
-                  <CardDescription>
-                    {t('dashboard.createEditDeleteUsers')}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <UserManagement language={userLanguage} />
-                </CardContent>
-              </Card>
-
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1122,22 +1141,55 @@ function HomeContent() {
               </Card>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  {t('logs.title')}
-                </CardTitle>
-                <CardDescription>{t('logs.description')}</CardDescription>
-              </CardHeader>
-              <CardContent>
+          </div>
+          )}
+
+          {/* Users Section */}
+          {isAdmin && visitedSections.has('settings-users') && (
+            <div className={activeSection === 'settings-users' ? 'space-y-6' : 'hidden'}>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.userManagement')}</h2>
+                <p className="text-muted-foreground">
+                  {t('dashboard.createEditDeleteUsers')}
+                </p>
+              </div>
+              <Card>
+                <CardContent className="pt-6">
+                  <UserManagement language={userLanguage} />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Logs Section */}
+          {isAdmin && visitedSections.has('settings-logs') && (
+            <div className={cn(activeSection === 'settings-logs' ? 'flex flex-1 flex-col gap-6' : 'hidden')} style={{ minHeight: 0 }}>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">{t('logs.title')}</h2>
+                <p className="text-muted-foreground">
+                  {t('logs.description')}
+                </p>
+              </div>
+              <div className="h-[90%] rounded-lg border bg-card p-4">
                 <LogViewer language={userLanguage} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
-      </Tabs>
-      <Footer />
-    </div>
+              </div>
+            </div>
+          )}
+
+          {/* Backup Section */}
+          {isAdmin && visitedSections.has('settings-backup') && (
+            <div className={activeSection === 'settings-backup' ? 'space-y-6' : 'hidden'}>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">{t('dashboard.backupRestore')}</h2>
+                <p className="text-muted-foreground">
+                  {t('dashboard.backupRestoreDescription')}
+                </p>
+              </div>
+              <ConfigBackup language={userLanguage} />
+            </div>
+          )}
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }
