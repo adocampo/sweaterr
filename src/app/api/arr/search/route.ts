@@ -291,11 +291,11 @@ export async function GET(request: NextRequest) {
         if (shouldSearch && isTvSearch) {
             const beforeTypeFilter = filteredResults.length;
             
-            // First, filter by content type (only series for TV searches)
+            // Keep ambiguous titles so Sonarr can apply its own title matching.
+            // Only remove titles explicitly identified as movies.
             filteredResults = allResults.filter(result => {
                 const contentType = detectType(result.title, '');
-                // Only include series for TV searches, exclude 'unknown' and 'movie'
-                return contentType === 'series';
+                return contentType !== 'movie';
             });
             
             const afterTypeFilter = filteredResults.length;

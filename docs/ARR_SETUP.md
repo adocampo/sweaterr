@@ -18,9 +18,9 @@ Cada foro en Sweaterr tiene su propia **API key Torznab** generada automáticame
 3. Ve a **Configuración** (pestaña superior)
 4. En la sección **"Foros"**, encontrarás la tabla de foros configurados
 5. En la columna **"Torznab Feed"**, busca el foro que quieras usar con *arr
-6. Click en el botón **"Copy Feed"** para copiar la URL completa con API key
-   - Formato: `http://localhost:3000/api/arr?apikey=fdd-xxxxxxxxxxxxxxxxxxxxxxxx`
-7. La URL se copiará automáticamente al portapapeles
+6. Copia la **URL** del feed y la **API Key** con sus botones respectivos
+   - URL: `http://localhost:3000/api/arr`
+   - API Key: `fdd-xxxxxxxxxxxxxxxxxxxxxxxx`
 
 ## Paso 2: Añadir Indexer en Sonarr/Radarr
 
@@ -35,9 +35,8 @@ Cada foro en Sweaterr tiene su propia **API key Torznab** generada automáticame
    - **Enable RSS**: ✅ (recomendado para monitoreo automático)
    - **Enable Automatic Search**: ✅
    - **Enable Interactive Search**: ✅
-   - **URL**: Pega la URL copiada del "Copy Feed" button
-     - Ejemplo: `http://localhost:3000/api/arr?apikey=fdd-xxxxxxxxxxxxxxxxxxxxxxxx`
-   - **API Key**: Dejar vacío (ya está incluido en la URL)
+   - **URL**: `http://localhost:3000/api/arr`
+   - **API Key**: Pega la clave Torznab del foro
    - **Categories**: Dejar vacío o seleccionar `5000 - TV`
    - **Additional Parameters**: Vacío
 6. Click **"Test"** para verificar conexión
@@ -55,8 +54,8 @@ Cada foro en Sweaterr tiene su propia **API key Torznab** generada automáticame
    - **Enable RSS**: ✅
    - **Enable Automatic Search**: ✅
    - **Enable Interactive Search**: ✅
-   - **URL**: Pega la URL del "Copy Feed" button
-   - **API Key**: Dejar vacío
+   - **URL**: `http://localhost:3000/api/arr`
+   - **API Key**: Pega la clave Torznab del foro
    - **Categories**: Dejar vacío o seleccionar `2000 - Movies`
 6. Click **"Test"** → Debe ser exitoso
 7. Click **"Save"**
