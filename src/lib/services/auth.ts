@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
+import { markSetupComplete } from '@/lib/setup-flag';
 
 const userDelegate = () => (db as any).user as any;
 
@@ -121,6 +122,9 @@ export async function setupFirstAdmin(
                 isFirstSetupDone: true,
             },
         });
+
+        // Mark setup as complete by writing a flag file
+        markSetupComplete();
 
         return {
             success: true,

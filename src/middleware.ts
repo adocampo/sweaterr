@@ -15,26 +15,32 @@ function extractToken(
     return null;
 }
 
-// In-memory cache for setup status (avoids DB hits on every request)
+// Edge-compatible cache for setup status (no fs/process.cwd usage)
 let _setupStatusCache: { needed: boolean; expiresAt: number } | null = null;
-const SETUP_CACHE_TTL_MS = 5_000; // 5 seconds
+const SETUP_CACHE_TTL_MS = 60_000; // 60 seconds
 
-async function getSetupStatusCache(): Promise<boolean> {
+async function getSetupStatus(): Promise<boolean> {
     const now = Date.now();
     if (_setupStatusCache && now < _setupStatusCache.expiresAt) {
+        console.log('[Middleware] getSetupStatus (cached):', _setupStatusCache.needed);
         return _setupStatusCache.needed;
     }
     try {
-        const res = await fetch('http://127.0.0.1:3000/api/auth/users-count', {
+        console.log('[Middleware] getSetupStatus: fetching /api/auth/users-count');
+        const res = await fetch(`${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://127.0.0.1:3000'}/api/auth/users-count`, {
             cache: 'no-store',
+            headers: { 'X-Forwarded-For': '127.0.0.1' }
         });
+        console.log('[Middleware] getSetupStatus: response status:', res.status);
         const data = await res.json();
+        console.log('[Middleware] getSetupStatus: API response:', data);
         const needed = !(data.success && data.count > 0);
+        console.log('[Middleware] getSetupStatus: calculated needed=', needed);
         _setupStatusCache = { needed, expiresAt: now + SETUP_CACHE_TTL_MS };
         return needed;
-    } catch {
-        // Fallback: assume setup is needed (allows first-time access)
-        return true;
+    } catch (err) {
+        console.error('[Middleware] getSetupStatus: fetch failed, defaulting to true:', err);
+        return true; // fallback: assume setup is needed
     }
 }
 
@@ -62,7 +68,7 @@ export async function middleware(request: NextRequest) {
 
     // Special handling for /setup: only allow when no users exist
     if (pathname === '/setup') {
-        const setupNeeded = await getSetupStatusCache();
+        const setupNeeded = await getSetupStatus();
         if (!setupNeeded) {
             return NextResponse.redirect(new URL('/login', request.url), { status: 302 });
         }

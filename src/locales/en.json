@@ -41,7 +41,9 @@
     "system": "System",
     "light": "Light",
     "dark": "Dark",
-    "logout": "Logout"
+    "logout": "Logout",
+    "spanish": "Spanish",
+    "english": "English"
   },
   "dashboard": {
     "title": "Dashboard",

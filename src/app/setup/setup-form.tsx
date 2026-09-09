@@ -13,7 +13,7 @@ import { AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 
 export default function SetupForm() {
     const router = useRouter();
-    const { t } = useI18n('es');
+    const { t } = useI18n();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);

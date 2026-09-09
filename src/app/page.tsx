@@ -53,7 +53,6 @@ import { TestingSettings } from '@/components/testing/testing-settings';
 import { DownloadsManager } from '@/components/downloads/downloads-manager';
 import { useForums, useJDownloaderConfig, useAIConfig, useFlareSolverrConfig, useTmdbConfig, useDownloads, useJDownloaders, useAIModels } from '@/hooks/use-api';
 import { useTheme } from '@/components/theme-provider';
-import { UserMenu } from '@/components/user-menu';
 import { UserManagement } from '@/components/config/user-management';
 import { LogViewer } from '@/components/config/log-viewer';
 import { useI18n } from '@/hooks/use-i18n';
@@ -266,6 +265,9 @@ function HomeContent() {
         onSectionChange={setActiveSection}
         isAdmin={isAdmin}
         language={userLanguage}
+        user={currentUser}
+        currentTheme={theme}
+        onThemeChange={setTheme}
       />
       <div className={`flex-1 min-h-0 flex-col overflow-auto transition-all duration-300 ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
         <div className="flex min-h-0 h-full flex-col w-full overflow-auto p-4 md:p-6">
@@ -288,9 +290,7 @@ function HomeContent() {
                 <Activity className="h-3 w-3" />
                 {activeDownloadsCount > 0 ? formatSpeed(totalSpeed) : t('dashboard.idle')}
               </Badge>
-              {!loadingUser && currentUser && (
-                <UserMenu user={currentUser} onThemeChange={(t) => setTheme(t)} currentTheme={theme} />
-              )}
+
             </div>
           </div>
 

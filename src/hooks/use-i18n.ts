@@ -18,6 +18,59 @@ const translations: Record<Language, Translations> = {
     en: enTranslations,
 };
 
+const VALID_LANGUAGES: Record<string, Language> = {
+    es: 'es',
+    en: 'en',
+    es_es: 'es',
+    en_us: 'en',
+    en_gb: 'en',
+};
+
+const STORAGE_KEY = 'sweaterr-language';
+
+/**
+ * Resolve the preferred language with this priority:
+ * 1. Explicit language parameter passed to useI18n()
+ * 2. User preference stored in localStorage (set via UserMenu)
+ * 3. Browser language (navigator.language)
+ * 4. Fallback to 'en'
+ */
+function resolveLanguage(
+    explicit?: Language,
+    userLanguage?: string | null
+): Language {
+    // 1. Explicit parameter wins
+    if (explicit && VALID_LANGUAGES[explicit]) {
+        return explicit;
+    }
+
+    // 2. User stored preference (from localStorage or user object)
+    if (userLanguage && VALID_LANGUAGES[userLanguage]) {
+        return userLanguage;
+    }
+
+    // 3. Browser language / localStorage
+    if (typeof window !== 'undefined') {
+        // Check localStorage first (user preference overrides browser setting)
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored && VALID_LANGUAGES[stored]) {
+            return stored;
+        }
+
+        // Then check browser language
+        const browserLang = navigator.language.toLowerCase();
+        const mapped = VALID_LANGUAGES[browserLang];
+        if (mapped) return mapped;
+
+        // Try without region (e.g. "es-es" -> "es")
+        const baseLang = browserLang.split('-')[0];
+        if (VALID_LANGUAGES[baseLang]) return VALID_LANGUAGES[baseLang];
+    }
+
+    // 4. Fallback to English
+    return 'en';
+}
+
 function interpolate(value: string, params?: TranslationParams): string {
     if (!params) return value;
     return value.replace(/\{(\w+)\}/g, (_, key: string) => {
@@ -26,18 +79,60 @@ function interpolate(value: string, params?: TranslationParams): string {
     });
 }
 
-export function useI18n(language: Language = 'es') {
+export function useI18n(
+    explicit?: Language,
+    userLanguage?: string | null
+) {
     // Prevent hydration mismatch: defer to client-side value after first render
-    const [resolvedLanguage, setResolvedLanguage] = useState<Language>(language);
+    // Initialize with resolved language on the client
+    const [resolvedLanguage, setResolvedLanguage] = useState<Language>(() => {
+        return resolveLanguage(explicit, userLanguage);
+    });
     const [isHydrated, setIsHydrated] = useState(false);
 
+    // On the client, try to read from localStorage as fallback
     useEffect(() => {
-        setResolvedLanguage(language);
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored && VALID_LANGUAGES[stored]) {
+                setResolvedLanguage(stored);
+            }
+        }
         setIsHydrated(true);
-    }, [language]);
+    }, []);
+
+    // Listen for language changes from other components (e.g. UserMenu)
+    useEffect(() => {
+        const handleLanguageChange = () => {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored && VALID_LANGUAGES[stored]) {
+                setResolvedLanguage(stored);
+            }
+        };
+
+        const handleStorage = (e: StorageEvent) => {
+            if (e.key === STORAGE_KEY && e.newValue && VALID_LANGUAGES[e.newValue as Language]) {
+                setResolvedLanguage(e.newValue as Language);
+            }
+        };
+
+        window.addEventListener('sweaterr-languagechange', handleLanguageChange);
+        window.addEventListener('storage', handleStorage);
+
+        return () => {
+            window.removeEventListener('sweaterr-languagechange', handleLanguageChange);
+            window.removeEventListener('storage', handleStorage);
+        };
+    }, []);
+
+    // Update resolved language when explicit/userLanguage params change
+    useEffect(() => {
+        const resolved = resolveLanguage(explicit, userLanguage);
+        setResolvedLanguage(resolved);
+    }, [explicit, userLanguage]);
 
     // Use the resolved value after hydration
-    const effectiveLanguage = isHydrated ? resolvedLanguage : language;
+    const effectiveLanguage = isHydrated ? resolvedLanguage : (explicit || 'en');
 
     // Get the translation object for the current language
     const currentTranslations = useMemo(() => {
@@ -65,7 +160,7 @@ export function useI18n(language: Language = 'es') {
         [currentTranslations]
     );
 
-    return { t, language };
+    return { t, language: effectiveLanguage };
 }
 
 /**

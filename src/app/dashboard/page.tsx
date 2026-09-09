@@ -52,7 +52,6 @@ import { TestingSettings } from '@/components/testing/testing-settings';
 import { DownloadsManager } from '@/components/downloads/downloads-manager';
 import { useForums, useJDownloaderConfig, useAIConfig, useFlareSolverrConfig, useTmdbConfig, useDownloads, useJDownloaders, useAIModels } from '@/hooks/use-api';
 import { useTheme } from '@/components/theme-provider';
-import { UserMenu } from '@/components/user-menu';
 import { UserManagement } from '@/components/config/user-management';
 import { LogViewer } from '@/components/config/log-viewer';
 import { useI18n } from '@/hooks/use-i18n';
@@ -265,6 +264,9 @@ function HomeContent() {
         onSectionChange={setActiveSection}
         isAdmin={isAdmin}
         language={userLanguage}
+        user={currentUser}
+        currentTheme={theme}
+        onThemeChange={setTheme}
       />
 
       <div className={`transition-all duration-300 ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
@@ -288,131 +290,195 @@ function HomeContent() {
                 <Activity className="h-3 w-3" />
                 {activeDownloadsCount > 0 ? formatSpeed(totalSpeed) : t('dashboard.idle')}
               </Badge>
-              {!loadingUser && currentUser && (
-                <UserMenu user={currentUser} onThemeChange={(t) => setTheme(t)} currentTheme={theme} />
-              )}
+
             </div>
           </div>
 
           {/* Overview Section */}
           {visitedSections.has('overview') && (
             <div className={activeSection === 'overview' ? 'space-y-6' : 'hidden'}>
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+              {/* Gradient Status Cards */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
                 {/* Forums Status */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t('dashboard.forums')}</CardTitle>
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.forums.online}/{stats.forums.total}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {t('dashboard.online')}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      {getStatusIcon(stats.forums.online > 0)}
-                      <span className="text-xs">{t('dashboard.online')}</span>
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 shadow-lg transition-all duration-300 hover:border-gray-600 hover:shadow-xl hover:-translate-y-0.5">
+                  {/* Gradient accent */}
+                  <div className={`absolute top-0 left-0 right-0 h-0.5 transition-opacity duration-300 ${stats.forums.online > 0 ? 'bg-gradient-to-r from-green-500 to-emerald-400' : 'bg-gradient-to-r from-red-500 to-rose-400'} opacity-100`} />
+                  
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      {/* Large gradient icon */}
+                      <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${stats.forums.online > 0 ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30' : 'bg-gradient-to-br from-red-500/20 to-rose-500/20 border border-red-500/30'}`}>
+                        <Globe className={`h-5 w-5 ${stats.forums.online > 0 ? 'text-green-400' : 'text-red-400'}`} />
+                        {stats.forums.online > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500 border-2 border-gray-900"></span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Text */}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t('dashboard.forums')}</h3>
+                        <div className="flex items-baseline gap-1.5 mt-0.5">
+                          <span className={`text-2xl font-bold tracking-tight ${stats.forums.online > 0 ? 'text-white' : 'text-gray-400'}`}>{stats.forums.online}</span>
+                          <span className="text-sm text-gray-500">/ {stats.forums.total}</span>
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className={`h-1.5 flex-1 rounded-full ${stats.forums.online > 0 ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-gradient-to-r from-red-600 to-rose-400'}`} style={{width: `${stats.forums.total > 0 ? (stats.forums.online / stats.forums.total) * 100 : 0}%`}}></div>
+                      <span className="text-xs text-gray-500">{t('dashboard.online')}</span>
+                    </div>
+                  </div>
+                </div>
 
                 {/* JDownloader Status */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t('dashboard.jdownloaderStatus')}</CardTitle>
-                    <Download className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.jdownloader.downloadsActive}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {t('dashboard.activeAndHistory')}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      {getStatusIcon(stats.jdownloader.connected)}
-                      <span className="text-xs">{stats.jdownloader.deviceName}</span>
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 shadow-lg transition-all duration-300 hover:border-gray-600 hover:shadow-xl hover:-translate-y-0.5">
+                  <div className={`absolute top-0 left-0 right-0 h-0.5 ${stats.jdownloader.connected ? 'bg-gradient-to-r from-cyan-500 to-blue-400' : 'bg-gradient-to-r from-red-500 to-rose-400'}`} />
+                  
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${stats.jdownloader.connected ? 'bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30' : 'bg-gradient-to-br from-red-500/20 to-rose-500/20 border border-red-500/30'}`}>
+                        <Download className={`h-5 w-5 ${stats.jdownloader.connected ? 'text-cyan-400' : 'text-red-400'}`} />
+                        {stats.jdownloader.connected && (
+                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-cyan-500 border-2 border-gray-900"></span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t('dashboard.jdownloaderStatus')}</h3>
+                        <div className="flex items-baseline gap-1.5 mt-0.5">
+                          <span className={`text-2xl font-bold tracking-tight ${stats.jdownloader.connected ? 'text-white' : 'text-gray-400'}`}>{stats.jdownloader.downloadsActive}</span>
+                          <span className="text-sm text-gray-500">active</span>
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className={`h-1.5 flex-1 rounded-full overflow-hidden ${stats.jdownloader.connected ? 'bg-gradient-to-r from-cyan-600 to-cyan-400' : 'bg-gradient-to-r from-red-600 to-rose-400'}`}>
+                        <div className="h-full w-full rounded-full animate-pulse"></div>
+                      </div>
+                      <span className="text-xs text-gray-500 truncate">{stats.jdownloader.deviceName}</span>
+                    </div>
+                  </div>
+                </div>
 
                 {/* AI Status */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t('dashboard.aiStatus')}</CardTitle>
-                    <Cpu className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{stats.ai.provider}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {stats.ai.model}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      {getStatusIcon(stats.ai.connected)}
-                      <span className="text-xs">{t('dashboard.connected')}</span>
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 shadow-lg transition-all duration-300 hover:border-gray-600 hover:shadow-xl hover:-translate-y-0.5">
+                  <div className={`absolute top-0 left-0 right-0 h-0.5 ${stats.ai.connected ? 'bg-gradient-to-r from-violet-500 to-purple-400' : 'bg-gradient-to-r from-red-500 to-rose-400'}`} />
+                  
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${stats.ai.connected ? 'bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30' : 'bg-gradient-to-br from-red-500/20 to-rose-500/20 border border-red-500/30'}`}>
+                        <Cpu className={`h-5 w-5 ${stats.ai.connected ? 'text-violet-400' : 'text-red-400'}`} />
+                        {stats.ai.connected && (
+                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-violet-500 border-2 border-gray-900"></span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t('dashboard.aiStatus')}</h3>
+                        <div className="mt-0.5">
+                          <span className={`text-2xl font-bold tracking-tight ${stats.ai.connected ? 'text-white' : 'text-gray-400'}`}>{stats.ai.provider}</span>
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className={`h-1.5 flex-1 rounded-full ${stats.ai.connected ? 'bg-gradient-to-r from-violet-600 to-violet-400' : 'bg-gradient-to-r from-red-600 to-rose-400'}`} style={{width: `${stats.ai.connected ? '100%' : '0%'}`}}></div>
+                      <span className="text-xs text-gray-500 truncate">{stats.ai.model}</span>
+                    </div>
+                  </div>
+                </div>
 
                 {/* FlareSolverr Status */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">FlareSolverr</CardTitle>
-                    <Server className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {flaresolverrStatus === 'ok'
-                        ? t('flaresolverrConfig.statusOnline')
-                        : flaresolverrStatus === 'error'
-                          ? t('flaresolverrConfig.statusError')
-                          : t('flaresolverrConfig.statusOffline')}
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 shadow-lg transition-all duration-300 hover:border-gray-600 hover:shadow-xl hover:-translate-y-0.5">
+                  <div className={`absolute top-0 left-0 right-0 h-0.5 ${flaresolverrStatus === 'ok' ? 'bg-gradient-to-r from-amber-500 to-yellow-400' : 'bg-gradient-to-r from-red-500 to-rose-400'}`} />
+                  
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${flaresolverrStatus === 'ok' ? 'bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/30' : 'bg-gradient-to-br from-red-500/20 to-rose-500/20 border border-red-500/30'}`}>
+                        <Server className={`h-5 w-5 ${flaresolverrStatus === 'ok' ? 'text-amber-400' : 'text-red-400'}`} />
+                        {flaresolverrStatus === 'ok' && (
+                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500 border-2 border-gray-900"></span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">FlareSolverr</h3>
+                        <div className="mt-0.5">
+                          <span className={`text-sm font-bold ${flaresolverrStatus === 'ok' ? 'text-white' : 'text-red-400'}`}>
+                            {flaresolverrStatus === 'ok'
+                              ? t('flaresolverrConfig.statusOnline')
+                              : flaresolverrStatus === 'error'
+                                ? t('flaresolverrConfig.statusError')
+                                : t('flaresolverrConfig.statusOffline')}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <p className="truncate text-xs text-muted-foreground" title={flaresolverrConfig?.url || undefined}>
-                      {flaresolverrConfig?.url || t('dashboard.notConfigured')}
-                    </p>
-                    <div className="mt-2 flex items-center gap-2">
-                      {getStatusIcon(flaresolverrStatus === 'ok')}
-                      <span className="text-xs">
-                        {flaresolverrConfig?.source === 'database'
-                          ? t('flaresolverrConfig.sourceDatabase')
-                          : flaresolverrConfig?.source === 'env'
-                            ? t('flaresolverrConfig.sourceEnvironment')
-                            : t('dashboard.notConfigured')}
-                      </span>
+                    
+                    <div className="mt-3 flex items-center gap-2">
+                      <div className={`h-1.5 flex-1 rounded-full ${flaresolverrStatus === 'ok' ? 'bg-gradient-to-r from-amber-600 to-amber-400' : 'bg-gradient-to-r from-red-600 to-rose-400'}`} style={{width: `${flaresolverrStatus === 'ok' ? '100%' : '0%'}`}}></div>
+                      <span className="text-xs text-gray-500 truncate" title={flaresolverrConfig?.url || undefined}>{flaresolverrConfig?.url || t('dashboard.notConfigured')}</span>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
                 {/* Total Downloads */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{t('dashboard.totalDownloads')}</CardTitle>
-                    <Activity className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{jDownloaderStats.total}</div>
-                    <p className="text-xs text-muted-foreground">
-                      {t('dashboard.activeDownloads')}
-                    </p>
-                    <div className="grid grid-cols-2 gap-3 mt-4">
-                      <div className="p-2 rounded bg-green-50 dark:bg-green-950">
-                        <p className="text-xs text-muted-foreground font-medium">{t('dashboard.downloading')}</p>
-                        <p className="text-lg font-bold text-green-600 dark:text-green-400">{jDownloaderStats.downloading}</p>
+                <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 border border-gray-700/50 shadow-lg transition-all duration-300 hover:border-gray-600 hover:shadow-xl hover:-translate-y-0.5">
+                  <div className={`absolute top-0 left-0 right-0 h-0.5 ${jDownloaderStats.downloading > 0 ? 'bg-gradient-to-r from-emerald-500 to-green-400' : 'bg-gradient-to-r from-gray-600 to-gray-500'}`} />
+                  
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${jDownloaderStats.downloading > 0 ? 'bg-gradient-to-br from-emerald-500/20 to-green-500/20 border border-emerald-500/30' : 'bg-gradient-to-br from-gray-600/20 to-gray-500/20 border border-gray-600/30'}`}>
+                        <Activity className={`h-5 w-5 ${jDownloaderStats.downloading > 0 ? 'text-emerald-400' : 'text-gray-400'}`} />
+                        {jDownloaderStats.downloading > 0 && (
+                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 border-2 border-gray-900"></span>
+                          </span>
+                        )}
                       </div>
-                      <div className="p-2 rounded bg-yellow-50 dark:bg-yellow-950">
-                        <p className="text-xs text-muted-foreground font-medium">{t('dashboard.pending')}</p>
-                        <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">{jDownloaderStats.pending}</p>
-                      </div>
-                      <div className="p-2 rounded bg-blue-50 dark:bg-blue-950">
-                        <p className="text-xs text-muted-foreground font-medium">{t('dashboard.completed')}</p>
-                        <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{jDownloaderStats.completed}</p>
-                      </div>
-                      <div className="p-2 rounded bg-red-50 dark:bg-red-950">
-                        <p className="text-xs text-muted-foreground font-medium">{t('dashboard.failed')}</p>
-                        <p className="text-lg font-bold text-red-600 dark:text-red-400">{jDownloaderStats.failed}</p>
+                      
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t('dashboard.totalDownloads')}</h3>
+                        <div className="flex items-baseline gap-1.5 mt-0.5">
+                          <span className={`text-2xl font-bold tracking-tight ${jDownloaderStats.downloading > 0 ? 'text-white' : 'text-gray-400'}`}>{jDownloaderStats.total}</span>
+                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    
+                    <div className="mt-3 flex items-center gap-2">
+                      {/* Mini status bars */}
+                      <div className="flex items-center gap-3 text-xs">
+                        <span className="flex items-center gap-1 text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                          {jDownloaderStats.downloading}
+                        </span>
+                        <span className="flex items-center gap-1 text-blue-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400"></span>
+                          {jDownloaderStats.completed}
+                        </span>
+                        <span className="flex items-center gap-1 text-red-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-400"></span>
+                          {jDownloaderStats.failed}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Recent Downloads */}

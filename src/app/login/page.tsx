@@ -1,15 +1,21 @@
 'use client';
 
-import { Suspense, useEffect, useActionState } from 'react';
+import { Suspense, useEffect, useActionState, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { loginAction } from '@/app/actions/auth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useI18n } from '@/hooks/use-i18n';
 import Image from 'next/image';
+import { AlertCircle, Loader2 } from 'lucide-react';
+import { Footer } from '@/components/footer';
 
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { t } = useI18n('es');
+    const { t } = useI18n();
     const [state, login, isPending] = useActionState(loginAction, null);
 
     useEffect(() => {
@@ -18,60 +24,70 @@ function LoginForm() {
         }
     }, [state, router]);
 
-    const error = searchParams.get('error') || '';
+    const error = state?.error || searchParams.get('error') || '';
 
     return (
-        <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 to-slate-800 p-4">
             <div className="flex-1 flex items-center justify-center">
-                <div className="w-full max-w-md bg-white/10 backdrop-blur-sm rounded-lg p-8 border border-white/20">
-                    <div className="text-center mb-6">
-                        <div className="flex justify-center mb-4">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="text-center space-y-2 pb-4">
+                        <div className="flex justify-center mb-2">
                             <Image src="/logo.png" alt="Sweaterr" width={200} height={50} priority className="h-12 w-auto" />
                         </div>
-                        <h1 className="text-2xl font-bold text-white">{t('auth.login')}</h1>
-                        <p className="text-gray-300 text-sm mt-1">{t('login.enterCredentials')}</p>
-                    </div>
+                        <CardTitle>{t('auth.login')}</CardTitle>
+                        <CardDescription>{t('login.enterCredentials')}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <form action={login} className="space-y-4">
+                            {error && (
+                                <Alert variant="destructive">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertDescription>{error}</AlertDescription>
+                                </Alert>
+                            )}
 
-                    <form action={login} className="space-y-4">
-                        {error && (
-                            <div className="bg-red-500/20 border border-red-500/50 text-red-200 px-4 py-3 rounded text-sm">
-                                {error}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">{t('login.usernameOrEmail')}</label>
+                                <Input
+                                    type="text"
+                                    name="usernameOrEmail"
+                                    placeholder={t('login.usernameOrEmailPlaceholder')}
+                                    disabled={isPending}
+                                    required
+                                    autoFocus
+                                />
                             </div>
-                        )}
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-200">{t('login.usernameOrEmail')}</label>
-                            <input
-                                type="text"
-                                name="usernameOrEmail"
-                                placeholder={t('login.usernameOrEmailPlaceholder')}
-                                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                                autoFocus
-                            />
-                        </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">{t('auth.password')}</label>
+                                <Input
+                                    type="password"
+                                    name="password"
+                                    placeholder="••••••••"
+                                    disabled={isPending}
+                                    required
+                                />
+                            </div>
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-200">{t('auth.password')}</label>
-                            <input
-                                type="password"
-                                name="password"
-                                placeholder="••••••••"
-                                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={isPending}
-                            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded transition-colors"
-                        >
-                            {isPending ? '...' : t('auth.login')}
-                        </button>
-                    </form>
-                </div>
+                            <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={isPending}
+                            >
+                                {isPending ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        {t('common.loading')}
+                                    </>
+                                ) : (
+                                    t('auth.login')
+                                )}
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
             </div>
+            <Footer />
         </div>
     );
 }
@@ -79,7 +95,46 @@ function LoginForm() {
 export default function LoginPage() {
     return (
         <Suspense>
-            <LoginForm />
+            <LoginFormWithSetupCheck />
         </Suspense>
     );
+}
+
+function LoginFormWithSetupCheck() {
+    const router = useRouter();
+    const [checking, setChecking] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        fetch('/api/auth/users-count', { cache: 'no-store' })
+            .then((res) => res.json())
+            .then((data) => {
+                if (cancelled) return;
+                // No users → redirect to setup
+                if (!(data.success && data.count > 0)) {
+                    router.replace('/setup');
+                } else {
+                    setChecking(false);
+                }
+            })
+            .catch(() => {
+                // If check fails, show login (user can still proceed)
+                if (!cancelled) setChecking(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [router]);
+
+    if (checking) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            </div>
+        );
+    }
+
+    return <LoginForm />;
 }

@@ -36,16 +36,25 @@ export function UserMenu({ user, onThemeChange, currentTheme = 'system' }: UserM
     const [language, setLanguage] = useState(user?.language || 'es');
     const { t } = useI18n(language as 'es' | 'en');
 
+    // Sync local language state with user prop changes (e.g. after page reload)
+    useEffect(() => {
+        if (user?.language) {
+            setLanguage(user.language);
+        }
+    }, [user?.language]);
+
     const handleLanguageChange = async (lang: 'es' | 'en') => {
         setLanguage(lang);
+        // Persist to localStorage so login/setup pages also use this language
+        localStorage.setItem('sweaterr-language', lang);
+        // Notify useI18n hook in all components to update immediately without reload
+        window.dispatchEvent(new Event('sweaterr-languagechange'));
         try {
             await fetch('/api/auth/me', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ language: lang }),
             });
-            // Refresh page to update i18n
-            window.location.reload();
         } catch (error) {
             console.error('Failed to update language:', error);
         }
@@ -110,13 +119,13 @@ export function UserMenu({ user, onThemeChange, currentTheme = 'system' }: UserM
                             onClick={() => handleLanguageChange('es')}
                             className={language === 'es' ? 'bg-slate-100 dark:bg-slate-800' : ''}
                         >
-                            Español
+                            {t('userMenu.spanish')}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             onClick={() => handleLanguageChange('en')}
                             className={language === 'en' ? 'bg-slate-100 dark:bg-slate-800' : ''}
                         >
-                            English
+                            {t('userMenu.english')}
                         </DropdownMenuItem>
                     </DropdownMenuSubContent>
                 </DropdownMenuSub>

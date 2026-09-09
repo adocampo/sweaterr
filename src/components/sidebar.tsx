@@ -17,8 +17,11 @@ import {
   HardDrive,
   Menu,
   X,
+  User,
 } from 'lucide-react';
 import { useI18n } from '@/hooks/use-i18n';
+import { UserMenu } from './user-menu';
+import { Button } from '@/components/ui/button';
 
 interface NavItem {
   id: string;
@@ -58,9 +61,18 @@ interface SidebarProps {
   onSectionChange: (section: string) => void;
   isAdmin: boolean;
   language?: 'es' | 'en';
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+    language: string;
+    theme: string;
+  };
+  currentTheme?: 'light' | 'dark' | 'system';
+  onThemeChange?: (theme: 'light' | 'dark' | 'system') => void;
 }
 
-export function Sidebar({ collapsed, onToggle, activeSection, onSectionChange, isAdmin, language = 'es' }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, activeSection, onSectionChange, isAdmin, language = 'es', user, currentTheme, onThemeChange }: SidebarProps) {
   const pathname = usePathname();
   const { t } = useI18n(language);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -206,17 +218,22 @@ export function Sidebar({ collapsed, onToggle, activeSection, onSectionChange, i
           })}
       </nav>
 
-        <div className="border-t p-2">
-          {collapsed ? (
-            <div className="flex justify-center">
-              <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-            </div>
-          ) : (
-            <div className="p-2 text-center text-xs text-muted-foreground">
-              {APP_NAME} v{APP_VERSION}
-            </div>
-          )}
-        </div>
+      {/* User menu at the bottom - visible even when sidebar is collapsed */}
+      <div className="p-2">
+        <UserMenu user={user} currentTheme={currentTheme} onThemeChange={onThemeChange} />
+      </div>
+
+      <div className="border-t p-2">
+        {collapsed ? (
+          <div className="flex justify-center">
+            <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+          </div>
+        ) : (
+          <div className="p-2 text-center text-xs text-muted-foreground">
+            {APP_NAME} v{APP_VERSION}
+          </div>
+        )}
+      </div>
       </aside>
     </>
   );

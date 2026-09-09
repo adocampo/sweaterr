@@ -41,7 +41,9 @@
     "system": "Sistema",
     "light": "Claro",
     "dark": "Oscuro",
-    "logout": "Cerrar sesión"
+    "logout": "Cerrar sesión",
+    "spanish": "Español",
+    "english": "English"
   },
   "dashboard": {
     "title": "Panel de control",
