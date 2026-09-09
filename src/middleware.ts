@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyTokenEdge } from '@/lib/edge-jwt';
+import { isSetupComplete } from '@/lib/setup-flag';
 
 // Extract token from request headers or cookies (edge-safe)
 function extractToken(
@@ -26,25 +27,14 @@ async function getSetupStatus(): Promise<boolean> {
         return _setupStatusCache.needed;
     }
     try {
-        console.log('[Middleware] getSetupStatus: fetching /api/auth/users-count');
-        const res = await fetch(`${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://127.0.0.1:3000'}/api/auth/users-count`, {
-            cache: 'no-store',
-            headers: { 'X-Forwarded-For': '127.0.0.1' }
-        });
-        console.log('[Middleware] getSetupStatus: response status:', res.status);
-        const data = await res.json();
-        console.log('[Middleware] getSetupStatus: API response:', data);
-        const needed = !(data.success && data.count > 0);
-        console.log('[Middleware] getSetupStatus: calculated needed=', needed);
+        // Use the setup flag file instead of the API to avoid edge-runtime fetch issues
+        const setupComplete = isSetupComplete();
+        const needed = !setupComplete;
+        console.log('[Middleware] getSetupStatus (flag): setupComplete=', setupComplete, 'needed=', needed);
         _setupStatusCache = { needed, expiresAt: now + SETUP_CACHE_TTL_MS };
         return needed;
     } catch (err) {
-        console.error('[Middleware] getSetupStatus: fetch failed, defaulting to true:', err);
-        return true; // fallback: assume setup is needed
-    }
-}
-
-export async function middleware(request: NextRequest) {
+        console.error('[Middleware] getSetupStatus: flag check
     const { pathname } = request.nextUrl;
 
     // List of public routes that don't require authentication
